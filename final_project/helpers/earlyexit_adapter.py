@@ -34,8 +34,14 @@ COST_SLICE = "cost"
 
 # What a routing policy may see. Absent: labels, the evaluation targets, anything that
 # would let it route by knowing the answer.
+# "calibration_exit" carries scores from images the policy is allowed to tune on.
+# "per_exit" carries the images it is scored on, and they are disjoint: a threshold
+# solved on the examples it will be judged on is an oracle operating point, not a
+# deployable rule. The abstention path makes that its whole lesson, and this path
+# should not quietly do the opposite.
 ALLOWED_POLICY_INPUTS = frozenset(
-    {"per_exit", "stage_costs", "target_cost", "seed", "rng", "count"})
+    {"per_exit", "calibration_exit", "stage_costs", "target_cost", "seed", "rng",
+     "count"})
 
 
 def check_policy_inputs(policies: Mapping[str, Callable],
@@ -106,7 +112,7 @@ def check_shared_evaluation(eval_digests: Mapping[str, str],
 def run_all_checks(plan: ProjectPlan, records, configs, policies, realized_costs,
                    target_cost, verification, head_digests, depths, eval_digests,
                    stage_count, expected_examples, record, *, budget_min, budget_max,
-                   metric, provenance=None, measured_budget=None):
+                   metric, metrics=(), provenance=None, measured_budget=None):
     """Generic checks first, then this path's invariants."""
     import project_schema as schema
 
@@ -114,7 +120,10 @@ def run_all_checks(plan: ProjectPlan, records, configs, policies, realized_costs
     schema.check_plan(plan, budget_min=budget_min, budget_max=budget_max, result=result)
     schema.check_split_integrity(records, result, seed_varies=plan.seed_varies)
     schema.check_matched_seeds(plan, records, result)
-    schema.check_complete_grid(plan, records, metric, result)
+    # Every metric the run reports. Checking the primary one alone would let a
+    # secondary metric be incomplete or absent without failing the gate.
+    for name in dict.fromkeys((metric,) + tuple(metrics)):
+        schema.check_complete_grid(plan, records, name, result)
     schema.check_matched_effort(plan, records, result)
     schema.check_metric_finiteness(records, result)
     schema.check_single_factor(plan, configs, result)

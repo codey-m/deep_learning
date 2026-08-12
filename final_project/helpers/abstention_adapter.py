@@ -271,7 +271,8 @@ def check_oracle_reference(records, result: ContractResult) -> ContractResult:
 def run_all_checks(plan, registry, records, configs, dev_shift, test_shift, record,
                    *, budget_min, budget_max, metric="selective_risk",
                    measured_budget=None, dev_positions=None,
-                   test_positions=None, expected_slices=None, policies=None):
+                   test_positions=None, expected_slices=None, policies=None,
+                   metrics=()):
     """Generic checks then path-specific ones, in one result.
 
     ``policies`` is optional so existing callers that inline their calibration are
@@ -285,10 +286,12 @@ def run_all_checks(plan, registry, records, configs, dev_shift, test_shift, reco
     schema.check_matched_seeds(plan, records, result)
     # This path's question is a dev-versus-test comparison, so the metric must
     # span both slices; a run that skipped the test slice is incomplete.
-    schema.check_complete_grid(
-        plan, records, metric, result,
-        expected_slices=expected_slices if expected_slices is not None
-        else (DEV_SLICE, TEST_SLICE))
+    # Every metric the run reports, on the slices the question requires.
+    for name in dict.fromkeys((metric,) + tuple(metrics)):
+        schema.check_complete_grid(
+            plan, records, name, result,
+            expected_slices=expected_slices if expected_slices is not None
+            else (DEV_SLICE, TEST_SLICE))
     schema.check_single_factor(plan, configs, result)
     schema.check_config_binding(records, configs, result)
     schema.check_matched_effort(plan, records, result)

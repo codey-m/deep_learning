@@ -90,7 +90,7 @@ def check_shared_mask_seed(configs, result: ContractResult) -> ContractResult:
 
 def run_all_checks(plan: ProjectPlan, records, configs, orders, signatures,
                    eval_hashes, model, dims, record, *, budget_min, budget_max,
-                   metric, provenance=None, measured_budget=None):
+                   metric, metrics=(), provenance=None, measured_budget=None):
     """Generic checks first, then this path's invariants."""
     import project_schema as schema
 
@@ -99,7 +99,10 @@ def run_all_checks(plan: ProjectPlan, records, configs, orders, signatures,
     schema.check_split_integrity(records, result,
                                  seed_varies=plan.seed_varies)
     schema.check_matched_seeds(plan, records, result)
-    schema.check_complete_grid(plan, records, metric, result)
+    # Every metric the run reports. Checking the primary one alone would let a
+    # secondary metric be incomplete or absent without failing the gate.
+    for name in dict.fromkeys((metric,) + tuple(metrics)):
+        schema.check_complete_grid(plan, records, name, result)
     schema.check_matched_effort(plan, records, result)
     schema.check_metric_finiteness(records, result)
     schema.check_single_factor(plan, configs, result)

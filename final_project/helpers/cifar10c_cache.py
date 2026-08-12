@@ -32,7 +32,7 @@ from PIL import Image
 from torchvision import datasets
 
 BASE_URL = ("https://raw.githubusercontent.com/codey-m/deep_learning/main/"
-            "capstone_data")
+            "final_project/capstone_data")
 ROOT = pathlib.Path(os.environ.get("CAPSTONE_DATA", "capstone_data"))
 CIFAR_ROOT = "data"
 

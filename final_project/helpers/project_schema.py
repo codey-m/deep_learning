@@ -18,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import statistics
 from dataclasses import asdict, dataclass, field
 from typing import Sequence
@@ -671,10 +672,32 @@ def format_resolvability(report: dict, *, label: str = "") -> str:
 RECORD_FIELDS = ("claim", "evidence", "resolved_comparisons", "caveat",
                  "not_supported", "next_experiment")
 
+# Words carrying no content for the duplicate check below.
+_RECORD_STOPWORDS = frozenset(
+    "the a an and or of to in on is are was were it its this that with for by as at "
+    "from be been but not no than then so which what when where how have has had "
+    "would could does did more most less least any all".split())
+# A caveat is meant to name what the design held constant. These are the words a
+# sentence doing that almost always contains.
+_FIXED_MARKER = re.compile(r"\b(one|single|only|fixed|same)\b", re.I)
+# The analysis produces exactly these three verdicts, so a summary of the comparisons
+# that never names one was not written from the output.
+_VERDICT_WORD = re.compile(r"\b(meaningful|equivalent|inconclusive)\b", re.I)
 
-def check_record(record: dict, result: ContractResult, *,
-                 minimum: int = 40) -> ContractResult:
-    """Completeness only. Quality is deliberately not certified here.
+
+def _content_words(text: str) -> set:
+    return {w for w in re.findall(r"[a-z]+", str(text).lower())
+            if w not in _RECORD_STOPWORDS and len(w) > 2}
+
+
+def check_record(record: dict, result: ContractResult, *, minimum: int = 40,
+                 similarity_cap: float = 0.6) -> ContractResult:
+    """Form, not quality. Quality still needs a human, and this does not pretend to.
+
+    What it can do is raise the floor past the three ways a record is filled in without
+    being thought about: restating the claim as the thing the claim does not support,
+    writing a caveat that names no limitation, and summarising the comparisons without
+    reading what the analysis actually returned.
 
     Fields are named so a rubric or ORA could score them later without restructuring.
     """
@@ -685,4 +708,24 @@ def check_record(record: dict, result: ContractResult, *,
     evidence = str(record.get("evidence", ""))
     result.require(any(ch.isdigit() for ch in evidence), "record.evidence.number",
                    "evidence must cite at least one measured number")
+
+    claim = _content_words(record.get("claim", ""))
+    unsupported = _content_words(record.get("not_supported", ""))
+    union = claim | unsupported
+    overlap = len(claim & unsupported) / len(union) if union else 1.0
+    result.require(overlap <= similarity_cap, "record.not_supported.restates_claim",
+                   f"not_supported shares {overlap:.0%} of its content words with the "
+                   "claim; it is meant to name what a reader might wrongly conclude "
+                   "from the result, not to repeat what the result showed")
+
+    result.require(bool(_FIXED_MARKER.search(str(record.get("caveat", "")))),
+                   "record.caveat.unbounded",
+                   "the caveat names nothing the design held constant; say what was "
+                   "fixed, because that is the boundary of what the result covers")
+
+    result.require(bool(_VERDICT_WORD.search(str(record.get("resolved_comparisons", "")))),
+                   "record.resolved.verdict",
+                   "resolved_comparisons cites none of the verdicts the analysis "
+                   f"returns ({', '.join(VERDICTS)}); write it from the output rather "
+                   "than from memory")
     return result

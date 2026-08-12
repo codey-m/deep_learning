@@ -180,7 +180,7 @@ def calibrate_to_budget(per_exit, stage_costs, target_cost, stages_used=None,
     example exits at the first or the last stage, are both reachable.
     """
     count = len(per_exit)
-    observed = torch.cat([value for value, _ in per_exit])
+    observed = torch.cat([value.detach() for value, _ in per_exit])
     low, high = float(observed.min()), float(observed.max())
     pad = max((high - low) * 1e-3, 1e-6)
     low, high = low - pad, high + pad
