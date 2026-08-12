@@ -1,0 +1,10 @@
+CIFAR-10-C, a corruption robustness benchmark by Dan Hendrycks and Thomas Dietterich,
+"Benchmarking Neural Network Robustness to Common Corruptions and Perturbations",
+ICLR 2019. Distributed under Creative Commons Attribution 4.0 International (CC BY 4.0).
+
+Source: https://zenodo.org/record/2535967
+
+This directory contains a subset: four (corruption, severity) blocks re-encoded as
+lossless WebP sprite sheets for delivery to Google Colab. The pixel data is unmodified;
+each block decodes byte-for-byte to the corresponding slice of the original .npy files.
+Built by Deep_Learning/_workfiles/build_cifar10c_cache.py.

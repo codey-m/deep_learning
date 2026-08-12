@@ -1,0 +1,45 @@
+{
+  "blocks": {
+    "contrast_s2": {
+      "array_sha256": "2c25278fda254b31daf348fb3f290a8c24cab3ef806768e8cf25b3dc188468e3",
+      "bytes": 13946354,
+      "corruption": "contrast",
+      "file": "contrast_s2.webp",
+      "file_sha256": "16112bb3817e018c12ac493908b158c1e6bd090c7d472da496c10588038cb73f",
+      "severity": 2
+    },
+    "contrast_s4": {
+      "array_sha256": "d875badf40f41fb8759e0426771370532fdfa14425f7c4959276a151db305d04",
+      "bytes": 11807584,
+      "corruption": "contrast",
+      "file": "contrast_s4.webp",
+      "file_sha256": "182e0d95bb80cfc50a5f1f27b8f28302f9323f2ececa10cfcabf2a7674736205",
+      "severity": 4
+    },
+    "defocus_blur_s3": {
+      "array_sha256": "91a070f82e653bc5e466a0566b56977b3e3f7f8c7e666e4ceb83a1c0cf4a5309",
+      "bytes": 14884414,
+      "corruption": "defocus_blur",
+      "file": "defocus_blur_s3.webp",
+      "file_sha256": "ba6448f6066d206c19fdc2a2ea958dc51f9a401134a75e9e5b7a677184d2c16f",
+      "severity": 3
+    },
+    "fog_s3": {
+      "array_sha256": "5e8eaca8be90f938548750e0c4c9c15cc4dcd4711770e39d158248d8e3c8fdaf",
+      "bytes": 14823972,
+      "corruption": "fog",
+      "file": "fog_s3.webp",
+      "file_sha256": "00acd3570d5646fd6cd6d0b0e568402fb2417a65e4e11b536e4886585e6eb704",
+      "severity": 3
+    }
+  },
+  "generator": "Deep_Learning/_workfiles/build_cifar10c_cache.py",
+  "layout": {
+    "block": 10000,
+    "grid": 100,
+    "order": "CIFAR-10 test-split order, one tile per position",
+    "tile": 32
+  },
+  "source": "CIFAR-10-C (Hendrycks & Dietterich, ICLR 2019), CC BY 4.0",
+  "total_bytes": 55462324
+}
