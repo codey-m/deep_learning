@@ -690,6 +690,21 @@ def _content_words(text: str) -> set:
             if w not in _RECORD_STOPWORDS and len(w) > 2}
 
 
+def checklist(conditions: dict) -> tuple:
+    """Named conditions to a 0/1 flag and a report naming exactly what is unmet.
+
+    A gate written as ``int(a and b and c and ...)`` prints 0 and nothing else, so a
+    learner with a short hypothesis and a learner with a malformed contrast are told the
+    same thing: no. Naming each condition costs nothing and turns a dead end into a list
+    of things to fix. Order is preserved, so the report reads in the order the notebook
+    asked for the work.
+    """
+    unmet = [name for name, ok in conditions.items() if not ok]
+    if not unmet:
+        return 1, "  every requirement met"
+    return 0, "\n".join(f"  not yet: {name}" for name in unmet)
+
+
 def check_record(record: dict, result: ContractResult, *, minimum: int = 40,
                  similarity_cap: float = 0.6) -> ContractResult:
     """Form, not quality. Quality still needs a human, and this does not pretend to.
