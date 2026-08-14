@@ -155,7 +155,7 @@ def run_all_checks(plan: ProjectPlan, records, configs, methods, selections,
     schema.check_matched_seeds(plan, records, result)
     # Every metric the run reports, not only the primary one. Checking the ranking
     # metric alone would let the downstream metrics, which this path calls the real
-    # objective, be incomplete or absent without failing the gate.
+    # objective, be incomplete or absent without failing the contract.
     for name in dict.fromkeys((metric,) + tuple(metrics)):
         schema.check_complete_grid(plan, records, name, result)
     schema.check_matched_effort(plan, records, result)

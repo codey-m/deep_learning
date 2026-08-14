@@ -121,7 +121,7 @@ def run_all_checks(plan: ProjectPlan, records, configs, policies, realized_costs
     schema.check_split_integrity(records, result, seed_varies=plan.seed_varies)
     schema.check_matched_seeds(plan, records, result)
     # Every metric the run reports. Checking the primary one alone would let a
-    # secondary metric be incomplete or absent without failing the gate.
+    # secondary metric be incomplete or absent without failing the contract.
     for name in dict.fromkeys((metric,) + tuple(metrics)):
         schema.check_complete_grid(plan, records, name, result)
     schema.check_matched_effort(plan, records, result)

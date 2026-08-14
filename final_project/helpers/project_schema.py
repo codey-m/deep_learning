@@ -149,7 +149,7 @@ MIN_SEEDS = 3
 
 def check_plan(plan: ProjectPlan, *, budget_min: float, budget_max: float,
                result: ContractResult) -> ContractResult:
-    """The proposal gate. Answerable before any measurement exists."""
+    """The proposal contract. Answerable before any measurement exists."""
     result.require(bool(plan.path and plan.question), "plan.identity",
                    "path and question are required")
     for name in ("hypothesis", "control", "intervention", "declared_change"):
@@ -693,7 +693,7 @@ def _content_words(text: str) -> set:
 def checklist(conditions: dict) -> tuple:
     """Named conditions to a 0/1 flag and a report naming exactly what is unmet.
 
-    A gate written as ``int(a and b and c and ...)`` prints 0 and nothing else, so a
+    A check written as ``int(a and b and c and ...)`` prints 0 and nothing else, so a
     learner with a short hypothesis and a learner with a malformed contrast are told the
     same thing: no. Naming each condition costs nothing and turns a dead end into a list
     of things to fix. Order is preserved, so the report reads in the order the notebook
