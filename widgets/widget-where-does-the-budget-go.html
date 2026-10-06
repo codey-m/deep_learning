@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Where does the budget go?</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,'Times New Roman',serif;background:#FAFAF8;color:#1A1A1A;padding:16px}
+  #app{max-width:640px;margin:0 auto}
+  h1{font-size:20px;font-weight:600;margin-bottom:4px}
+  .sub{font-size:13px;color:#595959;margin-bottom:14px}
+  .controls{display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin-bottom:12px}
+  .ctrl{display:flex;align-items:center}
+  .ctrl label,.control-label{font-size:12px;font-family:'Courier New',monospace;color:#444;margin-right:8px}
+  .ctrl.off label{color:#8A8A8A}
+  .seg button{font-family:'Courier New',monospace;font-size:12px;padding:5px 10px;border:1px solid #767676;background:#fff;color:#1A1A1A;cursor:pointer;border-radius:4px;margin-right:4px}
+  .seg button.on{background:#A31F34;color:#fff;border-color:#A31F34}
+  button.act{font-family:'Courier New',monospace;font-size:12px;padding:5px 12px;border:1px solid #A31F34;background:#fff;color:#A31F34;border-radius:4px;cursor:pointer}
+  input[type=range]{vertical-align:middle;width:120px}
+  input[type=range]:disabled{opacity:.45}
+  .val{font-family:'Courier New',monospace;font-size:12px;color:#A31F34;font-weight:700;margin-left:6px}
+  button:focus-visible,input:focus-visible{outline:3px solid #1D4ED8;outline-offset:3px}
+  canvas{background:#fff;border:1px solid #767676;border-radius:6px;display:block;margin-bottom:10px;width:100%;max-width:608px;height:auto}
+  .legend{font-size:12px;color:#444;margin-bottom:8px}
+  .key{display:inline-block;width:11px;height:11px;vertical-align:-1px;margin:0 5px 0 14px}
+  .key.a{background:#A31F34;border-radius:50%}
+  .key.b{background:#16456B}
+  .key.line{width:20px;height:3px;background:#111;border-radius:0}
+  .readout{font-size:13px;background:#fff;border:1px solid #767676;border-radius:6px;padding:10px 14px;margin-bottom:10px}
+  .v{font-weight:700;font-family:'Courier New',monospace;color:#A31F34}
+  .note{font-size:12px;color:#444;line-height:1.6}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Where does the budget go?</h1>
+  <p class="sub">Move the model size to find the bottom of the curve, then raise the budget and see where the bottom goes.</p>
+
+  <div class="controls">
+    <div class="ctrl"><label for="budget">budget</label>
+      <input type="range" id="budget" min="19" max="24" step="1" value="22"><span class="val" id="budgetV"></span></div>
+    <div class="ctrl"><label for="size">model size</label>
+      <input type="range" id="size" min="8" max="11.6" step="0.05" value="9.0"><span class="val" id="sizeV"></span></div>
+    <div class="ctrl"><button class="act" type="button" id="best">Find the best split</button></div>
+    <div class="ctrl"><button class="act" type="button" id="reset">Reset</button></div>
+  </div>
+
+  <canvas id="cv" width="608" height="300" role="img" aria-label="A U-shaped curve of loss against model size for a fixed compute budget, with the best split marked and the previous budget shown faintly" aria-describedby="canvasSummary"></canvas>
+
+  <div class="readout" id="canvasSummary">A model with <span class="v" id="mSize">0</span> parameters trained on <span class="v" id="mTok">0</span> tokens ends with a loss of <span class="v" id="mLoss">0.000</span>. <span id="verdict"></span></div>
+  <div class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+  <p class="note">Compute is roughly model size times the amount of data, so at a fixed budget every parameter you add costs you data, and the curve rises at both ends. Where the bottom sits as the budget grows is the subject of the lecture's first part.</p>
+</div>
+
+<script>
+(function(){
+
+  function bind(id, places, setter){
+    const r=document.getElementById(id);
+    r.oninput=()=>{ setter(+r.value); document.getElementById(id+'V').textContent=(+r.value).toFixed(places); draw(true); };
+  }
+  function seg(id, opts, cur, setter){
+    const host=document.getElementById(id);
+    opts.forEach(([val,lab])=>{
+      const b=document.createElement('button'); b.type='button'; b.textContent=lab;
+      b.setAttribute('aria-pressed', val===cur?'true':'false');
+      if(val===cur) b.className='on';
+      b.onclick=()=>{ setter(val);
+        [...host.children].forEach(c=>{c.className='';c.setAttribute('aria-pressed','false');});
+        b.className='on'; b.setAttribute('aria-pressed','true'); draw(true); };
+      host.appendChild(b);
+    });
+  }
+  function say(t){ document.getElementById('announcement').textContent=t; }
+
+  const W=608,H=300,pad=48;
+  const cv=document.getElementById('cv'), g=cv.getContext('2d');
+  let budget=22, size=9.0, prev=null;            // log10 operations, log10 parameters
+
+  // A two-term form: one term that only more parameters can reduce, one that only
+  // more data can reduce. Equal exponents keep the best tokens-per-parameter ratio
+  // constant at every budget, which is the lecture's rule of thumb: double the data,
+  // double the model. Compute is taken as 6 x parameters x tokens.
+  const E=1.69, A=400, B=1042, gm=0.32;
+  const tokensFor=(n,bud)=>Math.pow(10,bud)/(6*n);
+  const loss=(n,bud)=>E + A/Math.pow(n,gm) + B/Math.pow(tokensFor(n,bud),gm);
+
+  // Roughly 5e17 operations per GPU-hour, a modern accelerator at typical utilisation.
+  const gpuHours=bud=>Math.round(Math.pow(10,bud)/5e17).toLocaleString();
+
+  const LO=8, HI=11.6, YMIN=1.8, YMAX=3.8;         // fixed axes, so budgets can be compared
+  function bestSize(bud){
+    let bn=LO, bl=1e9;
+    for(let l=LO;l<=HI;l+=0.005){ const v=loss(Math.pow(10,l),bud); if(v<bl){bl=v;bn=l;} }
+    return {l:bn, v:bl};
+  }
+  const fmt=x=> x>=1e12 ? (x/1e12).toFixed(1)+' trillion'
+              : x>=1e9  ? (x/1e9).toFixed(x/1e9<10?1:0)+' billion'
+              : (x/1e6).toFixed(0)+' million';
+  const X=l=>pad+(l-LO)/(HI-LO)*(W-2*pad);
+  const Y=v=>H-pad-(v-YMIN)/(YMAX-YMIN)*(H-2*pad);
+
+  function curve(bud,col,width,dash){
+    g.save(); g.beginPath(); g.rect(pad,pad,W-2*pad,H-2*pad); g.clip();
+    g.strokeStyle=col; g.lineWidth=width; g.setLineDash(dash); g.beginPath();
+    for(let i=0;i<=240;i++){ const l=LO+(HI-LO)*i/240, px=X(l), py=Y(loss(Math.pow(10,l),bud));
+      i?g.lineTo(px,py):g.moveTo(px,py); }
+    g.stroke(); g.restore();
+  }
+
+  function draw(announce){
+    const b=bestSize(budget);
+    g.clearRect(0,0,W,H);
+    g.strokeStyle='#B5B5B5'; g.lineWidth=1; g.strokeRect(pad,pad,W-2*pad,H-2*pad);
+    g.fillStyle='#444'; g.font='11px Courier New';
+    [2.0,2.5,3.0,3.5].forEach(v=>{
+      g.setLineDash([2,4]); g.strokeStyle='#DDDDDD';
+      g.beginPath(); g.moveTo(pad,Y(v)); g.lineTo(W-pad,Y(v)); g.stroke(); g.setLineDash([]);
+      g.fillText(v.toFixed(1), pad-28, Y(v)+4);
+    });
+
+    // The previous budget stays on screen, faint, so a change of budget can be seen.
+    if(prev!==null && prev!==budget){
+      curve(prev,'#C9A0A8',2,[5,4]);
+      const pb=bestSize(prev);
+      g.fillStyle='#C9A0A8'; g.beginPath(); g.arc(X(pb.l),Y(pb.v),4,0,7); g.fill();
+    }
+
+    g.setLineDash([3,4]); g.strokeStyle='#767676'; g.lineWidth=1;
+    g.beginPath(); g.moveTo(X(b.l),pad); g.lineTo(X(b.l),H-pad); g.stroke(); g.setLineDash([]);
+    g.fillStyle='#444'; g.font='11px Courier New';
+    g.fillText('best split', Math.min(X(b.l)+5, W-pad-72), pad+14);
+
+    curve(budget,'#A31F34',2.6,[]);
+
+    // Label the ghost on whichever side of it the current curve is not, drawn last on
+    // a paper-coloured patch so neither curve strikes it through.
+    if(prev!==null && prev!==budget){
+      const pb=bestSize(prev), below=loss(Math.pow(10,pb.l),budget) > pb.v;
+      g.font='11px Courier New';
+      const lab='previous budget', lw=g.measureText(lab).width;
+      const lx=Math.min(X(pb.l)+8, W-pad-lw-4);
+      const ly=below ? Math.min(Y(pb.v)+18, H-pad-6) : Math.max(Y(pb.v)-9, pad+12);
+      g.fillStyle='rgba(255,255,255,0.92)'; g.fillRect(lx-2, ly-10, lw+4, 13);
+      g.fillStyle='#9A6B74'; g.fillText(lab, lx, ly);
+    }
+
+    const cur=loss(Math.pow(10,size),budget);
+    g.strokeStyle='#111'; g.lineWidth=1.5;
+    g.beginPath(); g.moveTo(X(size),pad); g.lineTo(X(size),H-pad); g.stroke();
+    g.fillStyle='#16456B'; g.beginPath(); g.arc(X(size),Y(Math.min(cur,YMAX)),6,0,7); g.fill();
+    if(cur>YMAX){
+      const lab='off the chart', lw=g.measureText(lab).width;
+      const lx = X(size) > W/2 ? X(size)-lw-10 : X(size)+10;
+      g.fillStyle='#16456B'; g.fillText(lab, lx, pad+16);
+    }
+
+    g.fillStyle='#444'; g.font='11px Courier New';
+    g.fillText('smaller model', pad, H-pad+16);
+    g.fillText('more data', pad, H-pad+29);
+    g.fillText('bigger model', W-pad-78, H-pad+16);
+    g.fillText('less data', W-pad-78, H-pad+29);
+    g.save(); g.translate(12,H/2+60); g.rotate(-Math.PI/2);
+    g.fillText('loss on held-out text', 0, 0); g.restore();
+
+    document.getElementById('budgetV').textContent=gpuHours(budget)+' GPU-hours';
+    document.getElementById('sizeV').textContent=fmt(Math.pow(10,size));
+    document.getElementById('mSize').textContent=fmt(Math.pow(10,size));
+    document.getElementById('mTok').textContent=fmt(tokensFor(Math.pow(10,size),budget));
+    document.getElementById('mLoss').textContent=cur.toFixed(3);
+    const gap=cur-b.v, at=`At ${fmt(Math.pow(10,b.l))} parameters the same budget gets down to ${b.v.toFixed(3)}.`;
+    document.getElementById('verdict').textContent =
+      gap<0.005 ? 'This is the lowest loss this budget can buy.'
+      : size>b.l ? 'Too big for the data this budget leaves it. '+at
+      : 'Too small to make use of this much data. '+at;
+    if(announce) say(`Budget about ${gpuHours(budget)} GPU-hours. A model with ${fmt(Math.pow(10,size))} parameters on ${fmt(tokensFor(Math.pow(10,size),budget))} tokens ends with a loss of ${cur.toFixed(3)}. The lowest this budget reaches is ${b.v.toFixed(3)}.`);
+  }
+
+  const rb=document.getElementById('budget'), rs=document.getElementById('size');
+  rb.oninput=()=>{ const v=+rb.value; if(v!==budget){ prev=budget; budget=v; } draw(true); };
+  rs.oninput=()=>{ size=+rs.value; draw(true); };
+  document.getElementById('best').onclick=()=>{
+    size=Math.round(bestSize(budget).l*100)/100; rs.value=size; draw(true);
+  };
+  document.getElementById('reset').onclick=()=>{
+    budget=22; size=9.0; prev=null; rb.value=22; rs.value=9; draw(true);
+  };
+  draw(false);
+
+})();
+</script>
+</body>
+</html>

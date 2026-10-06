@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pull together, push apart</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,'Times New Roman',serif;background:#FAFAF8;color:#1A1A1A;padding:16px}
+  #app{max-width:640px;margin:0 auto}
+  h1{font-size:20px;font-weight:600;margin-bottom:4px}
+  .sub{font-size:13px;color:#595959;margin-bottom:14px}
+  .controls{display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin-bottom:12px}
+  .ctrl{display:flex;align-items:center}
+  .ctrl label,.control-label{font-size:12px;font-family:'Courier New',monospace;color:#444;margin-right:8px}
+  .ctrl.off label{color:#8A8A8A}
+  .seg button{font-family:'Courier New',monospace;font-size:12px;padding:5px 10px;border:1px solid #767676;background:#fff;color:#1A1A1A;cursor:pointer;border-radius:4px;margin-right:4px}
+  .seg button.on{background:#A31F34;color:#fff;border-color:#A31F34}
+  button.act{font-family:'Courier New',monospace;font-size:12px;padding:5px 12px;border:1px solid #A31F34;background:#fff;color:#A31F34;border-radius:4px;cursor:pointer}
+  input[type=range]{vertical-align:middle;width:120px}
+  input[type=range]:disabled{opacity:.45}
+  .val{font-family:'Courier New',monospace;font-size:12px;color:#A31F34;font-weight:700;margin-left:6px}
+  button:focus-visible,input:focus-visible{outline:3px solid #1D4ED8;outline-offset:3px}
+  canvas{background:#fff;border:1px solid #767676;border-radius:6px;display:block;margin-bottom:10px;width:100%;max-width:608px;height:auto}
+  .legend{font-size:12px;color:#444;margin-bottom:8px}
+  .key{display:inline-block;width:11px;height:11px;vertical-align:-1px;margin:0 5px 0 14px}
+  .key.a{background:#A31F34;border-radius:50%}
+  .key.b{background:#16456B}
+  .key.line{width:20px;height:3px;background:#111;border-radius:0}
+  .readout{font-size:13px;background:#fff;border:1px solid #767676;border-radius:6px;padding:10px 14px;margin-bottom:10px}
+  .v{font-weight:700;font-family:'Courier New',monospace;color:#A31F34}
+  .note{font-size:12px;color:#444;line-height:1.6}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Pull together, push apart</h1>
+  <p class="sub">Move either slider and watch the flocks settle.</p>
+
+  <div class="controls">
+    <div class="ctrl"><label for="pull">pull alike</label>
+      <input type="range" id="pull" min="0" max="1" step="0.05" value="0.5"><span class="val" id="pullV">0.50</span></div>
+    <div class="ctrl"><label for="push">push unalike</label>
+      <input type="range" id="push" min="0" max="1" step="0.05" value="0.5"><span class="val" id="pushV">0.50</span></div>
+    <div class="ctrl"><button class="act" type="button" id="play">Pause</button></div>
+    <div class="ctrl"><button class="act" type="button" id="reset">Reshuffle</button></div>
+  </div>
+
+  <canvas id="cv" width="608" height="320" role="img" aria-label="Forty-five bird marks of three kinds moving into separate flocks as the simulation runs" aria-describedby="canvasSummary"></canvas>
+
+  <div class="readout" id="canvasSummary">Average distance: <span class="v" id="dSame">0.00</span> within a kind, <span class="v" id="dDiff">0.00</span> between kinds. <span id="verdict"></span></div>
+  <div class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+  <p class="note">It runs continuously, so a change to either slider takes effect straight away.</p>
+</div>
+
+<script>
+(function(){
+
+  function bind(id, places, setter){
+    const r=document.getElementById(id);
+    r.oninput=()=>{ setter(+r.value); document.getElementById(id+'V').textContent=(+r.value).toFixed(places); draw(true); };
+  }
+  function seg(id, opts, cur, setter){
+    const host=document.getElementById(id);
+    opts.forEach(([val,lab])=>{
+      const b=document.createElement('button'); b.type='button'; b.textContent=lab;
+      b.setAttribute('aria-pressed', val===cur?'true':'false');
+      if(val===cur) b.className='on';
+      b.onclick=()=>{ setter(val);
+        [...host.children].forEach(c=>{c.className='';c.setAttribute('aria-pressed','false');});
+        b.className='on'; b.setAttribute('aria-pressed','true'); draw(true); };
+      host.appendChild(b);
+    });
+  }
+  function say(t){ document.getElementById('announcement').textContent=t; }
+
+  const W=608,H=320,pad=30;
+  const cv=document.getElementById('cv'), g=cv.getContext('2d');
+  let pull=0.5, push=0.5, running=true, raf=null;
+  const reduce=window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  let seed=11; const rnd=()=>{seed=(seed*16807)%2147483647; return seed/2147483647;};
+  let P=[];
+  function reseed(){
+    seed=11; P=[];
+    for(let i=0;i<45;i++) P.push({x:(rnd()-0.5)*1.8, y:(rnd()-0.5)*1.8, k:i%3});
+  }
+  // Each frame is split into small substeps. In one big step the stiff close-range
+  // repulsion overshoots, and past pull 0.25 the settled flocks never stop jittering.
+  const SUB=6;
+  function step(){ for(let s=0;s<SUB;s++) substep(1/SUB); }
+  function substep(dt){
+    const F=P.map(()=>({x:0,y:0}));
+    for(let i=0;i<P.length;i++) for(let j=i+1;j<P.length;j++){
+      let dx=P[j].x-P[i].x, dy=P[j].y-P[i].y;
+      const r=Math.max(0.05,Math.hypot(dx,dy)); dx/=r; dy/=r;
+      // Below the resting distance the repulsion is stiff, so a flock of fifteen
+      // settles at a real size instead of piling onto a single point.
+      const f = P[i].k===P[j].k
+        ? (r>=0.26 ? pull*0.045*(r-0.26) : 0.30*(r-0.26))
+        : -push*0.004/Math.max(r,0.25);
+      F[i].x+=f*dx; F[i].y+=f*dy; F[j].x-=f*dx; F[j].y-=f*dy;
+    }
+    // A weak drift to the middle stands in for the do-nothing answer a learner
+    // falls into when there is nothing pushing anything apart.
+    P.forEach((p,i)=>{
+      p.x+=dt*(F[i].x-0.035*p.x); p.y+=dt*(F[i].y-0.035*p.y);
+      p.x=Math.max(-1.4,Math.min(1.4,p.x)); p.y=Math.max(-1.4,Math.min(1.4,p.y));});
+  }
+  function stats(){
+    let same=0,ns=0,diff=0,nd=0;
+    for(let i=0;i<P.length;i++) for(let j=i+1;j<P.length;j++){
+      const r=Math.hypot(P[j].x-P[i].x,P[j].y-P[i].y);
+      if(P[i].k===P[j].k){same+=r;ns++;} else {diff+=r;nd++;}
+    }
+    return {same:same/ns, diff:diff/nd};
+  }
+  const COL=['#A31F34','#16456B','#4A6E17'];
+  const X=x=>pad+(x+1.6)/3.2*(W-2*pad), Y=y=>H-pad-(y+1.6)/3.2*(H-2*pad);
+
+  function bird(x,y,col,k){
+    g.strokeStyle=col; g.lineWidth=1.9; g.beginPath();
+    const s = k===0 ? 1 : k===1 ? -1 : 0;
+    if(s===0){ g.moveTo(x-6,y-2); g.lineTo(x,y+3); g.lineTo(x+6,y-2); }
+    else { g.moveTo(x-6,y); g.quadraticCurveTo(x-3,y-4*s,x,y);
+           g.quadraticCurveTo(x+3,y-4*s,x+6,y); }
+    g.stroke();
+  }
+  function draw(announce){
+    g.clearRect(0,0,W,H);
+    g.strokeStyle='#B5B5B5'; g.lineWidth=1; g.strokeRect(pad,pad,W-2*pad,H-2*pad);
+    P.forEach(p=>bird(X(p.x),Y(p.y),COL[p.k],p.k));
+    const s=stats(), ratio=s.diff/Math.max(s.same,1e-6);
+    document.getElementById('dSame').textContent=s.same.toFixed(2);
+    document.getElementById('dDiff').textContent=s.diff.toFixed(2);
+    document.getElementById('verdict').textContent =
+      (ratio<1.4 && s.same<0.5) ? 'Everything has collapsed onto one spot.'
+      : ratio<1.4 ? 'No structure. Alike things are no closer to each other than to anything else.'
+      : ratio>2.5 ? 'Three clean flocks, each tight and well away from the others.'
+      : 'Separating, but the flocks still overlap.';
+    if(announce) say(`Average distance ${s.same.toFixed(2)} within a kind, ${s.diff.toFixed(2)} between kinds.`);
+  }
+  let frames=0;
+  function loop(){
+    if(running){ step(); draw(false); if(++frames%30===0) draw(true); }
+    raf=requestAnimationFrame(loop);
+  }
+  function settle(n){ for(let i=0;i<n;i++) step(); draw(true); }
+
+  bind('pull',2,v=>{pull=v; if(reduce.matches) settle(60);});
+  bind('push',2,v=>{push=v; if(reduce.matches) settle(60);});
+  const btn=document.getElementById('play');
+  btn.onclick=()=>{ running=!running; btn.textContent = running?'Pause':'Play'; if(!running) draw(true); };
+  document.getElementById('reset').onclick=()=>{
+    pull=0.5; push=0.5; reseed();
+    document.getElementById('pull').value=0.5; document.getElementById('pullV').textContent='0.50';
+    document.getElementById('push').value=0.5; document.getElementById('pushV').textContent='0.50';
+    if(reduce.matches) settle(60); else draw(true);
+  };
+  reseed();
+  if(reduce.matches){ running=false; btn.textContent='Play'; settle(60); }
+  else { draw(false); loop(); }
+
+})();
+</script>
+</body>
+</html>

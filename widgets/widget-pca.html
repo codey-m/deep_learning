@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en" data-mode="course">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Echo Dancer</title><style>/* Echo Dancer in the MIT Learn game format. The chrome rules are a local copy of the arcade standard
+   (pilots/src/pilot.css, body.gameformat, taken from "Guide the robot home"); swap for a shared file if one is agreed.
+   Scene colours: the Representations (6.7960.4x, orange) family from the Deep Learning card palette, gold as the
+   single accent for the echo, ink for lines and marks, green and red only for outcomes. */
+:root{color-scheme:light;--ink:#0C0C0D;--ink-2:#40464C;--body:#212326;--muted:#626A73;--line:#DDE1E6;--rule:#E6E9EE;--ground:#F3F4F8;--red:#750014;--red-dark:#5A0010;--button-line:#B8C2CC;
+  --win:#216044;--over:#B45309;--lose:#A31F34;
+  --o-base:#E4763E;--o-body:#EEAA87;--o-line:#BB460A;--o-neck:#A4552D;--o-darks:#755952;--o-wash:#FADACA;--gold:#E9A83C;--art-ink:#111827;--art-ground:#F9FAFB;--frame:#CBD2DB;--grid:#1F2937}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--body);font:16px/1.55 "neue-haas-grotesk-text","Helvetica Neue",Helvetica,Arial,sans-serif}
+a{color:var(--red);text-underline-offset:3px}button,input{font:inherit}button,summary{cursor:pointer}
+button{border:1px solid var(--button-line);border-radius:4px;padding:10px 15px;background:#fff;color:var(--ink-2);font-weight:500;min-height:44px;touch-action:manipulation}
+button:focus-visible,a:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:3px solid #1472ae;outline-offset:3px}
+[hidden]{display:none!important}
+
+/* Page chrome */
+.gamebar{background:#fff;display:grid;grid-template-columns:52px 1fr 52px;align-items:center;padding:12px 24px;border-bottom:1px solid var(--rule)}
+.gamebar .back{display:flex;align-items:center;justify-content:center;width:44px;height:44px;color:var(--ink);border-radius:4px}.gamebar .back svg{width:26px;height:26px}
+.gamebar h1{grid-column:2;text-align:center;margin:0;font-size:clamp(26px,3vw,38px);font-weight:700;letter-spacing:-.02em;color:var(--ink)}
+main{max-width:1240px;margin:auto;padding:28px 24px 56px}
+.gamewrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:28px;align-items:start}
+.playcard,.howto,.explainer{background:#fff;border-radius:6px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 3px 10px rgba(16,24,40,.05)}
+.playcard{overflow:hidden}
+.gamestatus{display:flex;justify-content:center;gap:12px 40px;flex-wrap:wrap;padding:26px 24px 4px;font-size:18px;color:var(--muted)}
+.gamestatus b{color:var(--body);font-weight:600}.gamestatus b.win{color:var(--win)}.gamestatus b.over{color:var(--over)}.gamestatus b.lose{color:var(--lose)}
+.gameprompt{text-align:center;color:var(--muted);font-size:17px;margin:8px 24px 18px}.gameprompt strong{color:var(--body);font-weight:600}
+.gameplay{padding:0 24px}
+.reason{text-align:center;min-height:3.2em;margin:10px 0 0;font-size:15px;color:var(--muted)}.reason strong{color:var(--body);font-weight:600}
+.gamecontrols{display:grid;grid-template-columns:1fr;gap:20px;padding:14px 24px 24px}
+.gamefoot{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;padding:18px 24px 22px;border-top:1px solid var(--rule);background:linear-gradient(#FBFBFC,#F6F7F9)}
+.gamefoot p{margin:0 0 12px;font-size:16px;color:var(--muted)}.gamefoot strong{color:var(--body);font-weight:600}
+.gamefoot button{display:inline-flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--button-line);border-radius:4px;padding:10px 22px;font-weight:500;color:var(--ink-2)}.gamefoot button svg{width:22px;height:22px}
+.howto{padding:24px}.howto h2{display:flex;align-items:center;gap:12px;font-size:20px;font-weight:500;margin:0 0 16px;color:var(--ink)}.howto h2 svg{width:28px;height:20px;flex:none}
+.howto p{font-size:15px;line-height:1.6;color:var(--body);margin:0 0 14px}.howto strong{font-weight:700}
+.explainer{margin-top:28px;padding:24px}.explainer h2{font-size:19px;margin:0 0 10px;letter-spacing:-.015em;color:var(--ink)}.explainer h3{font-size:16px;margin:16px 0 6px;color:var(--ink)}
+.explainer p,.explainer li{font-size:15px;line-height:1.65;margin:0 0 12px}.explainer ul{margin:0 0 12px;padding-left:22px}.explainer li{margin:0 0 4px}
+.explainer .explainer-link{color:var(--muted);font-size:14px}.explainer .explainer-note{color:var(--muted);font-size:13px}
+.review-about{margin-top:24px}details summary{min-height:40px;padding:8px 0;font-size:14px;font-weight:600;color:var(--ink-2)}.review-about p{font-size:13px;color:var(--muted)}
+body.embedded .gamebar,body.embedded .review-about{display:none}body.embedded main{padding-top:20px}
+
+/* Play area: the stage */
+.stage-wrap{position:relative;background:var(--grid);border:1px solid var(--line);border-radius:4px;overflow:hidden;transition:box-shadow .2s}
+.stage-wrap.outcome-win{box-shadow:0 0 0 3px var(--win)}.stage-wrap.outcome-lose{box-shadow:0 0 0 3px var(--lose)}
+.stage{display:block;width:100%;height:auto;aspect-ratio:2/1}.floor{stroke:var(--o-darks);stroke-width:1.5}
+.corner{position:absolute;top:10px;font:12px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace;padding:4px 8px;border-radius:3px;background:rgba(17,24,39,.8);color:var(--frame)}
+.corner-left{left:10px}.corner-right{right:10px;color:var(--gold)}.corner-center{left:50%;transform:translateX(-50%);font-weight:600;color:#fff}.corner-center:empty{display:none}
+.corner-center.win{background:var(--win)}.corner-center.lose{background:var(--lose)}
+.figure path{fill:none;stroke-linecap:round;stroke-linejoin:round}.figure .legs,.figure .arms{stroke-width:8}.figure .spine{stroke-width:11}
+.original path{stroke:var(--art-ground)}.original .head{fill:var(--art-ground)}.echo path{stroke:var(--gold)}.echo .head{fill:var(--gold)}
+.ghost path{stroke:var(--art-ground);stroke-opacity:.2;stroke-width:15}.ghost .spine{stroke-width:18}.ghost .head{fill:var(--art-ground);fill-opacity:.2}body.success .ghost{opacity:.4;transition:opacity .6s}
+.meter{display:flex;align-items:center;gap:12px;margin-top:14px}.meter-label,.meter-needed{font-size:13px;color:var(--muted);white-space:nowrap}.meter-needed b{color:var(--body);font-weight:600}
+.meter-bar{position:relative;flex:1;height:12px;background:#E9ECF0;border-radius:6px}.meter-fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:6px;background:var(--o-line);transition:width .45s ease-out}.gameplay:has(.outcome-win) .meter-fill{background:var(--win)}
+.meter-target{position:absolute;top:-5px;bottom:-5px;width:2px;margin-left:-1px;background:var(--art-ink)}.meter-value{font:600 20px/1 ui-monospace,SFMono-Regular,monospace;min-width:52px;text-align:right;color:var(--ink)}
+.timeline-head{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);margin:16px 0 6px}.timeline-time{font-family:ui-monospace,monospace}
+.timeline-key{display:flex;align-items:center;gap:5px;margin-left:auto}.key{display:inline-block;width:10px;height:10px;border-radius:2px}.key.track-1{background:var(--o-line)}.key.track-2{background:var(--o-body);margin-left:10px}
+button.small{min-height:34px;padding:5px 14px;font-size:13px}
+.timeline{height:56px;background:var(--art-ground);border:1px solid var(--line);border-radius:3px;cursor:ew-resize;touch-action:none;user-select:none;-webkit-user-select:none}
+.timeline svg{display:block;width:100%;height:54px}.timeline .full{fill:#DDE1E6}.timeline .part.track-1{fill:var(--o-line)}.timeline .part.track-2{fill:var(--o-body)}.playhead{stroke:var(--art-ink);stroke-width:2;vector-effect:non-scaling-stroke}
+.caption{font-size:13px;color:var(--muted);margin:6px 0 0;line-height:1.55}
+
+/* Controls: the link and the tracks */
+.block-head{margin-bottom:10px}.block-head h2{font-size:16px;font-weight:600;margin:0;color:var(--ink)}.block-head p{font-size:14px;color:var(--muted);margin:2px 0 0}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.slot{position:relative;min-height:132px;border:1px dashed var(--button-line);border-radius:4px;background:var(--art-ground);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;transition:background-color .2s,border-color .2s}
+.slot.filled{border:2px solid var(--o-line);background:#FDF3EE;justify-content:flex-start}.slot.drop-target{outline:3px solid var(--gold);outline-offset:2px}
+.slot-label{position:absolute;top:8px;left:10px;font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--o-line)}.slot-empty{font-size:14px;color:var(--muted)}
+.slot-figure{width:100%;height:78px;margin-top:12px}.slot-figure .solid path{stroke:var(--o-line)}.slot-figure .solid .head{fill:var(--o-line)}.slot-name{font-size:14px;font-weight:600}
+.slot .spark{width:100%;height:18px}.spark path{fill:none;stroke:#8A929B;stroke-width:1.4;vector-effect:non-scaling-stroke}.slot .spark path{stroke:var(--o-line)}
+#slot-1.filled{border-color:var(--o-body);background:#FEF8F4}#slot-1 .slot-label,#slot-1 .slot-remove{color:var(--o-neck)}#slot-1 .slot-figure .solid path{stroke:var(--o-neck)}#slot-1 .slot-figure .solid .head{fill:var(--o-neck)}#slot-1 .spark path{stroke:var(--o-body)}
+.slot-remove{position:absolute;top:0;right:0;width:44px;height:44px;background:none;border:0;font-size:20px;line-height:1;color:var(--o-line)}
+.tray{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.tile{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:2px;padding:8px 8px 6px;background:#fff;border:1px solid var(--button-line);border-radius:4px;text-align:left;color:var(--body);user-select:none;-webkit-user-select:none;transition:transform .15s,box-shadow .15s}
+.tile:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(16,24,40,.1)}
+.tile-figure{width:100%;height:92px}.tile-floor{stroke:var(--line);stroke-width:3}.tile .figure path{stroke:var(--art-ink)}.tile .figure .head{fill:var(--art-ink)}.tile .extreme{opacity:.2}
+.tile-text{display:flex;justify-content:space-between;align-items:baseline;gap:6px}.tile-name{font-size:14px;font-weight:600}.tile-alone{font:12px ui-monospace,SFMono-Regular,monospace;color:var(--muted)}.tile .spark{width:100%;height:16px}
+.tile-state{position:absolute;top:6px;left:8px;font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--o-line)}
+.tile.in-link{border:2px solid var(--o-line);background:#FDF3EE;padding:7px 7px 5px}.tile.in-link .figure path{stroke:var(--o-line)}.tile.in-link .figure .head{fill:var(--o-line)}
+.tile.in-link.track-2{border-color:var(--o-body);background:#FEF8F4}.tile.track-2 .tile-state{color:var(--o-neck)}.tile.in-link.track-2 .figure path{stroke:var(--o-neck)}.tile.in-link.track-2 .figure .head{fill:var(--o-neck)}
+.drag-ghost{position:fixed;z-index:50;transform:translate(-50%,-130%);background:var(--art-ink);color:#fff;padding:7px 12px;border-radius:4px;font-size:13px;font-weight:600;pointer-events:none;box-shadow:0 6px 14px rgba(0,0,0,.2)}body.dragging,body.dragging *{cursor:grabbing!important}
+.track-table{margin:0 24px 16px}.track-table table{font-size:13px;border-collapse:collapse;width:100%}.track-table p{font-size:13px;color:var(--muted)}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}#accessible-table{overflow:auto}
+
+@media(max-width:1100px){.tray{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.gamewrap{grid-template-columns:1fr}}
+@media(max-width:560px){main{padding:20px 12px 40px}.gamestatus{gap:6px 18px;font-size:16px}.gameprompt{font-size:15px}.gameplay,.gamecontrols,.gamefoot{padding-left:14px;padding-right:14px}.track-table{margin:0 14px 16px}
+  .tray{grid-template-columns:repeat(2,minmax(0,1fr))}.tile-figure{height:80px}.slot{min-height:118px}.timeline-key{display:none}.corner{font-size:11px;top:6px;padding:3px 6px}.corner-left{left:6px}.corner-right{right:6px}.gamebar{padding:10px 12px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+/* Course pages (course mode): course-only copy and the variance ledger; arcade-only copy and links hidden. */
+body:not(.course) .course-only{display:none}
+body.course .arcade-only,body.course .explainer-link{display:none}
+body.course main{padding:12px 12px 16px}
+.ledger{margin:8px 0 0;font-size:14px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}.ledger b{color:var(--body);font-weight:600}
+</style></head>
+<body class="gameformat">
+<header class="gamebar"><a class="back" href="index.html" aria-label="Back to the arcade"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a><h1 id="title">Echo Dancer</h1></header>
+<main>
+  <div class="gamewrap">
+    <section class="playcard" aria-label="Game">
+      <div class="gamestatus"><span>Routine: <b id="st-routine">1</b></span><span>Status: <b id="st-status">Link empty</b></span><span>Kept: <b id="st-kept">0% / need 75%</b></span><span>Tracks: <b id="st-tracks">0 / 2</b></span></div>
+      <p class="gameprompt">Send two movement tracks so the echo keeps at least <strong id="target-brief">75%</strong> of the dancer’s motion.</p>
+      <div class="gameplay">
+        <div class="stage-wrap" id="stage-wrap">
+          <svg id="stage" class="stage" viewBox="0 0 720 360" role="img" aria-labelledby="stage-desc"><desc id="stage-desc">The original dancer and the echo.</desc><g id="stage-art"></g></svg>
+          <span class="corner corner-left">Original</span><span class="corner corner-center" id="outcome-label" aria-hidden="true"></span><span class="corner corner-right">Echo</span>
+        </div>
+        <div class="meter" aria-hidden="true"><span class="meter-label">Motion kept</span><div class="meter-bar"><span class="meter-fill" id="meter-fill"></span><span class="meter-target" id="meter-target"></span></div><span class="meter-value" id="meter-value">0%</span><span class="meter-needed">need <b id="meter-needed">75%</b></span></div>
+        <p class="ledger course-only" id="ledger"></p>
+        <div class="timeline-head"><span>Motion matched, moment by moment</span><span class="timeline-key" aria-hidden="true"><i class="key track-1"></i>Track 1<i class="key track-2"></i>Track 2 adds</span><span class="timeline-time" id="timeline-time">0:00</span><button type="button" id="play" class="small">Pause</button></div>
+        <div id="timeline" class="timeline" role="slider" tabindex="0" aria-label="Routine time" aria-valuemin="0" aria-valuemax="8" aria-valuenow="0" aria-valuetext="0.0 of 8 seconds" aria-describedby="timeline-help"><svg id="timeline-svg" viewBox="0 0 480 56" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+        <p class="caption" id="timeline-help">Gray is all of the original’s motion at each moment. Each track fills in what it matches; track 2 adds only what track 1 hasn’t covered. Drag along the strip, or use ← and →, to hold a moment.</p>
+        <p id="feedback" class="reason" role="status" aria-live="polite" aria-atomic="true"><strong id="feedback-title"></strong> <span id="feedback-text"></span></p>
+      </div>
+      <div class="gamecontrols">
+        <div class="link-block"><div class="block-head"><h2>The link</h2><p>Two tracks. Each sends one number per frame.</p></div><div class="slots" id="slots"></div></div>
+        <div class="tray-block"><div class="block-head"><h2 id="tray-title">Tracks from the recording</h2><p>Each track is one movement pattern. The percentage is <span class="arcade-only">how much of the motion it keeps</span><span class="course-only">the share of variance it captures</span> on its own.</p></div><div class="tray" id="tray" role="group" aria-labelledby="tray-title"></div></div>
+      </div>
+      <details class="track-table"><summary>Tracks and what the echo is missing</summary><div id="accessible-table"></div></details>
+      <div class="gamefoot">
+        <div class="foot-left"><p><strong>New routine</strong> <span>- same dancer, different big movements</span></p><div class="foot-buttons"><button id="new-routine" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="4.5" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v7M12 14l-4 6M12 14l4 6M6 9l6 2 6-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>New routine</button></div></div>
+        <div class="foot-right"><button id="reset" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Start over</button></div>
+      </div>
+    </section>
+    <aside class="howto" aria-labelledby="howto-title">
+      <h2 id="howto-title"><svg viewBox="0 0 28 20" aria-hidden="true"><rect x="1.5" y="1.5" width="25" height="17" rx="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 7v6M5 10h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18.5" cy="8" r="1.4" fill="currentColor"/><circle cx="21.5" cy="11.5" r="1.4" fill="currentColor"/></svg>How to play</h2>
+      <p><strong>The link</strong> carries 2 numbers per frame, not the 10 joint angles the motion capture records. A dancer performs in one city while a projection, the echo, dances the same routine in another.</p>
+      <p><strong>Tracks</strong> are movement patterns from the recording, and each sends one number per frame. The percentage on a track is how much of the motion it keeps on its own.</p>
+      <p><strong>Send a track</strong> by dragging it into the link, or press it. Press it again to take it off. When both tracks are full, a new track replaces track 2.</p>
+      <p><strong>The echo</strong> follows at once, over the original’s shadow. With no tracks it holds the routine’s average pose. Keep at least <span id="target-howto">75%</span> of the motion to put it in step.</p>
+      <p class="course-only"><strong>The ledger</strong> under the meter splits the routine’s total variance into the variance the tracks capture and the reconstruction error the echo is left with.</p>
+      <p><strong>The strip</strong> under the dancers shows the motion matched at each moment. Drag along it, or use ← and →, to hold a moment. Pause stops the dancers.</p>
+    </aside>
+  </div>
+  <section class="explainer" id="takeaway" hidden aria-labelledby="takeaway-title">
+    <h2 id="takeaway-title">The best pair covers different movement</h2>
+    <p id="takeaway-text" hidden></p>
+    <p id="takeaway-lost" hidden></p>
+    <div id="adds-block" hidden><h3>Why the two biggest tracks don’t add up</h3><div id="adds-explained"></div></div>
+    <p>PCA’s tracks never repeat each other. Each is at right angles to the rest (orthogonal), so the motion they keep adds up exactly.</p>
+    <p class="arcade-only">This connects to principal component analysis in Deep Learning. The course widget turns a direction through a cloud of two-number points; here each frame has ten joint angles and the link keeps two.</p>
+    <p class="course-only">In the lecture’s terms, the link is an encoder and the echo is a decoder. Each frame’s ten joint angles are projected onto the two tracks on the link, which gives two numbers per frame, and the echo maps those two numbers back to a pose. Motion kept is the variance those two directions capture. What the echo gets wrong, squared and averaged over the frames, is the reconstruction error.</p>
+    <p class="course-only">The motion the echo misses is the part of each pose at right angles to the tracks on the link. Put a single track on the link and read the ledger, then try three different pairs and add up the two numbers each time. What does the ledger tell you about the pair that captures the most?</p>
+    <p class="explainer-link">Explore in Deep Learning: how principal component analysis keeps useful variation while reducing dimensions.</p>
+    <p class="explainer-note">The routine is synthesized for this puzzle from eight movement patterns; no motion capture or trained model is involved. Each frame has ten joint angles. Motion is how far the joints move from the routine’s average pose, with each joint weighted by how much of the body it moves: a degree of torso lean counts four times as much as a degree at the elbow. Each track is a fixed pattern of joint movement. For every frame, the link sends the two numbers that bring the echo as close as possible to the original (least squares). Motion kept is the share of the original’s variation that the echo reproduces. The principal components are computed from the routine’s 240 frames on your device. Every pair that meets the brief counts.</p>
+  </section>
+  
+</main>
+<div class="drag-ghost" id="drag-ghost" hidden aria-hidden="true"></div>
+<noscript><p>This interactive activity requires JavaScript.</p></noscript>
+<script>/* Echo Dancer: a synthesized routine, movement tracks and least-squares reconstruction. Pure and deterministic. */
+(function(root){
+  'use strict';
+  const FRAMES=240,SECONDS=8,D=10,TAU=2*Math.PI,MARGIN=.02;
+  const JOINTS=['torso lean','head tilt','left shoulder','left elbow','right shoulder','right elbow','left hip','left knee','right hip','right knee'];
+  // Degrees become comparable amounts of visible movement: a degree of torso lean moves far more of the body than a degree at the elbow.
+  // All motion, tracks and PCA live in these weighted units, so "motion kept" is exactly the variance PCA maximizes.
+  const WEIGHT=[2,.5,1,.5,1,.5,1.2,.6,1.2,.6];
+  const REGIONS=[{name:'body',joints:[0,1]},{name:'arms',joints:[2,3,4,5]},{name:'legs',joints:[6,7,8,9]}];
+  // Joint angles in degrees. Shoulders and hips turn outward when positive, elbows curl up, knees bend back under the body.
+  // Left/right symmetric and antisymmetric patterns keep the movements at right angles to each other.
+  // full: the largest timing strength (weighted RMS) a move may have before poses look strained.
+  const MOVES={
+    reach:{name:'Reach',noun:'the reach',theta:[0,0,1,.35,1,.35,0,0,0,0],text:'Both arms rise high and come back down.',echo:['Rise','Bloom'],bit:'a slight lift of the arms',full:48,big:true},
+    windmill:{name:'Windmill',noun:'the windmill',theta:[0,0,-1,-.35,1,.35,0,0,0,0],text:'One arm rises as the other falls, then they switch.',echo:['Churn','Pinwheel'],bit:'a slight swing of the arms',full:44,big:true},
+    sway:{name:'Sway',noun:'the sway',theta:[1,0,0,0,0,0,0,0,0,0],text:'The upper body leans from side to side.',echo:['Rock','Lean'],bit:'a slight lean',full:34,big:true},
+    dip:{name:'Dip',noun:'the dip',theta:[0,0,0,0,0,0,.8,1,.8,1],text:'Both knees bend outward and straighten, lowering the body.',bit:'a slight knee bend',full:20,big:true},
+    kick:{name:'Kick',noun:'the kick',theta:[0,0,0,0,0,0,1,0,-1,0],text:'One leg swings out to the side, then the other.',bit:'a slight swing of the legs',full:30,big:true},
+    shuffle:{name:'Shuffle',noun:'the shuffle',theta:[0,0,0,0,0,0,0,1,0,-1],text:'Quick steps, one knee and then the other.',bit:'a small step',full:5},
+    wave:{name:'Wave',noun:'the wave',theta:[0,0,0,0,0,1,0,0,0,0],text:'The right forearm flicks up and down.',bit:'a flick of the right forearm',full:5},
+    tilt:{name:'Tilt',noun:'the head tilt',theta:[0,1,0,0,0,0,0,0,0,0],text:'The head tilts from side to side.',bit:'a slight head tilt',full:8}
+  };
+  const ORDER=['reach','windmill','sway','dip','kick','shuffle','wave','tilt'];
+  const TOPS=['reach','windmill','sway'];
+
+  function rng(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  const choose=(r,a)=>a[Math.floor(r()*a.length)];
+  function shuffled(a,r){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+  const dot=(a,b)=>{let s=0;for(let i=0;i<a.length;i++)s+=a[i]*b[i];return s;};
+  const norm=a=>Math.sqrt(dot(a,a));
+  function orthonormalize(vectors){
+    const out=[];
+    for(const v of vectors){
+      const w=v.slice();
+      for(const q of out){const d=dot(w,q);for(let i=0;i<w.length;i++)w[i]-=d*q[i];}
+      const n=norm(w);if(n<1e-6)throw Error('Echo Dancer: dependent vectors');
+      out.push(w.map(x=>x/n));
+    }
+    return out;
+  }
+  // Fixed, orthonormal movement patterns in weighted units: each round's principal components are these exact movements.
+  const PATTERNS=Object.fromEntries(orthonormalize(ORDER.map(k=>MOVES[k].theta.map((x,d)=>x*WEIGHT[d]))).map((v,i)=>[ORDER[i],v]));
+
+  const bump=(u,at,width)=>{const d=((u-at)%1+1)%1;return d<width?Math.sin(Math.PI*d/width)**2:0;};
+  function curve(key,p,u){
+    if(key==='shuffle')return bump(u,p.at,.3)*Math.sin(TAU*14*u);
+    if(key==='wave')return bump(u,p.at,.24)*Math.max(0,Math.sin(TAU*9*u))**2; // the forearm curls up and relaxes
+    if(key==='dip')return Math.max(0,Math.sin(TAU*(p.k*u+p.phase)))**2; // bends, never a locked-back knee
+    if(key==='reach')return -Math.cos(TAU*(p.k*u+p.phase));
+    return Math.sin(TAU*(p.k*u+p.phase));
+  }
+  // Timing curves are centered and made exactly uncorrelated, each with unit root mean square.
+  function timing(params){
+    const raw=ORDER.map(k=>{const s=Array.from({length:FRAMES},(_,t)=>curve(k,params[k],t/FRAMES)),m=s.reduce((a,b)=>a+b,0)/FRAMES;return s.map(x=>x-m);});
+    return orthonormalize(raw).map(s=>s.map(x=>x*Math.sqrt(FRAMES)));
+  }
+  function eigen(A){
+    const n=A.length,a=A.map(r=>r.slice()),v=A.map((_,i)=>A.map((_,j)=>i===j?1:0));
+    for(let sweep=0;sweep<60;sweep++){
+      let off=0;for(let p=0;p<n;p++)for(let q=p+1;q<n;q++)off+=a[p][q]*a[p][q];
+      if(off<1e-22)break;
+      for(let p=0;p<n;p++)for(let q=p+1;q<n;q++){
+        if(Math.abs(a[p][q])<1e-300)continue;
+        const theta=(a[q][q]-a[p][p])/(2*a[p][q]),t=(theta<0?-1:1)/(Math.abs(theta)+Math.sqrt(theta*theta+1)),c=1/Math.sqrt(t*t+1),s=t*c;
+        for(let k=0;k<n;k++){const x=a[k][p],y=a[k][q];a[k][p]=c*x-s*y;a[k][q]=s*x+c*y;}
+        for(let k=0;k<n;k++){const x=a[p][k],y=a[q][k];a[p][k]=c*x-s*y;a[q][k]=s*x+c*y;}
+        for(let k=0;k<n;k++){const x=v[k][p],y=v[k][q];v[k][p]=c*x-s*y;v[k][q]=s*x+c*y;}
+      }
+    }
+    const idx=[...Array(n).keys()].sort((i,j)=>a[j][j]-a[i][i]);
+    return {values:idx.map(i=>a[i][i]),vectors:idx.map(i=>v.map(row=>row[i]))};
+  }
+
+  // Least squares with the chosen tracks: each frame sends the best numbers for those movement patterns.
+  function project(s,ids){
+    const basis=ids.length?orthonormalize(ids.map(i=>s.tiles[i].vector)):[];
+    // parts[k][t]: motion matched at frame t by the k-th track beyond the tracks before it. They add up exactly.
+    const frames=[],error=[],parts=basis.map(()=>[]);let kept=0;
+    for(const x of s.centered){
+      const r=new Array(D).fill(0);
+      basis.forEach((q,k)=>{const c=dot(x,q);parts[k].push(c*c);for(let d=0;d<D;d++)r[d]+=c*q[d];});
+      let e=0;for(let d=0;d<D;d++)e+=(x[d]-r[d])**2;
+      frames.push(r);error.push(e);kept+=dot(r,r);
+    }
+    return {basis,frames,error,parts,kept:kept/FRAMES/s.total};
+  }
+  const toTheta=(s,z)=>z.map((x,d)=>s.rest[d]+x/WEIGHT[d]);
+  function keptOf(s,ids){const basis=orthonormalize(ids.map(i=>s.tiles[i].vector));let k=0;for(const q of basis)for(let a=0;a<D;a++)for(let b=0;b<D;b++)k+=q[a]*s.cov[a][b]*q[b];return k/s.total;}
+  const showPct=v=>Math.round(v*100);
+
+  // The intro: Rise looks like Reach plus a small step, so the two biggest tiles repeat each other.
+  const INTRO={top:'reach',second:'sway',shares:{reach:.58,sway:.3,dip:.06,kick:.02,windmill:.02,shuffle:.01,wave:.01,tilt:.01},
+    echoes:[{mix:'shuffle',cos2:.88}],tiled:['dip','shuffle','wave'],
+    params:{reach:{k:2,phase:0},windmill:{k:1,phase:.3},sway:{k:3,phase:0},dip:{k:4,phase:.1},kick:{k:4,phase:.6},shuffle:{at:.56},wave:{at:.12},tilt:{k:7,phase:.3}},
+    order:['reach','wave','echo0','dip','sway','shuffle']};
+
+  function build(seed,spec){
+    // Overall size is set by the two big movements; small ones are capped at their own comfortable size.
+    const scale=Math.min(...[spec.top,spec.second].map(k=>MOVES[k].full**2/spec.shares[k]));
+    const sigma=Object.fromEntries(ORDER.map(k=>[k,Math.min(MOVES[k].full,Math.sqrt(spec.shares[k]*scale))]));
+    const time=timing(spec.params);
+    const centered=Array.from({length:FRAMES},(_,t)=>{const x=new Array(D).fill(0);ORDER.forEach((k,m)=>{const a=sigma[k]*time[m][t];for(let d=0;d<D;d++)x[d]+=a*PATTERNS[k][d];});return x;});
+    const cov=Array.from({length:D},()=>new Array(D).fill(0));
+    for(const x of centered)for(let a=0;a<D;a++)for(let b=0;b<D;b++)cov[a][b]+=x[a]*x[b]/FRAMES;
+    const total=cov.reduce((t,row,d)=>t+row[d],0);
+    const s={seed,frames:FRAMES,seconds:SECONDS,top:spec.top,second:spec.second,centered,cov,total,rest:null,tiles:[]};
+    s.moves=ORDER.map(k=>({key:k,name:MOVES[k].name,noun:MOVES[k].noun,share:sigma[k]**2/total,vector:PATTERNS[k]}));
+    // Tiles: the two big movements, one or two echoes of the biggest, and some smaller movements.
+    const pool={},pure=k=>({key:k,kind:'pure',name:MOVES[k].name,text:MOVES[k].text,vector:PATTERNS[k]});
+    for(const k of [spec.top,spec.second,...spec.tiled])pool[k]=pure(k);
+    spec.echoes.forEach((e,i)=>{const c=Math.sqrt(e.cos2),sn=Math.sqrt(1-e.cos2);
+      pool['echo'+i]={key:'echo'+i,kind:'echo',base:spec.top,mix:e.mix,cos2:e.cos2,name:MOVES[spec.top].echo[i],text:MOVES[spec.top].text.replace(/\.$/,'')+', with '+MOVES[e.mix].bit+'.',vector:PATTERNS[spec.top].map((x,d)=>c*x+sn*PATTERNS[e.mix][d])};});
+    s.tiles=spec.order.map((k,id)=>({id,...pool[k]}));
+    for(const t of s.tiles)t.alone=keptOf(s,[t.id]);
+    // Rest pose: the routine's average. Chosen so that every pose a player can produce stays in a comfortable range.
+    const low=new Array(D).fill(Infinity),high=new Array(D).fill(-Infinity);
+    const scan=v=>{for(const x of v)for(let d=0;d<D;d++){const a=x[d]/WEIGHT[d];if(a<low[d])low[d]=a;if(a>high[d])high[d]=a;}};
+    scan(centered);
+    for(let i=0;i<s.tiles.length;i++){scan(project(s,[i]).frames);for(let j=i+1;j<s.tiles.length;j++)scan(project(s,[i,j]).frames);}
+    const side=(l,r,floor)=>Math.max(floor,floor-Math.min(low[l],low[r]));
+    const sh=side(2,4,6),el=side(3,5,10),kn=side(7,9,4),hip=Math.max(side(6,8,2),.45*kn); // shins stay near upright
+    s.rest=[0,0,sh,el,sh,el,hip,kn,hip,kn];
+    s.range={low:low.map((x,d)=>x+s.rest[d]),high:high.map((x,d)=>x+s.rest[d])};
+    // PCA, computed from the frames themselves.
+    s.pca=eigen(cov);
+    const idOf=k=>s.tiles.findIndex(t=>t.key===k);
+    s.best=[idOf(spec.top),idOf(spec.second)];
+    s.optimum=keptOf(s,s.best);
+    s.pairs=[];for(let i=0;i<s.tiles.length;i++)for(let j=i+1;j<s.tiles.length;j++)s.pairs.push({ids:[i,j],kept:keptOf(s,[i,j])});
+    const byAlone=s.tiles.slice().sort((a,b)=>b.alone-a.alone);
+    s.trap=[byAlone[0].id,byAlone[1].id].sort((a,b)=>a-b);
+    // Every pair that carries both big movements, even with an echo standing in for the biggest, passes.
+    const right=s.pairs.filter(p=>p.ids.includes(s.best[1])&&p.ids.some(i=>i===s.best[0]||s.tiles[i].kind==='echo'));
+    s.target=Math.floor((Math.min(...right.map(p=>p.kept))-MARGIN)*20)/20;
+    s.winners=s.pairs.filter(p=>p.kept>=s.target).map(p=>p.ids);
+    return s;
+  }
+  const LIMITS={low:[-26,-26,0,5,0,5,-12,0,-12,0],high:[26,26,160,125,160,125,55,88,55,88]};
+  function valid(s){
+    const trap=s.pairs.find(p=>p.ids[0]===s.trap[0]&&p.ids[1]===s.trap[1]);
+    return s.target>=.6&&trap.kept<s.target-MARGIN&&s.pairs.every(p=>Math.abs(p.kept-s.target)>=MARGIN)&&s.tiles.every(t=>t.alone<s.target-MARGIN)
+      &&s.range.low.every((x,d)=>x>=LIMITS.low[d]-1e-9)&&s.range.high.every((x,d)=>x<=LIMITS.high[d]+1e-9);
+  }
+  function randomSpec(r){
+    const top=choose(r,TOPS),second=choose(r,ORDER.filter(k=>MOVES[k].big&&k!==top)),others=ORDER.filter(k=>k!==top&&k!==second);
+    const shares={[top]:.52+.1*r(),[second]:.24+.08*r()},weights=shuffled([.3,.22,.16,.12,.09,.06],r),rest=1-shares[top]-shares[second];
+    others.forEach((k,i)=>shares[k]=rest*weights[i]);
+    const count=r()<.5?1:2,mixes=shuffled(others.filter(k=>k!=='tilt'),r).slice(0,count);
+    const echoes=mixes.map(mix=>({mix,cos2:.87+.06*r()}));
+    const tiled=shuffled(others,r).slice(0,4-count);
+    const params={reach:{k:choose(r,[1,2]),phase:.2*r()},windmill:{k:choose(r,[1,2]),phase:r()},sway:{k:choose(r,[3,4]),phase:r()},dip:{k:choose(r,[3,4]),phase:r()},
+      kick:{k:choose(r,[3,4]),phase:r()},shuffle:{at:r()},wave:{at:r()},tilt:{k:choose(r,[6,7]),phase:r()}};
+    return {top,second,shares,echoes,tiled,params,order:shuffled([top,second,...echoes.map((_,i)=>'echo'+i),...tiled],r)};
+  }
+  function scenario(seed=1){
+    seed>>>=0;
+    if(seed===1){const s=build(1,INTRO);if(!valid(s))throw Error('Echo Dancer: the introductory routine is invalid');return s;}
+    for(let attempt=0;attempt<40;attempt++){
+      let s=null;try{s=build(seed,randomSpec(rng((seed+attempt*0x9E3779B9)>>>0)));}catch(e){continue;}
+      if(valid(s))return s;
+    }
+    throw Error('Echo Dancer: no valid routine for seed '+seed);
+  }
+  function evaluate(s,ids){
+    ids=ids.filter(i=>i!==null&&i!==undefined);
+    const p=project(s,ids),kept=p.kept;
+    const moves=s.moves.map(m=>{const c=p.basis.reduce((a,q)=>a+dot(q,m.vector)**2,0);return {...m,captured:c,lost:m.share*(1-c)};});
+    const residual=new Array(D).fill(0);
+    s.centered.forEach((x,t)=>{for(let d=0;d<D;d++)residual[d]+=(x[d]-p.frames[t][d])**2;});
+    const lostTotal=residual.reduce((a,b)=>a+b,0)||1;
+    const regions=REGIONS.map(r=>({name:r.name,share:r.joints.reduce((a,d)=>a+residual[d],0)/lostTotal}));
+    const overlap=ids.length===2?Math.abs(dot(s.tiles[ids[0]].vector,s.tiles[ids[1]].vector)):0;
+    return {ids,kept,shown:showPct(kept),frames:p.frames,error:p.error,parts:p.parts,moves,regions,overlap,complete:ids.length===2,success:ids.length===2&&kept>=s.target};
+  }
+  // What each other track would add, given one already on the link.
+  const adds=(s,id)=>s.tiles.filter(t=>t.id!==id).map(t=>({id:t.id,name:t.name,add:keptOf(s,[id,t.id])-s.tiles[id].alone})).sort((a,b)=>b.add-a.add);
+  root.EchoDance={FRAMES,SECONDS,JOINTS,WEIGHT,REGIONS,MOVES,ORDER,PATTERNS,MARGIN,LIMITS,rng,dot,orthonormalize,eigen,scenario,evaluate,project,keptOf,toTheta,adds,showPct};
+})(globalThis);
+</script><script>(function(){
+  'use strict';
+  // Course pages run the course version: wire_course.py sets data-mode="course" (?mode=course previews it). It adds the
+  // lecture's terms and a ledger, total variance = variance captured + reconstruction error. The arcade never sees it.
+  const COURSE=document.documentElement.dataset.mode==='course'||new URLSearchParams(location.search).get('mode')==='course';
+  const M=globalThis.EchoDance,$=id=>document.getElementById(id);
+  const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const reduced=()=>globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches??false;
+  const raf=typeof globalThis.requestAnimationFrame==='function'?globalThis.requestAnimationFrame.bind(globalThis):null;
+  const now=()=>globalThis.performance?.now?.()??Date.now();
+  const pct=v=>Math.round(v*100)+'%',cap=t=>t.charAt(0).toUpperCase()+t.slice(1),RAD=Math.PI/180;
+  // Figure proportions in stage units; the floor is y = 0 and up is negative.
+  const G={spine:60,neck:9,head:13,shoulder:15,upper:34,fore:32,hip:10,thigh:48,shin:46,foot:13};
+  const BOW=[0,0,14,22,14,22,14,24,14,24],BOW_BEND=58,BINS=80;
+  let routines=1,s,seed=1,slots=[null,null],current=null,timers=[],playing=false,clock=0,lastTick=null,bowAt=null,press=null,suppressClick=false,scrubbing=null;
+  let orig=[],echo=[],tileFrames=[],tileScores=[],restFeet=[0,0],stageFig={},tileFig=[],slotFig=[null,null];
+  const live=new Set();
+
+  function later(fn,delay){const id=setTimeout(fn,delay);timers.push(id);return id;}
+  function cancel(){for(const t of timers)clearTimeout(t);timers=[];}
+  function joints(th,bend=0){
+    const [torso,head,lSh,lEl,rSh,rEl,lHip,lKn,rHip,rKn]=th.map(x=>x*RAD),fb=Math.cos(bend*RAD);
+    const dir=(a,l)=>[Math.sin(a)*l,Math.cos(a)*l],add=(p,q)=>[p[0]+q[0],p[1]+q[1]];
+    const perp=[Math.cos(torso),Math.sin(torso)],neck=[Math.sin(torso)*G.spine*fb,-Math.cos(torso)*G.spine*fb];
+    const ha=torso+head,hd=(G.neck+G.head)*(.35+.65*fb),headC=[neck[0]+Math.sin(ha)*hd,neck[1]-Math.cos(ha)*hd];
+    const lS=[neck[0]-perp[0]*G.shoulder,neck[1]-perp[1]*G.shoulder],rS=[neck[0]+perp[0]*G.shoulder,neck[1]+perp[1]*G.shoulder];
+    // Arm angles are measured from hanging along the spine, outward; knees fold the shin back under the body.
+    const aL=-torso-lSh,aR=-torso+rSh,lE=add(lS,dir(aL,G.upper)),rE=add(rS,dir(aR,G.upper));
+    const lK=add([-G.hip,0],dir(-lHip,G.thigh)),rK=add([G.hip,0],dir(rHip,G.thigh));
+    return {pelvis:[0,0],neck,headC,lS,rS,lE,rE,lH:add(lE,dir(aL-lEl,G.fore)),rH:add(rE,dir(aR+rEl,G.fore)),lP:[-G.hip,0],rP:[G.hip,0],lK,rK,lA:add(lK,dir(-lHip+lKn,G.shin)),rA:add(rK,dir(rHip-rKn,G.shin))};
+  }
+  // Keep the lower foot on the floor and planted feet where they rest, so weight shifts read as body movement.
+  function grounded(th,bend=0){
+    const j=joints(th,bend),ly=j.lA[1],ry=j.rA[1],low=Math.max(ly,ry),wl=Math.exp(-(low-ly)/6),wr=Math.exp(-(low-ry)/6);
+    const dx=-(wl*(j.lA[0]-restFeet[0])+wr*(j.rA[0]-restFeet[1]))/(wl+wr);
+    for(const k in j)j[k]=[j[k][0]+dx,j[k][1]-low];
+    return j;
+  }
+  const figure=cls=>`<g class="figure ${cls}"><path class="legs"/><path class="spine"/><path class="arms"/><circle class="head" r="${G.head}"/></g>`;
+  const refs=g=>({legs:g.querySelector('.legs'),spine:g.querySelector('.spine'),arms:g.querySelector('.arms'),head:g.querySelector('.head')});
+  const pt=p=>p[0].toFixed(1)+' '+p[1].toFixed(1);
+  function setFigure(f,j){
+    if(!f)return;
+    f.legs.setAttribute('d',`M${pt([j.lA[0]-G.foot,j.lA[1]])}L${pt(j.lA)}L${pt(j.lK)}L${pt(j.lP)}L${pt(j.rP)}L${pt(j.rK)}L${pt(j.rA)}L${pt([j.rA[0]+G.foot,j.rA[1]])}`);
+    f.spine.setAttribute('d',`M${pt(j.pelvis)}L${pt(j.neck)}`);
+    f.arms.setAttribute('d',`M${pt(j.lH)}L${pt(j.lE)}L${pt(j.lS)}L${pt(j.rS)}L${pt(j.rE)}L${pt(j.rH)}`);
+    f.head.setAttribute('cx',j.headC[0].toFixed(1));f.head.setAttribute('cy',j.headC[1].toFixed(1));
+  }
+  function at(frames,f){const n=frames.length,i=Math.floor(f),k=f-i,a=frames[((i%n)+n)%n],b=frames[(i+1)%n];return a.map((x,d)=>x+(b[d]-x)*k);}
+  const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+  const sparkPath=(sc,max)=>'M'+sc.map((v,t)=>`${t} ${(12-v/max*10.5).toFixed(2)}`).join('L');
+  const tileLabel=t=>`${t.name}. ${t.text} Keeps ${pct(t.alone)} of the motion on its own.`;
+  function setURL(){try{const u=new URL(location.href);u.searchParams.set('seed',seed);history.replaceState(null,'',u.href);}catch(e){}}
+
+  function start(nextSeed){
+    cancel();seed=nextSeed>>>0;s=M.scenario(seed);slots=[null,null];bowAt=null;live.clear();press=null;
+    orig=s.centered.map(z=>M.toTheta(s,z));
+    const rj=joints(s.rest);restFeet=[rj.lA[0],rj.rA[0]];
+    tileFrames=s.tiles.map(t=>M.project(s,[t.id]).frames.map(z=>M.toTheta(s,z)));
+    tileScores=s.tiles.map(t=>s.centered.map(x=>M.dot(x,t.vector)));
+    $('target-brief').textContent=$('meter-needed').textContent=$('target-howto').textContent=pct(s.target);$('st-routine').textContent=routines;
+    $('meter-target').style.left=(s.target*100)+'%';
+    $('stage-art').innerHTML=`<defs><radialGradient id="spot"><stop offset="0" stop-color="#FADACA" stop-opacity=".45"/><stop offset="1" stop-color="#FADACA" stop-opacity="0"/></radialGradient><linearGradient id="beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FADACA" stop-opacity="0"/><stop offset="1" stop-color="#FADACA" stop-opacity=".12"/></linearGradient></defs>`+
+      [200,520].map(x=>`<polygon points="${x-24},0 ${x+24},0 ${x+130},336 ${x-130},336" fill="url(#beam)"/><ellipse cx="${x}" cy="336" rx="120" ry="15" fill="url(#spot)"/>`).join('')+
+      `<line class="floor" x1="0" y1="336" x2="720" y2="336"/><g transform="translate(200 334) scale(1.18)">${figure('original')}</g><g transform="translate(520 334) scale(1.18)">${figure('ghost')}${figure('echo')}</g>`;
+    const art=$('stage-art');
+    stageFig={original:refs(art.querySelector('.original')),ghost:refs(art.querySelector('.ghost')),echo:refs(art.querySelector('.echo'))};
+    const max=Math.max(...tileScores.flat().map(Math.abs))||1;
+    $('tray').innerHTML=s.tiles.map(t=>`<button type="button" class="tile" id="tile-${t.id}" data-id="${t.id}" aria-pressed="false" aria-label="${esc(tileLabel(t))}"><svg class="tile-figure" viewBox="-85 -218 170 226" aria-hidden="true"><line class="tile-floor" x1="-75" y1="1" x2="75" y2="1"/>${figure('extreme lo')}${figure('extreme hi')}${figure('solid')}</svg><span class="tile-text"><span class="tile-name">${esc(t.name)}</span><span class="tile-alone">${pct(t.alone)}</span></span><svg class="spark" viewBox="0 0 240 24" preserveAspectRatio="none" aria-hidden="true"><path d="${sparkPath(tileScores[t.id],max)}"/></svg><span class="tile-state" aria-hidden="true"></span></button>`).join('');
+    tileFig=s.tiles.map(t=>{
+      const el=$('tile-'+t.id),sc=tileScores[t.id],lo=sc.indexOf(Math.min(...sc)),hi=sc.indexOf(Math.max(...sc)),f={solid:refs(el.querySelector('.solid'))};
+      setFigure(refs(el.querySelector('.lo')),grounded(tileFrames[t.id][lo]));setFigure(refs(el.querySelector('.hi')),grounded(tileFrames[t.id][hi]));
+      setFigure(f.solid,grounded(s.rest));return f;
+    });
+    tileScores.max=max;
+    // Without motion, open on the moment the biggest movement peaks so the still frame says something.
+    const top=s.moves.find(m=>m.key===s.top).vector,peak=s.centered.reduce((b,x,t)=>Math.abs(M.dot(x,top))>Math.abs(M.dot(s.centered[b],top))?t:b,0);
+    clock=raf&&!reduced()?0:peak/M.FRAMES*M.SECONDS;
+    playing=!!raf&&!reduced();updatePlay();
+    setURL();changed();
+  }
+  function updatePlay(){$('play').textContent=playing?'Pause':'Play';$('play').setAttribute('aria-label',playing?'Pause the dancers':'Play the dancers');}
+  function renderSlots(){
+    $('slots').innerHTML=slots.map((id,k)=>{
+      const t=id===null?null:s.tiles[id];
+      return `<div class="slot${t?' filled':''}" id="slot-${k}" data-slot="${k}"><span class="slot-label">TRACK ${k+1}</span>${t?`<svg class="slot-figure" viewBox="-85 -218 170 226" aria-hidden="true">${figure('solid')}</svg><span class="slot-name">${esc(t.name)}</span><svg class="spark" viewBox="0 0 240 24" preserveAspectRatio="none" aria-hidden="true"><path d="${sparkPath(tileScores[id],tileScores.max)}"/></svg><button type="button" class="slot-remove" data-remove="${k}" aria-label="Take ${esc(t.name)} off track ${k+1}">×</button>`:'<span class="slot-empty">Drop a track here</span>'}</div>`;
+    }).join('');
+    slotFig=slots.map((id,k)=>{if(id===null)return null;const f=refs($('slot-'+k).querySelector('.solid'));setFigure(f,grounded(at(tileFrames[id],clock/M.SECONDS*M.FRAMES)));return f;});
+  }
+  function updateTiles(){
+    s.tiles.forEach(t=>{const el=$('tile-'+t.id),k=slots.indexOf(t.id);el.setAttribute('aria-pressed',String(k>=0));el.classList.toggle('in-link',k>=0);el.classList.toggle('track-2',k===1);el.querySelector('.tile-state').textContent=k>=0?'TRACK '+(k+1):'';});
+  }
+  function renderStrip(){
+    const per=M.FRAMES/BINS,bin=a=>Array.from({length:BINS},(_,b)=>{let v=0;for(let t=b*per;t<(b+1)*per;t++)v+=a[t];return v/per;});
+    // Gray is all of the original's motion; each track stacks on the part it matches, in its slot's color.
+    const full=bin(s.centered.map(x=>M.dot(x,x))),max=Math.max(...full)||1,w=480/BINS,H=v=>v/max*52;
+    const rect=(cls,b,y,h)=>`<rect class="${cls}" x="${(b*w+.6).toFixed(1)}" y="${y.toFixed(2)}" width="${(w-1.2).toFixed(1)}" height="${h.toFixed(2)}"/>`;
+    const slotOf=slots.map((id,k)=>id===null?null:k).filter(k=>k!==null),parts=current.parts.map(bin);
+    let svg=full.map((v,b)=>rect('full',b,56-H(v),H(v))).join('');
+    for(let b=0;b<BINS;b++){let y=56;parts.forEach((p,k)=>{const h=H(p[b]);y-=h;if(h>.05)svg+=rect('part track-'+(slotOf[k]+1),b,y,h);});}
+    $('timeline-svg').innerHTML=svg+'<line id="playhead" class="playhead" x1="0" y1="0" x2="0" y2="56"/>';
+  }
+  function updateMeter(){
+    const k=current.kept;
+    $('meter-fill').style.width=(k*100).toFixed(1)+'%';$('meter-value').textContent=pct(k);
+    $('meter-fill').parentElement.parentElement.classList.toggle('met',current.success);
+    // The ledger computes both sides separately: captured from the share kept, error from the echo's own per-frame misses.
+    if(COURSE){const f=v=>v.toFixed(1),cap=k*s.total,err=current.error.reduce((a,b)=>a+b,0)/current.error.length;
+      $('ledger').innerHTML=`Total variance <b>${f(s.total)}</b> = variance captured <b>${f(cap)}</b> + reconstruction error <b>${f(err)}</b>`;}
+  }
+  // The status line, the stage's corner label and its outcome outline move together.
+  function status(text,kind='',label=''){
+    $('st-status').textContent=text;$('st-status').className=kind;
+    $('outcome-label').textContent=label;$('outcome-label').className='corner corner-center'+(kind?' '+kind:'');
+    $('stage-wrap').classList.remove('outcome-win','outcome-lose');if(kind)$('stage-wrap').classList.add('outcome-'+kind);
+  }
+  // The reason line keeps its height; it stays empty until there is a result to explain.
+  function feedback(kind,title,text){$('feedback').className='reason'+(kind?' '+kind:'');$('feedback-title').textContent=title;$('feedback-text').textContent=text;}
+  const biggestRegion=e=>e.regions.slice().sort((a,b)=>b.share-a.share)[0].name;
+  function describe(){
+    const e=current,n=e.ids.length;
+    $('stage-desc').textContent=`The original dancer and the echo. ${n?`With ${e.ids.map(i=>s.tiles[i].name).join(' and ')} on the link, the echo keeps ${pct(e.kept)} of the motion. Most of what is missing is in the ${biggestRegion(e)}.`:'The echo holds the average pose.'}`;
+    $('accessible-table').innerHTML=`<table><thead><tr><th>Track</th><th>Movement</th><th>On its own</th><th>On the link</th></tr></thead><tbody>${s.tiles.map(t=>`<tr><td>${esc(t.name)}</td><td>${esc(t.text)}</td><td>${pct(t.alone)}</td><td>${slots.includes(t.id)?'Track '+(slots.indexOf(t.id)+1):'No'}</td></tr>`).join('')}</tbody></table><p>${n?`Missing now: ${e.moves.filter(m=>m.lost>=.005).sort((a,b)=>b.lost-a.lost).map(m=>`${m.noun} (${pct(m.lost)})`).join(', ')||'almost nothing'}.`:'Nothing is on the link yet.'}</p>`;
+  }
+  function changed(){
+    cancel();bowAt=null;document.body.classList.remove('success');for(const id of ['takeaway-text','takeaway-lost','adds-block'])$(id).hidden=true;
+    const ids=slots.filter(x=>x!==null);
+    current=M.evaluate(s,ids);echo=current.frames.map(z=>M.toTheta(s,z));
+    renderSlots();updateTiles();renderStrip();updateMeter();describe();
+    $('st-tracks').textContent=`${ids.length} / 2`;$('st-kept').textContent=`${pct(current.kept)} / need ${pct(s.target)}`;$('st-kept').className='';
+    if(ids.length<2)verdict(current);
+    else{status('Sending');feedback('','','');later(()=>verdict(current),reduced()?0:650);}
+    draw();
+  }
+  function verdict(e){
+    const n=e.ids.length,[a,b]=e.ids.map(i=>s.tiles[i]);
+    if(n===0){status('Link empty');feedback('','','');return;}
+    if(n===1){status('1 of 2 tracks');feedback('',`${a.name} alone keeps ${pct(e.kept)} of the motion.`,'The link has room for one more track. Watch the echo for the movement that is still missing.');return;}
+    if(e.success){
+      status('In step','win','In step');$('st-kept').className='win';document.body.classList.add('success');
+      feedback('success',`In step. The echo keeps ${pct(e.kept)} of the motion.`,`${a.name} and ${b.name} carry different movement, so neither track spends the link repeating the other.`);
+      takeaway(e);if(raf&&!reduced())bowAt=now();return;
+    }
+    status('Too little kept','lose',`${pct(e.kept)} kept`);$('st-kept').className='lose';$('takeaway').hidden=false;
+    const missing=e.moves.slice().sort((x,y)=>y.lost-x.lost)[0],gone=`${cap(missing.noun)} is missing: ${pct(missing.lost)} of the motion.`;
+    if(e.overlap>=.8){
+      const topNoun=s.moves.find(m=>m.key===s.top).noun,extra=[a,b].filter(t=>t.kind==='echo').map(t=>M.MOVES[t.mix].bit);
+      feedback('warning','These two tracks mostly repeat each other.',`${a.name} keeps ${pct(a.alone)} on its own and ${b.name} keeps ${pct(b.alone)}, but together they keep only ${pct(e.kept)}. Both send ${topNoun}. The only new movement is ${extra.join(' and ')}. ${gone}`);
+    }else{
+      feedback('warning',`${cap(missing.noun)} didn’t make it.`,`Together ${a.name} and ${b.name} keep ${pct(e.kept)}, and the brief needs ${pct(s.target)}. ${cap(missing.noun)} is ${pct(missing.share)} of the motion, and ${missing.captured>.05?'these tracks carry only part of it':'neither track carries it'}.`);
+    }
+  }
+  function takeaway(e){
+    const [b0,b1]=s.best.map(i=>s.tiles[i]),[m0,m1]=[s.top,s.second].map(k=>s.moves.find(m=>m.key===k));
+    const mine=e.ids.slice().sort().join()===s.best.slice().sort().join();
+    $('takeaway-text').textContent=`A principal component analysis (PCA) of the routine’s 240 frames finds the best pair without watching the dance. Its first track, ${b0.name}, keeps the most motion on its own. Its second, ${b1.name}, keeps the most of what the first misses. Together they keep ${pct(s.optimum)}, and no pair of tracks can keep more. ${mine?'That is the pair you sent.':`Your pair kept ${pct(e.kept)}.`}`;
+    const lively=e.moves.filter(m=>['shuffle','wave','tilt'].includes(m.key)&&m.lost>0&&s.tiles.some(t=>t.key===m.key)).sort((x,y)=>y.share-x.share)[0];
+    $('takeaway-lost').textContent=lively?`${cap(lively.noun)} didn’t make it. It catches the eye, but it moves the body far less than ${m0.noun} and ${m1.noun}, so a two-track summary drops it. PCA keeps what moves most, not what matters most to a choreographer.`:'';
+    $('takeaway-lost').hidden=!lively;
+    const [t0,t1]=s.trap.map(i=>s.tiles[i]),trapKept=M.keptOf(s,s.trap),rep=[t0,t1].find(t=>t.kind==='echo')||t1;
+    const small=v=>v<.005?'less than 1%':'+'+pct(v);
+    $('adds-explained').innerHTML=`<p>On their own, ${esc(t0.name)} keeps ${pct(t0.alone)} and ${esc(t1.name)} keeps ${pct(t1.alone)}. Sent together they keep ${pct(trapKept)}, because ${esc(rep.name)} repeats ${esc(m0.noun)}. With ${esc(b0.name)} on the link, here is what each other track adds:</p><ul>${M.adds(s,b0.id).map(a=>`<li>${esc(a.name)}: ${small(a.add)}</li>`).join('')}</ul>`;
+    // The explainer opens on the first two-track verdict and never closes; these parts are for a pair in step.
+    $('takeaway').hidden=false;$('takeaway-text').hidden=false;$('adds-block').hidden=false;
+  }
+  function draw(){
+    const f=clock/M.SECONDS*M.FRAMES;let bow=0;
+    if(bowAt!==null){const t=now()-bowAt;bow=t<500?ease(t/500):t<1300?1:t<1900?1-ease((t-1300)/600):0;if(t>=1900)bowAt=null;}
+    const blend=th=>bow?th.map((x,d)=>x+(BOW[d]-x)*bow):th,o=blend(at(orig,f)),e=blend(at(echo,f)),bend=BOW_BEND*bow;
+    const og=grounded(o,bend);setFigure(stageFig.original,og);setFigure(stageFig.ghost,og);setFigure(stageFig.echo,grounded(e,bend));
+    for(const id of live)setFigure(tileFig[id]?.solid,grounded(at(tileFrames[id],f)));
+    slots.forEach((id,k)=>{if(id!==null)setFigure(slotFig[k],grounded(at(tileFrames[id],f)));});
+    const x=(clock/M.SECONDS*480).toFixed(1),ph=$('playhead');if(ph){ph.setAttribute('x1',x);ph.setAttribute('x2',x);}
+    $('timeline-time').textContent=`0:0${Math.floor(clock)}`;
+  }
+  function setClock(t){
+    clock=Math.min(M.SECONDS-1e-3,Math.max(0,t));
+    const tl=$('timeline');tl.setAttribute('aria-valuenow',clock.toFixed(1));tl.setAttribute('aria-valuetext',`${clock.toFixed(1)} of ${M.SECONDS} seconds`);
+    draw();
+  }
+  function tick(t){
+    if(lastTick!==null&&playing&&!scrubbing)clock=(clock+Math.min(.1,(t-lastTick)/1000))%M.SECONDS;
+    lastTick=t;draw();raf(tick);
+  }
+  function toggle(id){
+    const k=slots.indexOf(id);
+    if(k>=0)slots[k]=null;else{const empty=slots.indexOf(null);slots[empty>=0?empty:1]=id;}
+    changed();
+  }
+  function place(id,k){const other=slots.indexOf(id);if(other===k)return;if(other>=0)slots[other]=slots[k];slots[k]=id;changed();}
+  function slotAt(e){
+    for(let k=0;k<2;k++){const r=$('slot-'+k)?.getBoundingClientRect?.();if(r&&e.clientX>=r.left&&e.clientX<=r.left+r.width&&e.clientY>=r.top&&e.clientY<=r.top+r.height)return k;}
+    return null;
+  }
+  function endDrag(){$('drag-ghost').hidden=true;document.body.classList.remove('dragging');for(let k=0;k<2;k++)$('slot-'+k)?.classList.remove('drop-target');}
+  function setLive(id,on){
+    if(on)live.add(id);else{live.delete(id);if(tileFig[id])setFigure(tileFig[id].solid,grounded(s.rest));}
+  }
+
+  const tray=$('tray');
+  // The click that ends a drag is not a press; keyboard presses (detail 0) always count.
+  tray.addEventListener('click',e=>{const tile=e.target.closest?.('.tile');if(!tile)return;if(e.detail!==0&&suppressClick){suppressClick=false;return;}toggle(Number(tile.dataset.id));});
+  tray.addEventListener('pointerdown',e=>{
+    const tile=e.target.closest?.('.tile');if(!tile||e.button>0)return;
+    press={id:Number(tile.dataset.id),x:e.clientX,y:e.clientY,pointerId:e.pointerId,dragging:false,tile};
+    tile.setPointerCapture?.(e.pointerId);
+  });
+  tray.addEventListener('pointermove',e=>{
+    if(!press||e.pointerId!==press.pointerId)return;
+    if(!press.dragging&&Math.hypot(e.clientX-press.x,e.clientY-press.y)>6){
+      press.dragging=true;document.body.classList.add('dragging');
+      const g=$('drag-ghost');g.textContent=s.tiles[press.id].name;g.hidden=false;
+    }
+    if(!press.dragging)return;
+    const g=$('drag-ghost');g.style.left=e.clientX+'px';g.style.top=e.clientY+'px';
+    const k=slotAt(e);for(let i=0;i<2;i++)$('slot-'+i)?.classList.toggle('drop-target',i===k);
+  });
+  const release=e=>{
+    if(!press||e.pointerId!==press.pointerId)return;
+    const p=press;press=null;endDrag();
+    if(p.tile.hasPointerCapture?.(e.pointerId))p.tile.releasePointerCapture(e.pointerId);
+    if(!p.dragging)return;
+    // Browsers send the drag's own click in the same task as pointerup; a plain timeout clears the flag after it.
+    suppressClick=true;setTimeout(()=>{suppressClick=false;},0);
+    const k=e.type==='pointerup'?slotAt(e):null;if(k!==null)place(p.id,k);
+  };
+  tray.addEventListener('pointerup',release);tray.addEventListener('pointercancel',release);
+  tray.addEventListener('pointerover',e=>{const tile=e.target.closest?.('.tile');if(tile)setLive(Number(tile.dataset.id),true);});
+  tray.addEventListener('pointerout',e=>{const tile=e.target.closest?.('.tile');if(tile&&!tile.contains(e.relatedTarget)&&document.activeElement!==tile)setLive(Number(tile.dataset.id),false);});
+  tray.addEventListener('focusin',e=>{const tile=e.target.closest?.('.tile');if(tile)setLive(Number(tile.dataset.id),true);});
+  tray.addEventListener('focusout',e=>{const tile=e.target.closest?.('.tile');if(tile)setLive(Number(tile.dataset.id),false);});
+  $('slots').addEventListener('click',e=>{
+    const btn=e.target.closest?.('[data-remove]');if(!btn)return;
+    const k=Number(btn.dataset.remove),id=slots[k];slots[k]=null;changed();$('tile-'+id)?.focus?.();
+  });
+  $('play').addEventListener('click',()=>{playing=!playing;updatePlay();if(!playing)setClock(clock);});
+  const timeline=$('timeline');
+  const scrubTo=e=>{const r=timeline.getBoundingClientRect?.();if(r&&r.width)setClock((e.clientX-r.left)/r.width*M.SECONDS);};
+  timeline.addEventListener('pointerdown',e=>{if(e.button>0)return;scrubbing={pointerId:e.pointerId};timeline.setPointerCapture?.(e.pointerId);scrubTo(e);});
+  timeline.addEventListener('pointermove',e=>{if(scrubbing&&e.pointerId===scrubbing.pointerId)scrubTo(e);});
+  const endScrub=e=>{if(!scrubbing||e.pointerId!==scrubbing.pointerId)return;scrubbing=null;};
+  timeline.addEventListener('pointerup',endScrub);timeline.addEventListener('pointercancel',endScrub);
+  timeline.addEventListener('keydown',e=>{
+    const step={ArrowLeft:-.1,ArrowDown:-.1,ArrowRight:.1,ArrowUp:.1,PageDown:-1,PageUp:1}[e.key];
+    let t=null;if(step!==undefined)t=clock+step;else if(e.key==='Home')t=0;else if(e.key==='End')t=M.SECONDS;else return;
+    e.preventDefault();playing=false;updatePlay();setClock(t);
+  });
+  function randomSeed(){try{return crypto.getRandomValues(new Uint32Array(1))[0];}catch(e){return (Date.now()^Math.floor(Math.random()*4294967296))>>>0;}}
+  $('new-routine').addEventListener('click',()=>{let next=randomSeed();if(next===seed)next=(next+1)>>>0;routines++;start(next);});
+  $('reset').addEventListener('click',()=>start(seed));
+  const params=new URLSearchParams(location.search),raw=params.get('seed'),n=raw===null?1:Number(raw);
+  if(COURSE||params.get('embed')==='1')document.body.classList.add('embedded');
+  if(COURSE){
+    document.body.classList.add('course');
+    // Size the course page's frame to the game when the page allows it (same origin); otherwise its set height stands.
+    const fit=()=>{try{const f=window.frameElement,mn=document.querySelector('main');if(f&&mn){const h=Math.ceil(mn.getBoundingClientRect().bottom+window.scrollY+8);if(Math.abs(f.offsetHeight-h)>4)f.style.height=h+'px';}}catch(e){}};
+    if(typeof ResizeObserver!=='undefined')new ResizeObserver(fit).observe(document.body);
+    window.addEventListener('load',fit);
+  }
+  start(Number.isInteger(n)&&n>=0&&n<=4294967295?n:1);
+  if(raf)raf(tick);
+})();
+</script>
+</body></html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>How many examples do you need?</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,'Times New Roman',serif;background:#FAFAF8;color:#1A1A1A;padding:16px}
+  #app{max-width:640px;margin:0 auto}
+  h1{font-size:20px;font-weight:600;margin-bottom:4px}
+  .sub{font-size:13px;color:#595959;margin-bottom:14px}
+  .controls{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;margin-bottom:12px}
+  .ctrl{display:flex;align-items:center;flex-wrap:wrap;row-gap:6px}
+  .ctrl label,.control-label{font-size:12px;font-family:'Courier New',monospace;color:#444;margin-right:8px}
+  .seg button{font-family:'Courier New',monospace;font-size:12px;padding:5px 10px;border:1px solid #767676;background:#fff;color:#1A1A1A;cursor:pointer;border-radius:4px;margin-right:4px}
+  .seg button.on{background:#A31F34;color:#fff;border-color:#A31F34}
+  button.act{font-family:'Courier New',monospace;font-size:12px;padding:5px 12px;border:1px solid #A31F34;background:#fff;color:#A31F34;border-radius:4px;cursor:pointer}
+  input[type=range]{vertical-align:middle;width:140px}
+  .val{font-family:'Courier New',monospace;font-size:12px;color:#A31F34;font-weight:700;margin-left:6px}
+  button:focus-visible,input:focus-visible{outline:3px solid #1D4ED8;outline-offset:3px}
+  canvas{background:#fff;border:1px solid #767676;border-radius:6px;display:block;margin-bottom:10px;width:100%;max-width:608px;height:auto}
+  .legend{font-size:12px;color:#444;margin-bottom:8px}
+  .readout{font-size:13px;background:#fff;border:1px solid #767676;border-radius:6px;padding:10px 14px;margin-bottom:10px}
+  .v{font-weight:700;font-family:'Courier New',monospace;color:#A31F34}
+  .note{font-size:12px;color:#444;line-height:1.6}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>How many examples do you need?</h1>
+  <p class="sub">Slide the number of labelled photos, then change what the borrowed model was trained on first.</p>
+
+  <div class="controls">
+    <div class="ctrl"><label for="n">labelled photos</label>
+      <input type="range" id="n" min="0" max="100" step="1" value="47"><span class="val" id="nV">120</span></div>
+    <div class="ctrl"><button class="act" type="button" id="reset">Reset</button></div>
+    <div class="ctrl"><span id="segSLabel" class="control-label">first trained on</span><span class="seg" id="segS" role="group" aria-labelledby="segSLabel"></span></div>
+  </div>
+  <div class="legend">
+    <svg width="20" height="8" viewBox="0 0 20 8" aria-hidden="true" style="vertical-align:middle;margin:0 5px 0 0"><line x1="1" y1="4" x2="19" y2="4" stroke="#16456B" stroke-width="2.6"/></svg>from scratch
+    <svg width="20" height="8" viewBox="0 0 20 8" aria-hidden="true" style="vertical-align:middle;margin:0 5px 0 14px"><line x1="1" y1="4" x2="19" y2="4" stroke="#A31F34" stroke-width="2.6"/></svg>reusing the borrowed model
+    <svg width="22" height="8" viewBox="0 0 22 8" aria-hidden="true" style="vertical-align:middle;margin:0 5px 0 14px"><line x1="1" y1="4" x2="15" y2="4" stroke="#111" stroke-width="1.6" stroke-dasharray="3 2"/><path d="M14 1 L20 4 L14 7 Z" fill="#111"/></svg>photos from scratch needed to catch up
+  </div>
+
+  <canvas id="cv" width="608" height="330" role="img" aria-label="Accuracy at telling five kinds of bird apart, against the number of labelled photos on a logarithmic scale, for a model trained from scratch and a borrowed model" aria-describedby="canvasSummary"></canvas>
+
+  <div class="readout" id="canvasSummary">With <span class="v" id="nEcho">120</span> labelled photos: <span class="v" id="aScratch">0%</span> from scratch, <span class="v" id="aReuse">0%</span> reusing. <span id="worthLine"></span> <span id="verdict"></span></div>
+  <div class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+  <p class="note">The new task is telling five kinds of bird apart from photos, so guessing scores 20%. Both runs use the same architecture and training budget, and only the starting weights differ. The order of the four earlier tasks is a judgement, and the curves show the shape of the effect, not measurements from a real model. The horizontal scale is logarithmic.</p>
+</div>
+
+<script>
+(function(){
+
+  function seg(id, opts, cur, setter){
+    const host=document.getElementById(id);
+    opts.forEach(([val,lab])=>{
+      const b=document.createElement('button'); b.type='button'; b.textContent=lab;
+      b.setAttribute('aria-pressed', val===cur?'true':'false');
+      if(val===cur) b.className='on';
+      b.onclick=()=>{ setter(val);
+        [...host.children].forEach(c=>{c.className='';c.setAttribute('aria-pressed','false');});
+        b.className='on'; b.setAttribute('aria-pressed','true'); draw(true); };
+      host.appendChild(b);
+    });
+  }
+  function say(t){ document.getElementById('announcement').textContent=t; }
+
+  const W=608,H=330,padL=44,padR=16,padT=18,padB=40;
+  const cv=document.getElementById('cv'), g=cv.getContext('2d');
+  const NMIN=10, NMAX=2000, XMAX=10000, GUESS=0.2;
+  // The slider moves in even steps along the logarithmic axis, not in steps of ten photos.
+  const fromSlider=v=>{ const m=NMIN*Math.pow(NMAX/NMIN,v/100); return m<100?Math.round(m):m<1000?Math.round(m/10)*10:Math.round(m/50)*50; };
+  let n=120, src=1;
+
+  // What each earlier task is worth, measured in labelled photos of the new task: the
+  // borrowed model scores what a fresh one would with n + k*n^0.3 photos. This is the
+  // "effective data transferred" form of Hernandez et al. (2021), in which the head start
+  // grows more slowly than the data, so the gap closes as labels become plentiful. A
+  // negative k is negative transfer. The k values are illustrative.
+  const SRC=[['other animals',600],['everyday objects',150],['satellite images',12],['X-ray scans',-2.2]];
+  const scratchAt = m => Math.max(GUESS, 0.95-1.30*Math.pow(m,-0.30));
+  const worth = m => SRC[src][1]*Math.pow(m,0.30);
+  const reuseAt = m => scratchAt(Math.max(1, m+worth(m)));
+
+  const lx=Math.log(NMIN), ux=Math.log(XMAX);
+  const X=m=>padL+(Math.log(m)-lx)/(ux-lx)*(W-padL-padR);
+  const Y=a=>H-padB-(a-0.1)/(1.0-0.1)*(H-padT-padB);
+  const round2=v=> v<100 ? Math.round(v) : Math.round(v/10)*10;
+
+  function curve(f,col,to){
+    g.strokeStyle=col; g.lineWidth=2.6; g.beginPath();
+    for(let i=0;i<=240;i++){const m=NMIN*Math.pow(to/NMIN,i/240); const px=X(m),py=Y(f(m)); i?g.lineTo(px,py):g.moveTo(px,py);}
+    g.stroke();
+  }
+  function draw(announce){
+    g.clearRect(0,0,W,H);
+    // Photos beyond the slider's reach are drawn for the from-scratch curve only.
+    g.fillStyle='#F2F1EE'; g.fillRect(X(NMAX),padT,X(XMAX)-X(NMAX),H-padT-padB);
+    g.strokeStyle='#B5B5B5'; g.lineWidth=1; g.strokeRect(padL,padT,W-padL-padR,H-padT-padB);
+    g.font='11px Courier New';
+    [0.4,0.6,0.8,1.0].forEach(a=>{g.setLineDash([3,4]);g.strokeStyle='#D0D0D0';
+      g.beginPath();g.moveTo(padL,Y(a));g.lineTo(W-padR,Y(a));g.stroke();g.setLineDash([]);
+      g.fillStyle='#444'; g.fillText(Math.round(a*100)+'%',6,Y(a)+4);});
+    g.strokeStyle='#767676'; g.setLineDash([6,4]); g.beginPath(); g.moveTo(padL,Y(GUESS)); g.lineTo(W-padR,Y(GUESS)); g.stroke(); g.setLineDash([]);
+    g.fillStyle='#444'; g.fillText('20%',6,Y(GUESS)+4); g.fillText('guessing',W-padR-64,Y(GUESS)-5);
+    g.fillStyle='#595959'; g.fillText('beyond the slider',X(NMAX)+8,padT+14);
+
+    curve(scratchAt,'#16456B',XMAX); curve(reuseAt,'#A31F34',NMAX);
+
+    const a=scratchAt(n), b=reuseAt(n), eq=Math.max(1,n+worth(n)), d=eq-n;
+    g.strokeStyle='#111'; g.lineWidth=1.5;
+    g.beginPath(); g.moveTo(X(n),padT); g.lineTo(X(n),H-padB); g.stroke();
+    // The head start, drawn as the distance from-scratch has to travel to catch up.
+    if(Math.abs(X(eq)-X(n))>3){
+      const y=Y(b), x0=X(n), x1=X(Math.min(eq,XMAX)), dir=x1>x0?1:-1;
+      g.strokeStyle='#111'; g.lineWidth=1.6; g.setLineDash([4,3]);
+      g.beginPath(); g.moveTo(x0,y); g.lineTo(x1-dir*6,y); g.stroke(); g.setLineDash([]);
+      g.fillStyle='#111'; g.beginPath(); g.moveTo(x1,y); g.lineTo(x1-dir*8,y-4.5); g.lineTo(x1-dir*8,y+4.5); g.fill();
+      const lab=(d>0?'+':'−')+round2(Math.abs(d)).toLocaleString()+' photos';
+      g.font='bold 11px Courier New'; const tw=g.measureText(lab).width;
+      let lx0=dir>0 ? Math.min((x0+x1)/2-tw/2, W-padR-tw-4) : x1-tw-10;
+      lx0=Math.max(padL+4,lx0);
+      g.fillStyle='#fff'; g.fillRect(lx0-3,y-19,tw+6,14);
+      g.fillStyle='#111'; g.fillText(lab,lx0,y-8);
+    }
+    [[a,'#16456B'],[b,'#A31F34']].forEach(([v,col])=>{ g.fillStyle=col; g.beginPath(); g.arc(X(n),Y(v),5,0,7); g.fill(); });
+    if(eq<=XMAX){ g.strokeStyle='#16456B'; g.lineWidth=2; g.beginPath(); g.arc(X(eq),Y(b),5,0,7); g.stroke(); }
+
+    g.fillStyle='#444'; g.font='11px Courier New';
+    [[10,'10'],[100,'100'],[1000,'1,000'],[10000,'10,000']].forEach(([m,t])=>{
+      const tw=g.measureText(t).width; g.fillText(t, Math.min(X(m)-tw/2, W-padR-tw), H-padB+16);});
+    g.fillText('labelled photos of birds', W/2-84, H-8);
+
+    const pct=v=>Math.round(v*100)+'%';
+    document.getElementById('nEcho').textContent=n.toLocaleString();
+    document.getElementById('aScratch').textContent=pct(a);
+    document.getElementById('aReuse').textContent=pct(b);
+    const E=round2(eq).toLocaleString(), D=round2(Math.abs(d)).toLocaleString(), ph=D==='1'?'photo':'photos';
+    document.getElementById('worthLine').innerHTML = d>=0
+      ? `From scratch you would need about <span class="v">${E}</span> photos to do as well, so the head start is worth <span class="v">${D}</span> extra ${ph}.`
+      : `From scratch, about <span class="v">${E}</span> photos would do as well, so the borrowed start costs you <span class="v">${D}</span> ${ph}.`;
+    const gap=b-a;
+    document.getElementById('verdict').textContent =
+      d<0 ? (gap<-0.004 ? 'The borrowed model is behind. What it learned from '+SRC[src][0]+' does not fit birds, and has to be unlearned first.'
+                        : 'Almost no difference now, though the borrowed model is still slightly behind.')
+      : gap>=0.08 ? 'The borrowed model is well ahead. Slide right and watch the gap close as labels become plentiful.'
+      : gap>=0.02 ? 'Still ahead, but the gap is closing as labels become plentiful.'
+      : 'Almost no difference now. With this many labels, the head start barely matters.';
+    if(announce) say(`${n} labelled photos, borrowed model first trained on ${SRC[src][0]}: ${pct(a)} from scratch, ${pct(b)} reusing. ${d>=0?'The head start is worth '+D+' extra photos.':'The borrowed start costs '+D+' photos.'}`);
+  }
+  const r=document.getElementById('n');
+  r.oninput=()=>{ n=fromSlider(+r.value); document.getElementById('nV').textContent=n.toLocaleString(); draw(true); };
+  seg('segS', SRC.map(([lab],i)=>[i,lab]), src, v=>{src=v;});
+  document.getElementById('reset').onclick=()=>{
+    src=1; r.value=47; n=fromSlider(47); document.getElementById('nV').textContent=n.toLocaleString();
+    [...document.getElementById('segS').children].forEach((b,i)=>{
+      const on=i===1; b.className=on?'on':''; b.setAttribute('aria-pressed',on?'true':'false');});
+    draw(true);
+  };
+  n=fromSlider(+r.value); document.getElementById('nV').textContent=n.toLocaleString();
+  draw(false);
+
+})();
+</script>
+</body>
+</html>

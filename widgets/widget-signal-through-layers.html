@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>How far a signal travels</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,'Times New Roman',serif;background:#FAFAF8;color:#1A1A1A;padding:16px}
+  #app{max-width:640px;margin:0 auto}
+  h1{font-size:20px;font-weight:600;margin-bottom:4px}
+  .sub{font-size:13px;color:#595959;margin-bottom:14px}
+  .controls{display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin-bottom:12px}
+  .ctrl{display:flex;align-items:center}
+  .ctrl label,.control-label{font-size:12px;font-family:'Courier New',monospace;color:#444;margin-right:8px}
+  .ctrl.off label{color:#8A8A8A}
+  .seg button{font-family:'Courier New',monospace;font-size:12px;padding:5px 10px;border:1px solid #767676;background:#fff;color:#1A1A1A;cursor:pointer;border-radius:4px;margin-right:4px}
+  .seg button.on{background:#A31F34;color:#fff;border-color:#A31F34}
+  button.act{font-family:'Courier New',monospace;font-size:12px;padding:5px 12px;border:1px solid #A31F34;background:#fff;color:#A31F34;border-radius:4px;cursor:pointer}
+  input[type=range]{vertical-align:middle;width:120px}
+  input[type=range]:disabled{opacity:.45}
+  .val{font-family:'Courier New',monospace;font-size:12px;color:#A31F34;font-weight:700;margin-left:6px}
+  button:focus-visible,input:focus-visible{outline:3px solid #1D4ED8;outline-offset:3px}
+  canvas{background:#fff;border:1px solid #767676;border-radius:6px;display:block;margin-bottom:10px;width:100%;max-width:608px;height:auto}
+  .legend{font-size:12px;color:#444;margin-bottom:8px}
+  .key{display:inline-block;width:11px;height:11px;vertical-align:-1px;margin:0 5px 0 14px}
+  .key.a{background:#A31F34;border-radius:50%}
+  .key.b{background:#16456B}
+  .key.line{width:20px;height:3px;background:#111;border-radius:0}
+  .readout{font-size:13px;background:#fff;border:1px solid #767676;border-radius:6px;padding:10px 14px;margin-bottom:10px}
+  .v{font-weight:700;font-family:'Courier New',monospace;color:#A31F34}
+  .note{font-size:12px;color:#444;line-height:1.6}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>How far a signal travels</h1>
+  <p class="sub">Change the depth and the starting scale, then switch the shortcuts on and compare.</p>
+
+  <div class="controls">
+    <div class="ctrl"><label for="depth">layers</label>
+      <input type="range" id="depth" min="2" max="12" step="1" value="8"><span class="val" id="depthV">8</span></div>
+    <div class="ctrl"><label for="scale">starting scale</label>
+      <input type="range" id="scale" min="0.8" max="1.25" step="0.01" value="1.0"><span class="val" id="scaleV">1.00</span></div>
+    <div class="ctrl"><span id="segSLabel" class="control-label">shortcuts</span><span class="seg" id="segS" role="group" aria-labelledby="segSLabel"></span></div>
+    <div class="ctrl"><button class="act" type="button" id="reset">Reset</button></div>
+  </div>
+
+  <canvas id="cv" width="608" height="320" role="img" aria-label="Signal strength plotted across a stack of layers" aria-describedby="canvasSummary"></canvas>
+
+  <div class="readout" id="canvasSummary">After <span class="v" id="dEcho">20</span> layers the signal is <span class="v" id="sOut">1.00</span> times the size it started at. <span id="verdict"></span></div>
+  <div class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+  <p class="note">A shortcut lets each layer add to its input instead of replacing it, which is why the line holds steady when they are on.</p>
+</div>
+
+<script>
+(function(){
+
+  function bind(id, places, setter){
+    const r=document.getElementById(id);
+    r.oninput=()=>{ setter(+r.value); document.getElementById(id+'V').textContent=(+r.value).toFixed(places); draw(true); };
+  }
+  function seg(id, opts, cur, setter){
+    const host=document.getElementById(id);
+    opts.forEach(([val,lab])=>{
+      const b=document.createElement('button'); b.type='button'; b.textContent=lab;
+      b.setAttribute('aria-pressed', val===cur?'true':'false');
+      if(val===cur) b.className='on';
+      b.onclick=()=>{ setter(val);
+        [...host.children].forEach(c=>{c.className='';c.setAttribute('aria-pressed','false');});
+        b.className='on'; b.setAttribute('aria-pressed','true'); draw(true); };
+      host.appendChild(b);
+    });
+  }
+  function say(t){ document.getElementById('announcement').textContent=t; }
+
+  const W=608,H=320,pad=40;
+  const cv=document.getElementById('cv'), g=cv.getContext('2d');
+  let depth=8, scale=1.0, shortcuts=0;
+
+  // Each layer multiplies what passes through it. Shortcuts pull that multiplier
+  // back toward 1, which is the whole point of them.
+  const mult=()=> shortcuts ? 1+(scale-1)*0.18 : scale;
+  const strength=k=>Math.pow(mult(),k);
+
+  // Linear, not logarithmic: the point is that a healthy stack sits flat at 1
+  // while the other two run off the top or flatten onto the floor.
+  const TOP=4;
+  const X=k=>pad+k/depth*(W-2*pad);
+  const Y=v=>H-pad-(Math.min(v,TOP)/TOP)*(H-2*pad);
+
+  function draw(announce){
+    g.clearRect(0,0,W,H);
+    g.strokeStyle='#B5B5B5'; g.lineWidth=1; g.strokeRect(pad,pad,W-2*pad,H-2*pad);
+    g.setLineDash([4,4]); g.strokeStyle='#767676';
+    g.beginPath(); g.moveTo(pad,Y(1)); g.lineTo(W-pad,Y(1)); g.stroke(); g.setLineDash([]);
+    g.fillStyle='#444'; g.font='11px Courier New';
+    g.fillText('same strength it started with', pad+6, Y(1)-6);
+    g.fillText('x4', 6, Y(4)+10); g.fillText('x2', 6, Y(2)+4); g.fillText('0', 12, Y(0)-4);
+
+    g.strokeStyle='#A31F34'; g.lineWidth=2.6; g.beginPath();
+    for(let k=0;k<=depth;k++){const px=X(k),py=Y(strength(k)); k?g.lineTo(px,py):g.moveTo(px,py);}
+    g.stroke();
+    g.fillStyle='#A31F34';
+    for(let k=0;k<=depth;k++){const v=strength(k); if(v<=TOP){g.beginPath();g.arc(X(k),Y(v),3.5,0,7);g.fill();}}
+    if(strength(depth)>TOP){ g.fillStyle='#A31F34'; g.font='11px Courier New';
+      g.fillText('off the top', W-pad-62, pad+14); }
+    g.fillStyle='#444'; g.fillText('layer 0', pad, H-pad+16); g.fillText('layer '+depth, W-pad-46, H-pad+16);
+
+    const s=strength(depth);
+    document.getElementById('dEcho').textContent=depth;
+    document.getElementById('sOut').textContent = s<0.01 ? s.toFixed(3) : s.toFixed(2);
+    document.getElementById('verdict').textContent =
+      s>3 ? 'It has blown up, and a signal this large carries nothing useful.'
+      : s<0.2 ? 'It has faded out. The early layers get almost no say in the result.'
+      : 'It arrives at a usable size, which is what lets training work at all.';
+    if(announce) say(`Depth ${depth}, starting scale ${scale.toFixed(2)}, shortcuts ${shortcuts?'on':'off'}. Signal after ${depth} layers is ${document.getElementById('sOut').textContent} times its original size.`);
+  }
+  bind('depth',0,v=>{depth=v;});
+  bind('scale',2,v=>{scale=v;});
+  seg('segS',[[0,'off'],[1,'on']], shortcuts, v=>{shortcuts=v;});
+  document.getElementById('reset').onclick=()=>{
+    depth=8; scale=1.0; shortcuts=0;
+    document.getElementById('depth').value=8; document.getElementById('depthV').textContent='8';
+    document.getElementById('scale').value=1; document.getElementById('scaleV').textContent='1.00';
+    [...document.getElementById('segS').children].forEach((b,i)=>{
+      const on=i===0; b.className=on?'on':''; b.setAttribute('aria-pressed',on?'true':'false');});
+    draw(true);
+  };
+  draw(false);
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Masked reconstruction metrics</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;padding:16px;font-family:Georgia,'Times New Roman',serif;background:#FAFAF8;color:#1A1A1A}
+  main{max-width:760px;margin:0 auto} h1{font-size:1.3rem;margin:0 0 6px}.sub{font-size:.9rem;color:#555;line-height:1.5}
+  .wrap{overflow-x:auto;border:1px solid #ddd;border-radius:8px;background:#fff}
+  table{width:100%;min-width:560px;border-collapse:collapse} th,td{padding:9px;text-align:center;border-top:1px solid #ddd}
+  th{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}.masked{background:#fff5f6}.tag{font-family:'Courier New',monospace;font-weight:700}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:14px 0}
+  .metric{background:#fff;border:1px solid #ddd;border-radius:8px;padding:13px}.value{font:700 1.05rem 'Courier New',monospace;color:#8C1830}
+  fieldset{border:0;padding:0;margin:14px 0} legend{font-weight:700;margin-bottom:6px}.checks{display:flex;gap:12px;flex-wrap:wrap}
+  label{cursor:pointer}button{padding:7px 12px;border:1px solid #8C1830;border-radius:5px;background:#fff;color:#8C1830;font-weight:700;cursor:pointer}
+  button:focus-visible,input:focus-visible{outline:3px solid #1D4ED8;outline-offset:3px}.note{font-size:.84rem;color:#555;line-height:1.5}
+  @media(max-width:480px){body{padding:10px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Masked reconstruction without shortcut copying</h1>
+  <p class="sub">The squared errors are fixed. Change which coordinates count as hidden. An all-coordinate mean can look small when easy visible coordinates dominate.</p>
+  <fieldset>
+    <legend>Coordinates hidden from the encoder</legend>
+    <div class="checks" id="checks"></div>
+  </fieldset>
+  <div class="wrap">
+    <table>
+      <thead><tr><th>Coordinate</th><th>Target</th><th>Reconstruction</th><th>Squared error</th><th>Status</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="metrics" id="status" role="status" aria-live="polite">
+    <div class="metric">All-coordinate MSE<br><span class="value" id="allMse"></span></div>
+    <div class="metric">Masked-only MSE<br><span class="value" id="maskedMse"></span></div>
+  </div>
+  <p><button id="shortcut" type="button">Load shortcut-copying case</button> <button id="reset" type="button">Reset</button></p>
+  <p class="note">For masked modeling, report loss on hidden targets separately. Then use a held-out downstream probe to evaluate representation usefulness; neither metric substitutes for the other.</p>
+</main>
+<script>
+(() => {
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let targets=[1,2,4,3,0,5], recon=[1,2,1,3,0,2], masked=new Set([2,5]);
+  const rows=document.getElementById('rows'), checks=document.getElementById('checks');
+  function buildChecks(){checks.innerHTML='';targets.forEach((_,i)=>{const label=document.createElement('label');const input=document.createElement('input');input.type='checkbox';input.checked=masked.has(i);input.addEventListener('change',()=>{input.checked?masked.add(i):masked.delete(i);render();});label.append(input,` ${i}`);checks.append(label);});}
+  function render(){
+    rows.innerHTML='';const errors=targets.map((v,i)=>(v-recon[i])**2);
+    targets.forEach((value,i)=>{const tr=document.createElement('tr');if(masked.has(i))tr.className='masked';tr.innerHTML=`<td>${i}</td><td>${value}</td><td>${recon[i]}</td><td>${errors[i]}</td><td class="tag">${masked.has(i)?'M: masked':'V: visible'}</td>`;rows.append(tr);});
+    const all=errors.reduce((a,b)=>a+b,0)/errors.length, selected=[...masked].map(i=>errors[i]);
+    const maskedMean=selected.length?selected.reduce((a,b)=>a+b,0)/selected.length:NaN;
+    document.getElementById('allMse').textContent=all.toFixed(2);document.getElementById('maskedMse').textContent=Number.isNaN(maskedMean)?'select a coordinate':maskedMean.toFixed(2);
+    document.getElementById('status').setAttribute('aria-label',`All-coordinate mean squared error ${all.toFixed(2)}. Masked-only mean squared error ${Number.isNaN(maskedMean)?'undefined because no coordinates are masked':maskedMean.toFixed(2)}.`);
+  }
+  document.getElementById('shortcut').addEventListener('click',()=>{targets=[1,2,4,3,0,5];recon=[1,2,0,3,0,1];masked=new Set([2,5]);buildChecks();render();});
+  document.getElementById('reset').addEventListener('click',()=>{targets=[1,2,4,3,0,5];recon=[1,2,1,3,0,2];masked=new Set([2,5]);buildChecks();render();});
+  buildChecks();render();
+})();
+</script>
+</body>
+</html>

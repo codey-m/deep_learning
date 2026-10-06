@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="en" data-mode="course">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Next Note</title><style>/* Next Note in the MIT Learn game format. The chrome rules are a local copy of the arcade standard
+   (pilots/src/pilot.css, body.gameformat, taken from "Guide the Robot Home"); swap for a shared file if one is agreed.
+   Scene colours: the Generative purple family from the Deep Learning card palette (6.7960.5x), gold for the
+   note being picked, amber for odd jumps, ink for lines, green and red only for outcomes. */
+:root{color-scheme:light;--ink:#0C0C0D;--ink-2:#40464C;--body:#212326;--muted:#626A73;--line:#DDE1E6;--rule:#E6E9EE;--ground:#F3F4F8;--red:#750014;--red-dark:#5A0010;--button-line:#B8C2CC;
+  --win:#216044;--over:#B45309;--lose:#A31F34;
+  --g-base:#915FE7;--g-body:#BB9CF0;--g-line:#632EBE;--g-wash:#E2D4FB;--g-darks:#5A5188;--gold:#E9A83C;--odd:#B45309;--art-ink:#111827;--frame:#CBD2DB}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--body);font:16px/1.55 "neue-haas-grotesk-text","Helvetica Neue",Helvetica,Arial,sans-serif}
+a{color:var(--red);text-underline-offset:3px}button,input{font:inherit}button,summary{cursor:pointer}
+button{border:1px solid var(--button-line);border-radius:4px;padding:10px 15px;background:#fff;color:var(--ink-2);font-weight:500;min-height:44px;touch-action:manipulation}
+button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid #1472ae;outline-offset:3px}
+button:disabled{opacity:.55;cursor:default}
+[hidden]{display:none!important}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* Page chrome */
+.gamebar{background:#fff;display:grid;grid-template-columns:52px 1fr 52px;align-items:center;padding:12px 24px;border-bottom:1px solid var(--rule)}
+.gamebar .back{display:flex;align-items:center;justify-content:center;width:44px;height:44px;color:var(--ink);border-radius:4px}.gamebar .back svg{width:26px;height:26px}
+.gamebar h1{grid-column:2;text-align:center;margin:0;font-size:clamp(26px,3vw,38px);font-weight:700;letter-spacing:-.02em;color:var(--ink)}
+main{max-width:1240px;margin:auto;padding:28px 24px 56px}
+.gamewrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:28px;align-items:start}
+.playcard,.howto,.explainer{background:#fff;border-radius:6px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 3px 10px rgba(16,24,40,.05)}
+.playcard{overflow:hidden}
+.gamestatus{display:flex;justify-content:center;gap:12px 40px;flex-wrap:wrap;padding:26px 24px 4px;font-size:18px;color:var(--muted)}
+.gamestatus b{color:var(--body);font-weight:600}.gamestatus b.win{color:var(--win)}.gamestatus b.lose{color:var(--lose)}
+.gameprompt{text-align:center;color:var(--muted);font-size:17px;margin:8px 24px 18px}.gameprompt strong{color:var(--body);font-weight:600}
+.gameplay{padding:0 24px}
+.reason{text-align:center;min-height:3.2em;margin:10px 0 0;font-size:15px;color:var(--muted)}.reason strong{color:var(--body);font-weight:600}
+.gamecontrols{display:grid;grid-template-columns:1fr;gap:18px;padding:14px 24px 24px}
+.gamefoot{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;padding:18px 24px 22px;border-top:1px solid var(--rule);background:linear-gradient(#FBFBFC,#F6F7F9)}
+.gamefoot p{margin:0 0 12px;font-size:16px;color:var(--muted)}.gamefoot strong{color:var(--body);font-weight:600}
+.gamefoot .foot-buttons{display:flex;gap:10px;flex-wrap:wrap}.gamefoot button.nudge{border-color:var(--g-line);color:var(--g-line);box-shadow:0 0 0 2px var(--g-wash)}
+.gamefoot button{display:inline-flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--button-line);border-radius:4px;padding:10px 22px;font-weight:500;color:var(--ink-2)}.gamefoot button svg{width:22px;height:22px}
+.howto{padding:24px}.howto h2{display:flex;align-items:center;gap:12px;font-size:20px;font-weight:500;margin:0 0 16px;color:var(--ink)}.howto h2 svg{width:28px;height:20px;flex:none}
+.howto p{font-size:15px;line-height:1.6;color:var(--body);margin:0 0 14px}.howto strong{font-weight:700}
+.explainer{margin-top:28px;padding:24px}.explainer h2{font-size:19px;margin:0 0 10px;letter-spacing:-.015em;color:var(--ink)}
+.explainer p{font-size:15px;line-height:1.65;margin:0 0 12px}
+.explainer .explainer-link{color:var(--muted);font-size:14px}.explainer .explainer-note{color:var(--muted);font-size:13px}
+.review-about{margin-top:24px}details summary{min-height:40px;padding:8px 0;font-size:14px;font-weight:600;color:var(--ink-2)}.review-about p{font-size:13px;color:var(--muted)}
+body.embedded .gamebar,body.embedded .review-about{display:none}body.embedded main{padding-top:20px}
+button.primary{background:var(--red);border-color:var(--red);color:#fff}button.primary:hover:enabled{background:var(--red-dark);border-color:var(--red-dark)}
+
+/* Play area: the piano roll for the tune, and the luck line for one pick */
+.playarea{position:relative;border:1px solid var(--line);border-radius:4px;background:#fff;overflow:hidden;transition:box-shadow .2s}
+.playarea.outcome-win{box-shadow:0 0 0 3px var(--win)}.playarea.outcome-lose{box-shadow:0 0 0 3px var(--lose)}
+.stage{position:relative;padding:44px 12px 10px;background:#FBFAFE;border-bottom:1px solid var(--line)}
+.roll{display:block;width:100%;height:auto;cursor:pointer;touch-action:manipulation}
+.corner{position:absolute;top:10px;font:12px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace;padding:4px 8px;border-radius:3px;background:#fff;border:1px solid var(--line);color:var(--ink-2)}
+.corner-left{left:10px}.corner-right{right:10px;font-weight:600}.corner-right:empty{display:none}
+.corner-right.win{color:#fff;background:var(--win);border-color:var(--win)}.corner-right.lose{color:#fff;background:var(--lose);border-color:var(--lose)}
+.key{fill:#fff;stroke:var(--frame)}.keyname{font:600 13px ui-monospace,SFMono-Regular,Consolas,monospace;fill:var(--ink-2);text-anchor:middle}
+.lane{fill:#fff}.lane.alt{fill:#F6F3FC}.colrule{stroke:#EEE9F8;stroke-width:1}
+.head{fill:var(--g-wash)}.sel{fill:none;stroke:var(--g-line);stroke-width:2;stroke-dasharray:5 3}
+.riff{fill:#FBE3E8}.riffmark{font:600 11px ui-monospace,SFMono-Regular,Consolas,monospace;fill:var(--lose);text-anchor:middle}
+.hop{stroke:var(--art-ink);stroke-width:1.6;opacity:.35;fill:none}
+.hop.odd{stroke:var(--odd);stroke-width:3;opacity:1;stroke-dasharray:7 5}
+.note{fill:var(--g-line);stroke:var(--g-line);stroke-width:2}
+.note.oddnote{fill:#fff;stroke:var(--odd);stroke-width:3}
+.note.new{animation:land .28s ease-out both;transform-box:fill-box;transform-origin:center}
+.ghostnote{fill:none;stroke:var(--g-darks);stroke-width:1.5;stroke-dasharray:3 3;opacity:.8}
+@keyframes land{from{transform:scale(.4);opacity:.2}to{transform:scale(1);opacity:1}}
+.luck{padding:10px 12px 8px}
+.luck-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 4px}
+.luck-title{margin:0;font-size:15px;color:var(--ink-2);font-weight:600}
+.stepnav{display:flex;gap:6px}.stepnav button{min-height:36px;min-width:44px;padding:2px 10px;font-size:20px;line-height:1}
+.linesvg{display:block;width:100%;height:auto}
+.seg-a{fill:var(--g-base)}.seg-b{fill:var(--g-body)}.seg-odd{fill:url(#oddhatch)}
+.segline{stroke:#fff;stroke-width:2}
+.seg-picked{fill:none;stroke:var(--gold);stroke-width:5}
+.segname{font:700 15px ui-monospace,SFMono-Regular,Consolas,monospace;fill:#fff;text-anchor:middle}
+.segname.dark{fill:var(--art-ink)}.segpct{font:12px ui-monospace,SFMono-Regular,Consolas,monospace;fill:#fff;text-anchor:middle}.segpct.dark{fill:var(--art-ink)}
+.below{font:600 12px ui-monospace,SFMono-Regular,Consolas,monospace;fill:var(--odd)}
+.leftout{font:13px ui-monospace,SFMono-Regular,Consolas,monospace;fill:var(--muted)}
+.track{fill:none;stroke:var(--frame);stroke-width:1}
+.pointer{fill:var(--art-ink)}.pointerline{stroke:var(--art-ink);stroke-width:2.5}
+.pointerlabel{font:600 12px ui-monospace,SFMono-Regular,Consolas,monospace;fill:var(--art-ink)}
+.whatif{min-height:1.5em;margin:2px 4px 2px;font-size:14px;color:var(--ink-2)}.whatif strong{font-weight:600}
+
+/* Writer picker: three birds; each shows a description on hover or focus, and a tick once passed. */
+.writers{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:14px 24px 4px}
+.wwrap{position:relative}
+button.writer{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:6px 14px 6px 8px;border-radius:24px;border:1px solid var(--button-line);background:#fff;color:var(--ink-2)}
+button.writer svg{width:40px;height:32px;flex:none}
+button.writer[aria-pressed=true]{border-color:var(--g-line);box-shadow:0 0 0 2px var(--g-line);color:var(--ink)}
+button.writer .wname{font-weight:600}
+button.writer .wdone{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--win);color:#fff;font-size:12px;font-weight:700}
+.wtip{position:absolute;z-index:5;top:calc(100% + 10px);left:50%;transform:translate(-50%,-4px);width:230px;padding:10px 12px;border-radius:6px;background:var(--art-ink);color:#fff;font-size:13px;line-height:1.45;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .15s,transform .15s}
+.wtip::before{content:"";position:absolute;top:-6px;left:50%;margin-left:-6px;border:6px solid transparent;border-top:0;border-bottom-color:var(--art-ink)}
+.wwrap:hover .wtip,.wwrap:focus-within .wtip{opacity:1;visibility:visible;transform:translate(-50%,0)}
+.wtip strong{display:block;margin-bottom:2px}
+.bird .b-body{stroke:var(--art-ink);stroke-width:1.4;stroke-linejoin:round}.bird .b-eye{fill:#fff}.bird .b-pupil{fill:var(--art-ink)}.bird .b-beak{fill:var(--gold);stroke:var(--art-ink);stroke-width:1;stroke-linejoin:round}.bird .b-wing{fill:none;stroke:var(--art-ink);stroke-width:1.3;stroke-linecap:round}
+.robin .b-body{fill:var(--g-base)}.robin .b-breast{fill:var(--gold)}.wren .b-body{fill:var(--g-darks)}.lark .b-body{fill:var(--g-body)}.lark .b-crest{fill:var(--g-body);stroke:var(--art-ink);stroke-width:1.2;stroke-linejoin:round}
+.wdesc{text-align:center;margin:8px 24px 0;font-size:15px;color:var(--ink-2)}.wdesc strong{color:var(--body)}
+
+/* Controls */
+.dials{display:grid;grid-template-columns:1fr 1fr;gap:18px 28px}
+.dial label,.dial-label{display:flex;justify-content:space-between;align-items:baseline;font-size:15px;color:var(--ink-2);margin-bottom:6px}
+.dial b{font-weight:600;color:var(--body)}.dial output{font:600 15px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--g-line)}
+.dial input[type=range]{width:100%;accent-color:var(--g-line);min-height:32px}
+.hint{margin:4px 0 0;font-size:13px;color:var(--muted)}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{min-width:48px;min-height:40px;padding:6px 12px}
+.seg button[aria-pressed=true]{background:var(--g-line);border-color:var(--g-line);color:#fff}
+.run-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.run-row .primary{min-width:210px}
+.soundbtn{display:inline-flex;align-items:center;gap:8px}.soundbtn svg{width:22px;height:22px}
+.soundbtn[aria-pressed=false] .wave{display:none}.soundbtn[aria-pressed=true] .mute{display:none}
+.soundbtn[aria-pressed=true]{border-color:var(--g-line);color:var(--g-line)}
+
+@media(max-width:900px){.gamewrap{grid-template-columns:1fr}}
+@media(max-width:640px){.dials{grid-template-columns:1fr}}
+@media(max-width:560px){main{padding:20px 12px 40px}.writers{margin:12px 12px 4px;gap:6px}button.writer{padding:4px 10px 4px 6px}button.writer svg{width:32px;height:26px}.wtip{width:200px}
+  .wwrap:first-child .wtip{left:0;transform:translate(0,-4px)}.wwrap:first-child:hover .wtip,.wwrap:first-child:focus-within .wtip{transform:translate(0,0)}.wwrap:first-child .wtip::before{left:28px}
+  .wwrap:last-child .wtip{left:auto;right:0;transform:translate(0,-4px)}.wwrap:last-child:hover .wtip,.wwrap:last-child:focus-within .wtip{transform:translate(0,0)}.wwrap:last-child .wtip::before{left:auto;right:22px}.gamestatus{gap:6px 18px;font-size:16px}.gameprompt{font-size:15px}.gameplay,.gamecontrols,.gamefoot{padding-left:14px;padding-right:14px}
+  .corner{font-size:11px;top:6px;padding:3px 6px}.corner-left{left:6px}.corner-right{right:6px}.gamebar{padding:10px 12px}.stage{padding:36px 6px 6px}
+  .run-row .primary{width:100%}
+  /* The roll and the line scale with the card, so their text is set larger in drawing units to stay readable. */
+  .keyname{font-size:24px}.segname{font-size:24px}.segpct{font-size:19px}.below,.leftout,.pointerlabel,.riffmark{font-size:20px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* Course pages (course mode): words instead of notes, the randomness dial alone, no picker, sound or explainer. */
+body:not(.course) .course-only{display:none!important}
+body.course .arcade-only{display:none!important}
+body.course main{padding:12px 12px 16px}
+body.course .gamewrap{grid-template-columns:1fr}
+body.course .dials{grid-template-columns:1fr}
+.sentence{display:flex;flex-wrap:wrap;align-content:flex-start;gap:8px 6px;min-height:96px;padding:2px}
+button.wchip{min-height:40px;padding:6px 11px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--ink);font-size:17px;font-weight:500}
+button.wchip.inloop{background:#FBE3E8;border-color:#E3A3B0}
+button.wchip.sel{outline:3px solid var(--g-line);outline-offset:1px}
+button.wchip.changed{border:2px dashed var(--g-darks)}
+button.wchip.new{animation:land .28s ease-out both}
+</style></head>
+<body class="gameformat">
+<header class="gamebar"><a class="back" href="index.html" aria-label="Back to the arcade"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a><h1 id="title">Next Note</h1></header>
+<main>
+  <div class="gamewrap">
+    <section class="playcard" aria-label="Game">
+      <div class="gamestatus"><span class="arcade-only">Writer: <b id="st-writer">Robin</b></span><span class="arcade-only">Riff: <b id="st-riff">–</b></span><span class="arcade-only">Odd jumps: <b id="st-odd">–</b></span><span class="course-only">Took the likeliest word: <b id="st-like">–</b></span><span>Status: <b id="st-status">Set the dials</b></span></div>
+      <div class="writers arcade-only" id="writers" role="group" aria-label="Choose a tune writer"></div>
+      <p class="wdesc arcade-only" id="wdesc"></p>
+      <p class="gameprompt course-only">Write a sentence one word at a time. Then change the randomness and write it again.</p>
+      <p class="gameprompt arcade-only">Write a tune that escapes the riff: <strong id="riff-name">C E G</strong> at most twice, and <strong>no odd jumps</strong>.</p>
+      <div class="gameplay">
+        <div class="playarea" id="playarea">
+          <div class="stage">
+            <svg id="roll" class="roll arcade-only" viewBox="0 0 760 256" role="img" aria-labelledby="roll-desc"></svg>
+            <div id="sentence" class="sentence course-only" role="group" aria-label="Your sentence"></div>
+            <span class="corner corner-left" id="tune-label">Your tune</span>
+            <span class="corner corner-right" id="outcome-label" aria-hidden="true"></span>
+          </div>
+          <div class="luck">
+            <div class="luck-head"><p class="luck-title" id="luck-title">The first pick, after C</p>
+              <div class="stepnav"><button type="button" id="prev" aria-label="Previous note">‹</button><button type="button" id="next" aria-label="Next note">›</button></div></div>
+            <svg id="line" class="linesvg" viewBox="0 0 760 112" role="img" aria-labelledby="line-desc"></svg>
+            <p class="whatif" id="whatif" aria-live="polite"></p>
+          </div>
+        </div>
+        <p id="roll-desc" class="sr-only"></p><p id="line-desc" class="sr-only"></p>
+        <p id="feedback" class="reason" role="status" aria-live="polite" aria-atomic="true"><strong id="feedback-title"></strong> <span id="feedback-text"></span></p>
+      </div>
+      <div class="gamecontrols">
+        <div class="dials">
+          <div class="dial"><label for="temp"><b>Randomness</b> <output id="temp-out" for="temp">1.0</output></label><input type="range" id="temp" min="0.1" max="2" step="0.1" value="1"><p class="hint">Low gives the favourite almost the whole line. High gives every <span class="arcade-only">note</span><span class="course-only">word</span> more room.</p></div>
+          <div class="dial arcade-only"><span class="dial-label" id="keep-label"><b>Pick from the likeliest</b></span><div class="seg" id="keep" role="group" aria-labelledby="keep-label"></div><p class="hint">Only this many of the likeliest next notes stay on the line.</p></div>
+        </div>
+        <p class="hint course-only">Only words that can follow the last one are on the line. The randomness dial reshapes the line before each pick, and it is one of the few things you can still change after a model has finished training.</p>
+        <div class="run-row"><button type="button" id="play" class="primary">Write the tune</button><button type="button" id="sound" class="soundbtn arcade-only" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="mute" d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span id="sound-text">Sound on</span></button></div>
+      </div>
+      <div class="gamefoot">
+        <div class="foot-left"><p class="arcade-only"><strong>New tune</strong> <span>- the same writer, new luck</span></p><p class="course-only"><strong>New sentence</strong> <span>- the same model, new luck</span></p><div class="foot-buttons"><button id="new-tune" type="button"><svg class="course-only" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><svg class="arcade-only" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l11-2v12M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="arcade-only">New tune</span><span class="course-only">New sentence</span></button></div></div>
+        <div class="foot-right"><button id="reset" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Start over</button></div>
+      </div>
+    </section>
+    <aside class="howto arcade-only" aria-labelledby="howto-title">
+      <h2 id="howto-title"><svg viewBox="0 0 28 20" aria-hidden="true"><rect x="1.5" y="1.5" width="25" height="17" rx="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 7v6M5 10h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18.5" cy="8" r="1.4" fill="currentColor"/><circle cx="21.5" cy="11.5" r="1.4" fill="currentColor"/></svg>How to play</h2>
+      <p><strong>The tune writer</strong> picks one note at a time. For each pick it lays the possible next notes along a line, likeliest first, each as wide as its chance. The note's <strong>luck</strong> marks where on the line it lands.</p>
+      <p><strong>Randomness</strong> stretches or squeezes the line before every pick. <strong>Pick from the likeliest</strong> keeps only that many notes on it.</p>
+      <p><strong>Write the tune</strong> to hear it. Then press any note, or step with the arrows, to see the line it was picked from. Change a dial and the line changes while the luck stays put, so you can see what that note would have been.</p>
+      <p><strong>Three tune writers</strong> learned from different tunes, so their lines look different. Hover or focus a bird to read about it, and press it to switch. Your dials stay as they are.</p>
+      <p><strong>The riff</strong> is the loop the writer falls into, shaded in the tune. A dashed jump is an <strong>odd jump</strong>, a leap the learned tunes made less than 1 time in 10. Odd notes are hatched on the line.</p>
+    </aside>
+  </div>
+  <section class="explainer arcade-only" id="explainer" hidden aria-labelledby="explainer-title">
+    <h2 id="explainer-title">One note at a time</h2>
+    <p>The tune writer is a next-note model. For each note it holds the chance of every note that could come next, and it writes a tune by picking one note, then the next given that one, and so on. Nothing plans the tune as a whole.</p>
+    <p>Randomness reshapes the line before each pick, and the luck stays where it is. Turned right down, the favourite takes almost the whole line, so nearly any luck lands on it, and the favourites lead from C to E to G and back to C: the riff. Turned up, the rare leaps get wider, and sooner or later the luck lands on one. For Robin and Wren, randomness alone rarely avoids both, and in the rounds this game picks it never does.</p>
+    <p id="ex-shortlist" hidden>Picking only from the likeliest few notes takes the rare leaps off the line altogether, so the randomness can go up far enough to break the riff without the luck ever landing on a leap.</p>
+    <p id="ex-writers" hidden>The right shortlist is however many likely notes the writer's lines hold. Robin's lines hold three likely notes and two rare ones; keep only two and, after C, E or G, both notes left lead back into the riff. Wren's hold two likely notes and three rare ones, so a shortlist of three still holds a rare leap. Lark never leaps, so it needs no shortlist at all, and cutting its lines only takes away ways out of the riff. Too short a list and the tune cannot get away; too long and a leap gets back on.</p>
+    <p>Language models write text the same way, one token at a time. Their randomness dial is called temperature, and picking from the likeliest k is called top-k sampling. Nucleus sampling, a refinement, sets the shortlist afresh at each step from how the chances are spread.</p>
+    <p class="explainer-link">Explore in Deep Learning (6.7960.5x): generating one piece at a time, temperature and top-k sampling.</p>
+    <p class="explainer-note">The tune writer is written for this game. Its table of chances is made up, not learned from real music, and no language model runs. Each pick depends only on the note before it, where a language model looks back over much more. Each note's luck is a fixed random number for the round, so changing a dial changes the line but not the luck. Rounds are chosen so that Robin passes only with a shortlist of three and Wren only with two, at every randomness from 1.4 and 1.2 up. For Lark, shortlists of one and two never pass and keeping every note passes from 1.4 up. About 1 round in 5 qualifies for Robin, 1 in 3 for Wren and more than half for Lark.</p>
+  </section>
+  
+</main>
+<noscript><p>This interactive activity requires JavaScript.</p></noscript>
+<script>// Next Note model: a next-note table, sampling with randomness (temperature) and a shortlist (top-k),
+// and the verdict on one tune. Pure and deterministic: a seed and two dial settings always give the same tune.
+(function(root){
+  'use strict';
+  const NOTES=['C','D','E','F','G','A','B','high C'];
+  const SHORT=['C','D','E','F','G','A','B','C′'];
+  const FREQ=[261.63,293.66,329.63,349.23,392.00,440.00,493.88,523.25];
+  // Three tune writers. For each note, the chance of each next note, as a model would learn by counting which
+  // notes follow which in the tunes it was trained on. All three tables are written for this game. Notes missing
+  // from a row never follow that note. Each writer has a shortlist that removes exactly its rare leaps:
+  //   keep: that shortlist (0 keeps every note); from: the randomness above which it always escapes the riff in a
+  //   chosen round; fails: shortlists that never pass in a chosen round; defaultsFail: the starting dials fail too.
+  const WRITERS=[
+    {name:'Robin',keep:3,from:1.4,fails:[1,2,4,0],defaultsFail:true,
+     desc:'Loops the riff C E G. A few good follow-ups after every note, and a couple of wild leaps.',
+     // One favourite, two fair alternatives and two rare leaps per row. After C, E and G the two likeliest
+     // notes are C, E or G again, so a shortlist of two never leaves the riff; the third note leads out.
+     rows:[
+      [[2,.55],[4,.20],[1,.15],[7,.05],[6,.05]],   // C  -> E, G, D | rare: high C, B
+      [[2,.50],[0,.25],[3,.15],[5,.05],[7,.05]],   // D  -> E, C, F | rare: A, high C
+      [[4,.55],[0,.20],[3,.15],[7,.05],[6,.05]],   // E  -> G, C, F | rare: high C, B
+      [[2,.50],[4,.25],[1,.15],[6,.05],[7,.05]],   // F  -> E, G, D | rare: B, high C
+      [[0,.50],[2,.22],[5,.18],[7,.05],[1,.05]],   // G  -> C, E, A | rare: high C, D
+      [[4,.50],[6,.22],[3,.18],[0,.05],[1,.05]],   // A  -> G, B, F | rare: C, D
+      [[7,.50],[5,.25],[4,.15],[1,.05],[0,.05]],   // B  -> high C, A, G | rare: D, C
+      [[6,.40],[4,.30],[5,.20],[0,.05],[1,.05]],   // high C -> B, G, A | rare: C, D
+     ]},
+    {name:'Wren',keep:2,from:1.2,fails:[1,3,4,0],defaultsFail:true,
+     desc:'Loops the riff C G E. Fewer good follow-ups than Robin, and more wild leaps.',
+     // One favourite, one fair alternative and three rare leaps per row, so a shortlist of three still
+     // holds a rare leap. Its favourites circle C, G, E.
+     rows:[
+      [[4,.50],[1,.30],[6,.08],[5,.07],[7,.05]],   // C  -> G, D | rare: B, A, high C
+      [[2,.50],[0,.30],[5,.08],[6,.07],[7,.05]],   // D  -> E, C | rare: A, B, high C
+      [[0,.50],[3,.30],[6,.08],[5,.07],[7,.05]],   // E  -> C, F | rare: B, A, high C
+      [[4,.50],[2,.30],[0,.08],[6,.07],[7,.05]],   // F  -> G, E | rare: C, B, high C
+      [[2,.50],[5,.30],[7,.08],[1,.07],[6,.05]],   // G  -> E, A | rare: high C, D, B
+      [[4,.50],[3,.30],[0,.08],[1,.07],[7,.05]],   // A  -> G, F | rare: C, D, high C
+      [[7,.50],[5,.30],[1,.08],[0,.07],[3,.05]],   // B  -> high C, A | rare: D, C, F
+      [[6,.50],[4,.30],[0,.08],[1,.07],[2,.05]],   // high C -> B, G | rare: C, D, E
+     ]},
+    {name:'Lark',keep:0,from:1.4,fails:[1,2],defaultsFail:false,
+     desc:'Loops the riff C A F. Never makes a wild leap.',
+     // No rare leaps at all, so it needs no shortlist. After C, A and F the two likeliest notes are riff notes,
+     // so a shortlist of one or two stays in the riff. Shortlists of three and four usually pass too: cutting
+     // them is unnecessary rather than wrong. Its favourites circle C, A, F.
+     rows:[
+      [[5,.50],[3,.20],[2,.15],[4,.15]],   // C  -> A, F, E, G
+      [[2,.40],[3,.30],[0,.30]],           // D  -> E, F, C
+      [[4,.40],[3,.30],[1,.30]],           // E  -> G, F, D
+      [[0,.50],[5,.20],[1,.15],[2,.15]],   // F  -> C, A, D, E
+      [[5,.40],[6,.30],[2,.30]],           // G  -> A, B, E
+      [[3,.50],[0,.20],[6,.15],[4,.15]],   // A  -> F, C, B, G
+      [[7,.40],[5,.30],[4,.30]],           // B  -> high C, A, G
+      [[6,.40],[5,.30],[4,.30]],           // high C -> B, A, G
+     ]},
+  ];
+  const START=0, LEN=24;
+  const ODD=.1;             // an odd jump: one the learned tunes made less than 1 time in 10
+  const RIFF_MAX=2;         // the riff may play at most twice
+  const KEEP=[1,2,3,4,0];   // shortlist sizes the player can choose; 0 keeps every note
+  const DEFAULTS={t:1,k:0};
+  const TS=Array.from({length:20},(_,i)=>(i+1)/10);
+  // The course writer: words, learned by counting which word follows which in the seven sentences of the
+  // course widget it replaces (DL 6.7960.5x Unit 2 opener). Every pair it saw is at least 12% likely, so it
+  // has no rare leaps and needs no shortlist; the course page offers only the randomness dial, starting at 0.8
+  // as the original did. Always taking the favourite loops on "the model reads".
+  const CORPUS='the model reads the prompt and writes the answer '+
+    'the model reads the text and the data and writes the answer '+
+    'the model sees the data and writes the text '+
+    'the model uses the prompt and reads the text '+
+    'the model writes the answer and the text '+
+    'the model sees the prompt and uses the data '+
+    'the model reads the answer and writes the text';
+  const VOCAB=['the','model','text','data','answer','prompt','reads','writes','sees','uses','and'];
+  const COURSE=(()=>{
+    const ws=CORPUS.split(' '),count=VOCAB.map(()=>VOCAB.map(()=>0));
+    for(let i=0;i+1<ws.length;i++)count[VOCAB.indexOf(ws[i])][VOCAB.indexOf(ws[i+1])]++;
+    const rows=count.map(c=>{const tot=c.reduce((a,b)=>a+b,0);return c.map((n,j)=>[j,n/tot]).filter(([,p])=>p>0).sort((a,b)=>b[1]-a[1]);});
+    // intro: the course page's round. At 0.8 the likeliest word is taken 7 of 15 times and the loop never comes
+    // round; at 0.1 it is taken every time and the loop comes round 6 times.
+    return {name:'The model',words:true,labels:VOCAB,short:VOCAB,start:0,len:20,keep:0,from:.8,failsBelow:.3,fails:[],defaultsFail:false,dflt:.8,intro:3,corpus:CORPUS,rows};
+  })();
+
+  // A writer's riff is where always taking the favourite leads from its first note, round and back again.
+  for(const w of [...WRITERS,COURSE]){
+    w.labels=w.labels||NOTES;w.short=w.short||SHORT;w.start=w.start??START;w.len=w.len||LEN;
+    const fav=n=>w.rows[n].reduce((a,b)=>b[1]>a[1]?b:a)[0],path=[w.start];
+    while(!path.includes(fav(path[path.length-1])))path.push(fav(path[path.length-1]));
+    w.riff=path;
+  }
+
+  // The chances for the note after `note`: shortlist the k likeliest, then sharpen (t<1) or flatten
+  // (t>1) by raising each chance to the power 1/t and rescaling. Returned likeliest first.
+  function line(w,note,t,k){
+    const row=w.rows[note].slice().sort((a,b)=>b[1]-a[1]), kept=k?row.slice(0,k):row;
+    const wt=kept.map(([,p])=>Math.pow(p,1/t)), z=wt.reduce((a,b)=>a+b,0);
+    let at=0;
+    const opts=kept.map(([n,learned],i)=>{const p=wt[i]/z,o={note:n,learned,p,from:at,to:at+p,odd:learned<ODD};at+=p;return o;});
+    return {opts,left:row.slice(kept.length).map(([n,learned])=>({note:n,learned,odd:learned<ODD}))};
+  }
+  // A pick is where this note's luck (a number from 0 to 1) falls on the line. The line runs likeliest
+  // first, so the same luck lands on a likely note at low randomness and further along as it rises.
+  function pick(l,u){return l.opts.find(o=>u<o.to)||l.opts[l.opts.length-1];}
+
+  // Each round's luck: one number per note, fixed for the round, so two dial settings meet the same luck.
+  function luck(seed,len=LEN){
+    let s=1+Number((BigInt(seed>>>0)*2654435761n)%2147483646n);
+    const r=()=>{s=(s*16807)%2147483647; return s/2147483647;};
+    return Array.from({length:len},r);
+  }
+  // A tune (or, for the course writer, a sentence). likeliest: picks with a real choice that took the favourite.
+  function tune(w,u,t,k){
+    const notes=[w.start], odd=[], picks=[null];let choices=0,likeliest=0;
+    for(let i=1;i<w.len;i++){const l=line(w,notes[i-1],t,k),c=pick(l,u[i]);picks.push(c);notes.push(c.note);if(c.odd)odd.push(i);if(l.opts.length>1){choices++;if(c===l.opts[0])likeliest++;}}
+    const riffs=[];
+    for(let i=0;i+w.riff.length<=w.len;i++)if(w.riff.every((n,j)=>notes[i+j]===n))riffs.push(i);
+    return {notes,odd,riffs,picks,choices,likeliest,tooRiffy:riffs.length>RIFF_MAX,tooOdd:odd.length>0,pass:riffs.length<=RIFF_MAX&&odd.length===0};
+  }
+  // Rounds are chosen answer-first, as the arcade's other games do. In a chosen round every shortlist in the
+  // writer's `fails` list fails at every randomness, the writer's own shortlist passes at every randomness from
+  // its `from` up, and (for Robin and Wren) the starting dials fail. For Robin and Wren that means only their own
+  // shortlist ever passes. About 1 round in 5 qualifies for Robin, 1 in 3 for Wren and more than half for Lark;
+  // the rest is redrawn from a derived seed.
+  // The course writer's rounds: low randomness (up to `failsBelow`) always loops, and every randomness from
+  // `from` up escapes the loop.
+  function qualifies(w,u){
+    const never=k=>TS.every(t=>!tune(w,u,t,k).pass);
+    return w.fails.every(never)&&TS.filter(t=>t>=w.from-1e-9).every(t=>tune(w,u,t,w.keep).pass)&&(!w.defaultsFail||!tune(w,u,DEFAULTS.t,DEFAULTS.k).pass)
+      &&(!w.failsBelow||TS.filter(t=>t<=w.failsBelow+1e-9).every(t=>!tune(w,u,t,w.keep).pass));
+  }
+  function round(wi,seed){
+    const w=wi==='course'?COURSE:WRITERS[wi];
+    for(let a=0;a<2000;a++){
+      const used=a?(Math.imul((seed>>>0)^a,2654435761)+a*40503+(wi==='course'?3:wi)*7919)>>>0:seed>>>0, u=luck(used,w.len);
+      if(qualifies(w,u))return {writer:wi,seed:seed>>>0,used,u};
+    }
+    throw Error('No qualifying luck for seed '+seed);
+  }
+  // The rounds the game opens on, the first time each writer is played. Robin: the starting dials make 3 odd jumps,
+  // the first on note 2. Wren: Robin's answer (three, at 1.4) makes an odd jump on note 2, and two passes.
+  // Lark: the starting dials play the riff 3 times, Wren's answer (two, at 1.4) is stuck from note 1, and keeping
+  // every note at 1.4 never plays the riff.
+  const INTRO=[91,16,8];
+  root.NextNote={NOTES,SHORT,FREQ,WRITERS,COURSE,START,LEN,ODD,RIFF_MAX,KEEP,DEFAULTS,TS,INTRO,line,pick,luck,tune,qualifies,round};
+})(globalThis);
+</script><script>(function(){
+  'use strict';
+  const M=globalThis.NextNote,$=id=>document.getElementById(id);
+  // Course pages run the course version: wire_course.py sets data-mode="course" (?mode=course previews it). It is the
+  // DL 6.7960.5x Unit 2 opener: one writer of words learned from the original widget's seven sentences, the
+  // randomness dial alone, and no arcade picker, shortlist, sound or explainer. The arcade never sees it.
+  const params=new URLSearchParams(location.search);
+  const COURSE=document.documentElement.dataset.mode==='course'||params.get('mode')==='course';
+  const embed=COURSE||params.get('embed')==='1';
+  if(embed)document.body.classList.add('embedded');
+  if(COURSE){
+    document.body.classList.add('course');
+    // Size the course page's frame to the game when the page allows it (same origin); otherwise its set height stands.
+    const fit=()=>{try{const f=window.frameElement,mn=document.querySelector('main');if(f&&mn){const h=Math.ceil(mn.getBoundingClientRect().bottom+window.scrollY+8);if(Math.abs(f.offsetHeight-h)>4)f.style.height=h+'px';}}catch(e){}};
+    if(typeof ResizeObserver!=='undefined')new ResizeObserver(fit).observe(document.body);
+    window.addEventListener('load',fit);
+  }
+  const reduced=()=>globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches??false;
+  const pct=v=>Math.round(v*100)+'%',times=n=>n===1?'once':n===2?'twice':n+' times';
+  const SLIDE_MS=200,HOLD_MS=210;
+  const freshSeed=()=>{try{return crypto.getRandomValues(new Uint32Array(1))[0];}catch(e){return (Date.now()^Math.floor(Math.random()*4294967296))>>>0;}};
+  const asked=Number(params.get('seed')),askedW=Number(params.get('writer'));
+  const seedOK=params.has('seed')&&Number.isInteger(asked)&&asked>=0&&asked<=4294967295;
+  // wi: which writer (0-2 in the arcade, 'course' on a course page). Each arcade writer opens on its introductory
+  // round the first time it is played. passed: arcade writers with a passing tune this session, ticked in the picker.
+  let wi=COURSE?'course':Number.isInteger(askedW)&&askedW>=1&&askedW<=M.WRITERS.length?askedW-1:0;
+  let W=COURSE?M.COURSE:M.WRITERS[wi],visited=new Set([wi]),passed=new Set();
+  let seed=seedOK?asked:COURSE?M.COURSE.intro:M.INTRO[wi],R=M.round(wi,seed);
+  // cur: the tune last written. prev: the one before it, marked where it first differs. stale: the dials changed
+  // since cur was written. sel: the note whose pick the luck line shows (1 to len-1).
+  const START_T=COURSE?M.COURSE.dflt:M.DEFAULTS.t;
+  let t=START_T,k=COURSE?0:M.DEFAULTS.k,cur=null,prev=null,stale=false,sel=null,timer=null,sound=!COURSE,audio=null,lastU=0;
+  // Words: notes in the arcade, words on the course page. Words are quoted in sentences.
+  const unit=()=>W.words?'word':'note',Unit=()=>W.words?'Word':'Note',piece=()=>W.words?'sentence':'tune';
+  const nm=n=>W.words?`“${W.labels[n]}”`:W.labels[n],riffName=()=>W.words?`“${W.riff.map(n=>W.labels[n]).join(' ')}”`:W.riff.map(n=>W.short[n]).join(' ');
+
+  // ---- Piano roll (arcade): 24 notes left to right, C at the bottom and high C at the top. ----
+  const VW=760,VH=256,KEY=46,RH=VH/8,CW=()=>(VW-KEY)/W.len;
+  const cx=i=>KEY+i*CW()+CW()/2,cy=n=>(7-n)*RH+RH/2;
+  const splitAt=head=>cur&&prev&&head<0?cur.notes.findIndex((n,i)=>n!==prev.notes[i]):-1;
+  function rollSVG(tu,upto,head){
+    const cw=CW();let s='';
+    for(let n=0;n<8;n++)s+=`<rect class="lane${n%2?' alt':''}" x="${KEY}" y="${(7-n)*RH}" width="${VW-KEY}" height="${RH}"/>`;
+    if(tu)tu.riffs.filter(j=>j+W.riff.length-1<=upto).forEach(j=>{s+=`<rect class="riff" x="${KEY+j*cw+1}" y="0" width="${cw*W.riff.length-2}" height="${VH}" rx="4"/><text class="riffmark" x="${KEY+(j+1.5)*cw}" y="13">riff</text>`;});
+    for(let i=1;i<W.len;i++)s+=`<line class="colrule" x1="${KEY+i*cw}" y1="0" x2="${KEY+i*cw}" y2="${VH}"/>`;
+    if(head>=0)s+=`<rect class="head" x="${KEY+head*cw}" y="0" width="${cw}" height="${VH}"/>`;
+    if(sel!==null&&head<0)s+=`<rect class="sel" x="${KEY+sel*cw+1}" y="1" width="${cw-2}" height="${VH-2}" rx="3"/>`;
+    // The tune before this one, dotted at the first note where they part. Every note after it differs anyway.
+    const split=splitAt(head);
+    if(split>0)s+=`<rect class="ghostnote" x="${KEY+split*cw+3}" y="${(7-prev.notes[split])*RH+6}" width="${cw-6}" height="${RH-12}" rx="5"/>`;
+    const notes=tu?tu.notes:[W.start];
+    for(let i=1;i<=upto&&i<notes.length;i++)s+=`<line class="hop${tu.odd.includes(i)?' odd':''}" x1="${cx(i-1)}" y1="${cy(notes[i-1])}" x2="${cx(i)}" y2="${cy(notes[i])}"/>`;
+    for(let i=0;i<=upto&&i<notes.length;i++){
+      const odd=tu&&tu.odd.includes(i),fresh=i===head&&i>0&&!reduced();
+      s+=`<rect class="note${odd?' oddnote':''}${fresh?' new':''}" x="${KEY+i*cw+3}" y="${(7-notes[i])*RH+6}" width="${cw-6}" height="${RH-12}" rx="5"/>`;
+    }
+    for(let n=0;n<8;n++){const y=(7-n)*RH;s+=`<rect class="key" x="1" y="${y+1.5}" width="${KEY-8}" height="${RH-3}" rx="3"/><text class="keyname" x="${(KEY-6)/2}" y="${y+RH/2+4.5}">${W.short[n]}</text>`;}
+    return s;
+  }
+  // ---- Sentence (course): the words as buttons in reading order. Words in the loop are shaded; the first word
+  // that changed since the last sentence has a dashed border. Pressing a word shows its pick. ----
+  function sentenceHTML(tu,upto,head){
+    const notes=tu?tu.notes:[W.start],split=splitAt(head),inLoop=new Set();
+    if(tu)tu.riffs.filter(j=>j+W.riff.length-1<=upto).forEach(j=>W.riff.forEach((_,d)=>inLoop.add(j+d)));
+    let s='';
+    for(let i=0;i<=upto&&i<notes.length;i++){
+      const cls=['wchip'];if(inLoop.has(i))cls.push('inloop');if(i===sel&&head<0)cls.push('sel');if(i===head&&i>0&&!reduced())cls.push('new');if(i===split)cls.push('changed');
+      s+=`<button type="button" class="${cls.join(' ')}" data-i="${i}" aria-pressed="${i===sel&&head<0}" aria-label="Word ${i+1}: ${W.labels[notes[i]]}${inLoop.has(i)?', in the loop':''}${i===split?`, was ${W.labels[prev.notes[i]]}`:''}"${i===split?` title="was ${W.labels[prev.notes[i]]}"`:''}>${W.labels[notes[i]]}</button>`;
+    }
+    return s;
+  }
+  function drawPiece(upto=W.len-1,head=-1){
+    if(W.words)$('sentence').innerHTML=sentenceHTML(cur,upto,head);else $('roll').innerHTML=rollSVG(cur,upto,head);
+    const split=splitAt(head),name=W.words?'Your sentence':'Your tune';
+    $('tune-label').textContent=split>0?`${name} · ${W.words?'dashed':'dotted'}: ${unit()} ${split+1} ${W.words?'changed':'before the change'}`:name;
+    $('roll-desc').textContent=cur?`${name}: ${cur.notes.map(n=>W.labels[n]).join(W.words?' ':', ')}. The ${W.words?'loop':'riff'} ${cur.riffs.length?(W.words?'comes round ':'plays ')+times(cur.riffs.length):'never '+(W.words?'comes round':'plays')}${W.words?'':`; ${cur.odd.length} odd ${cur.odd.length===1?'jump':'jumps'}`}.`:(W.words?'No words yet. Every sentence starts with “the”.':'An empty piano roll. Every tune starts on C.');
+  }
+
+  // ---- The luck line for one pick: the possible next notes laid end to end, likeliest first, each as wide
+  // as its chance at the current dials. Rare leaps are hatched. The marker is this note's luck. ----
+  const TY=36,TH=46;let X0=24,LW=712;
+  const labelW=o=>W.words?Math.max(38,9*W.short[o.note].length+14):38;
+  function lineSVG(note,u,pickedNote){
+    const l=M.line(W,note,t,k),width=$('line').getBoundingClientRect?.().width||0,narrow=width>0&&width<520,vw=narrow?440:760;
+    X0=narrow?14:24;LW=vw-2*X0;$('line').setAttribute('viewBox',`0 0 ${vw} 112`);
+    let s=`<defs><pattern id="oddhatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#FCEBD7"/><line x1="0" y1="0" x2="0" y2="8" stroke="#B45309" stroke-width="3"/></pattern></defs>`;
+    s+=`<rect class="track" x="${X0}" y="${TY}" width="${LW}" height="${TH}"/>`;
+    l.opts.forEach((o,i)=>{
+      const x=X0+o.from*LW,w=o.p*LW,mid=x+w/2;
+      s+=`<rect class="${o.odd?'seg-odd':i%2?'seg-b':'seg-a'}" x="${x}" y="${TY}" width="${w}" height="${TH}"/>`;
+      if(i)s+=`<line class="segline" x1="${x}" y1="${TY}" x2="${x}" y2="${TY+TH}"/>`;
+      const dark=o.odd||i%2?' dark':'';
+      if(w>=labelW(o))s+=`<text class="segname${dark}" x="${mid}" y="${TY+20}">${W.short[o.note]}</text><text class="segpct${dark}" x="${mid}" y="${TY+37}">${pct(o.p)}</text>`;
+    });
+    // Segments too thin to hold a name share one label underneath, per run of neighbours.
+    let run=[];
+    const flush=()=>{if(!run.length)return;const a=X0+run[0].from*LW,b=X0+run[run.length-1].to*LW,odd=run.every(o=>o.odd);
+      const endish=(a+b)/2>X0+LW*.7,x=endish?Math.min(b,X0+LW):Math.max((a+b)/2,X0+30);
+      // Slivers that round to 0% are counted rather than named.
+      const named=run.filter(o=>o.p>=.005),tiny=run.length-named.length,label=named.map(o=>W.short[o.note]+' '+pct(o.p)).concat(tiny?[`+${tiny} under 1%`]:[]).join(', ');
+      s+=`<text class="below" x="${x}" y="${TY+TH+17}" text-anchor="${endish?'end':'middle'}"${odd?'':' style="fill:#40464C"'}>${label}</text>`;run=[];};
+    l.opts.forEach(o=>{if(o.p*LW<labelW(o))run.push(o);else flush();});flush();
+    const p=l.opts.find(o=>o.note===pickedNote);
+    if(p)s+=`<rect class="seg-picked" x="${X0+p.from*LW+2.5}" y="${TY+2.5}" width="${Math.max(0,p.p*LW-5)}" height="${TH-5}"/>`;
+    if(u!==null){
+      const px=X0+u*LW,right=px>X0+LW-70;
+      s+=`<path class="pointer" d="M${px-8} ${TY-16}L${px+8} ${TY-16}L${px} ${TY-4}Z"/><line class="pointerline" x1="${px}" y1="${TY-4}" x2="${px}" y2="${TY+TH+4}"/>`;
+      s+=`<text class="pointerlabel" x="${right?px-12:px+12}" y="${TY-8}" text-anchor="${right?'end':'start'}">luck</text>`;
+    }
+    return {svg:s,l};
+  }
+  function drawLine(note,u,pickedNote,title){
+    const {svg,l}=lineSVG(note,u,pickedNote);
+    $('line').innerHTML=svg;
+    $('luck-title').textContent=title+(l.left.length?` · left out: ${l.left.map(o=>W.short[o.note]).join(', ')}`:'');
+    $('line-desc').textContent=`The line for the pick after ${nm(note)}: `+l.opts.map(o=>`${W.labels[o.note]} ${pct(o.p)}${o.odd?' (a rare leap)':''}`).join(', ')+'.'+(l.left.length?` Left out: ${l.left.map(o=>W.labels[o.note]).join(', ')}.`:'')+(u!==null?` This ${unit()}'s luck falls at ${pct(u)} along the line.`:'');
+  }
+  const pickTitle=(i,ctx)=>`${Unit()} ${i+1}: the pick after ${nm(ctx)}`;
+  // The selected pick: its line at the current dials, with the luck where it fell. After a dial change the
+  // line reshapes under the same luck, and the sentence below says what this note would have been.
+  function showSel(){
+    const nav=!!cur&&!timer;$('prev').disabled=!nav||sel<=1;$('next').disabled=!nav||sel>=W.len-1;
+    if(!cur||sel===null){drawLine(W.start,null,null,`The first pick, after ${nm(W.start)}`);$('whatif').textContent=`Each ${unit()} gets its own luck when you write the ${piece()}.`;return;}
+    const ctx=cur.notes[sel-1],u=R.u[sel],now=M.pick(M.line(W,ctx,t,k),u),was=cur.picks[sel];
+    drawLine(ctx,u,now.note,pickTitle(sel,ctx));
+    const riffEnd=cur.riffs.some(j=>j+W.riff.length-1===sel);
+    let msg;
+    if(stale)msg=now.note===was.note?`With ${W.words?'this dial':'these dials'}, the luck still lands on <strong>${nm(now.note)}</strong>${now.odd?', an odd jump':''}.`:`With ${W.words?'this dial':'these dials'}, ${unit()} ${sel+1} would be <strong>${nm(now.note)}</strong>${now.odd?', an odd jump,':''} instead of ${nm(was.note)}${was.odd?', the odd jump':''}.`;
+    else if(was.odd)msg=`The luck landed on <strong>${nm(was.note)}</strong>, a rare leap: ${pct(was.learned)} in the learned tunes, ${pct(was.p)} of the line at your dials.`;
+    else msg=`The luck landed on <strong>${nm(was.note)}</strong>, ${pct(was.p)} of the line${riffEnd?`. That completes the ${W.words?'loop':'riff'}`:''}.`;
+    // A clue from the line itself: every note left on it is in the riff, or a rare leap is still on it.
+    const l=M.line(W,ctx,t,k);
+    if(k&&W.riff.includes(ctx)&&l.opts.every(o=>W.riff.includes(o.note)))msg+=' Every note left on this line is part of the riff.';
+    else if(k&&l.opts.some(o=>o.odd))msg+=' A rare leap is still on this line.';
+    $('whatif').innerHTML=msg;
+  }
+  function select(i){if(!cur||timer)return;sel=Math.max(1,Math.min(W.len-1,i));drawPiece();showSel();}
+
+  // ---- Sound (arcade only): on by default, generated, one soft note per pick. The audio starts with the first press. ----
+  function ensureAudio(){if(!sound)return;try{audio=audio||new (globalThis.AudioContext||globalThis.webkitAudioContext)();if(audio.state==='suspended')audio.resume();}catch(e){}}
+  function beep(n){
+    if(!sound||!audio||W.words)return;
+    try{const o=audio.createOscillator(),g=audio.createGain(),now=audio.currentTime;
+      o.type='triangle';o.frequency.value=M.FREQ[n];
+      g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(.18,now+.015);g.gain.exponentialRampToValueAtTime(.001,now+.32);
+      o.connect(g).connect(audio.destination);o.start(now);o.stop(now+.34);}catch(e){}
+  }
+
+  // ---- Status, outcome and feedback ----
+  function say(title,html){$('feedback-title').textContent=title;$('feedback-text').innerHTML=html;}
+  function clearOutcome(){
+    $('playarea').classList.remove('outcome-win','outcome-lose');
+    const lab=$('outcome-label');lab.textContent='';lab.className='corner corner-right';
+    for(const id of ['st-riff','st-odd','st-like','st-status'])$(id).className='';
+    $('st-riff').textContent='–';$('st-odd').textContent='–';$('st-like').textContent='–';
+    $('st-status').textContent=timer?'Writing':W.words?'Set the dial':'Set the dials';
+  }
+  function verdict(){
+    const c=cur,kind=c.pass?'win':'lose',lab=$('outcome-label'),n=c.riffs.length,o=c.odd.length;
+    $('playarea').classList.add('outcome-'+kind);lab.className='corner corner-right '+kind;
+    const look=`${Unit()} ${sel+1} is selected below`;
+    if(W.words){
+      // The course page: no loop, or stuck in one. Its readout is the original widget's: how often the likeliest word was taken.
+      lab.textContent=c.tooRiffy?'Stuck in a loop':'No loop';
+      $('st-like').textContent=`${c.likeliest} of ${c.choices}`;
+      $('st-status').textContent=lab.textContent;$('st-status').className=kind;
+      if(c.tooRiffy)say('Stuck in a loop.',`${riffName()} comes round ${times(n)}. The likeliest word was taken ${c.likeliest} of the ${c.choices} times there was a choice, and the likeliest words lead back to where they began. ${look}: see how much of the line the likeliest word takes.`);
+      else if(t>=1.6)say('No loop, and plenty of variety.',`The likeliest word was taken only ${c.likeliest} of the ${c.choices} times there was a choice. With this much randomness, less likely words get nearly as much of the line as the likeliest one: see how evenly the line is split.`);
+      else say('No loop.',`The likeliest word was taken ${c.likeliest} of the ${c.choices} times there was a choice: enough randomness to vary, little enough to stay on track.`);
+      return;
+    }
+    lab.textContent=c.pass?'Escaped the riff':c.tooRiffy&&c.tooOdd?'Riff and odd jumps':c.tooRiffy?'Stuck in the riff':'Odd jumps';
+    $('st-riff').textContent=`${n} (max ${M.RIFF_MAX})`;$('st-riff').className=c.tooRiffy?'lose':'win';
+    $('st-odd').textContent=`${o} (none allowed)`;$('st-odd').className=c.tooOdd?'lose':'win';
+    $('st-status').textContent=c.pass?'Passed':'Not yet';$('st-status').className=kind;
+    if(c.pass)say('The tune escapes the riff.',`${riffName()} ${n?'plays '+times(n):'never plays'}, and there are no odd jumps.${new Set([...passed,wi]).size<M.WRITERS.length?' Try another bird above: each sings differently.':''}`);
+    else if(c.tooRiffy&&c.tooOdd)say('Stuck in the riff, with odd jumps too.',`${riffName()} plays ${times(n)}, and ${o} ${o===1?'pick':'picks'} landed on a rare leap. ${look}: see where its luck fell.`);
+    else if(c.tooRiffy)say('Stuck in the riff.',`${riffName()} plays ${times(n)}, and the limit is ${M.RIFF_MAX}. ${look}: see how much of the line the favourite takes.`);
+    else say(o===1?'An odd jump.':`${o} odd jumps.`,`${o===1?'A pick':'Each is a pick whose luck'} landed on a rare leap. ${look}: see where.`);
+    $('explainer').hidden=false;
+    if(c.pass){passed.add(wi);showWriter();$('ex-shortlist').hidden=false;if(passed.size>=2)$('ex-writers').hidden=false;}
+  }
+
+  // ---- Writing: compute it at once, then play it pick by pick. For each pick the line for the previous note
+  // appears, the luck marker slides to this note's luck, and the note it lands on drops in. ----
+  function cancel(){if(timer){clearTimeout(timer);timer=null;}}
+  function setRunning(on){$('play').textContent=on?'Skip to the end':`Write the ${piece()}`;}
+  function problem(c){
+    if(c.odd.length)return c.odd[0];
+    if(c.tooRiffy)return c.riffs[0]+1;
+    return 1;
+  }
+  function finish(){
+    cancel();setRunning(false);sel=problem(cur);drawPiece();showSel();verdict();
+  }
+  function write(){
+    if(timer){finish();return;}
+    ensureAudio();
+    const next=M.tune(W,R.u,t,k);
+    if(cur&&!next.notes.every((n,i)=>n===cur.notes[i]))prev=cur;
+    cur=next;stale=false;sel=null;clearOutcome();
+    if(reduced()){finish();return;}
+    $('st-status').textContent='Writing';setRunning(true);
+    say(`Writing the ${piece()}.`,`Each ${unit()} lands where its luck falls on the line.`);
+    showSel();drawPiece(0,0);beep(cur.notes[0]);lastU=0;
+    let i=0;
+    const step=()=>{
+      i++;
+      if(i>=W.len){finish();return;}
+      const ctx=cur.notes[i-1],u=R.u[i],from=lastU,t0=performance.now();
+      const slide=()=>{
+        const a=Math.min(1,(performance.now()-t0)/SLIDE_MS),e=1-Math.pow(1-a,3);
+        drawLine(ctx,from+(u-from)*e,null,pickTitle(i,ctx));
+        if(a<1){timer=setTimeout(slide,16);return;}
+        drawLine(ctx,u,cur.notes[i],pickTitle(i,ctx));
+        drawPiece(i,i);beep(cur.notes[i]);lastU=u;
+        $('whatif').innerHTML=`The luck landed on <strong>${nm(cur.notes[i])}</strong>${cur.picks[i].odd?', a rare leap':''}.`;
+        timer=setTimeout(step,HOLD_MS);
+      };
+      slide();
+    };
+    timer=setTimeout(step,HOLD_MS);
+  }
+
+  // ---- Controls ----
+  function showDials(){$('temp').value=t;$('temp-out').textContent=t.toFixed(1);[...$('keep').children].forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.k===k)));}
+  function dialsChanged(){
+    showDials();
+    if(timer){cancel();setRunning(false);sel=problem(cur);}
+    if(cur){stale=true;clearOutcome();drawPiece();say(W.words?'New setting.':'New settings.',W.words?'The selected word shows what it would change. Write the sentence again to see it.':'The selected note shows what they would change. Write the tune again to hear them.');}
+    showSel();
+  }
+  $('temp').addEventListener('input',e=>{t=Math.round(+e.target.value*10)/10;dialsChanged();});
+  M.KEEP.forEach(v=>{const b=document.createElement('button');b.type='button';b.dataset.k=v;b.textContent=v?String(v):'All';b.onclick=()=>{k=v;dialsChanged();};$('keep').appendChild(b);});
+  $('play').onclick=write;
+  $('prev').onclick=()=>select(sel-1);$('next').onclick=()=>select(sel+1);
+  $('roll').addEventListener('click',e=>{const r=$('roll').getBoundingClientRect(),x=(e.clientX-r.left)/r.width*VW;if(x>KEY)select(Math.floor((x-KEY)/CW()));});
+  $('sentence').addEventListener('click',e=>{const b=e.target.closest?.('button.wchip');if(b)select(+b.dataset.i);});
+  $('sound').onclick=()=>{sound=!sound;$('sound').setAttribute('aria-pressed',String(sound));$('sound-text').textContent=sound?'Sound on':'Sound off';if(sound){ensureAudio();beep(W.start);}};
+  function setURL(){try{const u=new URL(location.href);if(!COURSE)u.searchParams.set('writer',wi+1);u.searchParams.set('seed',seed);history.replaceState(null,'',u);}catch(e){}}
+  // ---- Writer picker (arcade): one bird per writer. Its description shows on hover or focus; the current writer's
+  // description also sits under the row, for touch screens. Icons carry no text. ----
+  const BIRD=[
+    // Robin: round, with a gold breast
+    '<path class="b-body" d="M7 16L1 11.5L3 20Z"/><ellipse class="b-body" cx="17" cy="19" rx="11" ry="8"/><ellipse class="b-breast" cx="23" cy="20.5" rx="5" ry="5.5"/>',
+    // Wren: small, tail cocked up
+    '<path class="b-body" d="M9 17L4 5L12 14Z"/><ellipse class="b-body" cx="18" cy="20" rx="9.5" ry="7"/>',
+    // Lark: slim, with a crest
+    '<path class="b-body" d="M7 17L1 14L2 21Z"/><ellipse class="b-body" cx="17" cy="19" rx="11.5" ry="7"/><path class="b-crest" d="M23.5 8L24 1.5L27 6L29.5 1L29.5 7Z"/>'];
+  const HEAD='<circle class="b-body" cx="27" cy="12" r="6"/><path class="b-beak" d="M32.5 10.8L38.5 12.5L32.5 14.2Z"/><circle class="b-eye" cx="28.6" cy="10.8" r="1.7"/><circle class="b-pupil" cx="29" cy="10.8" r=".85"/><path class="b-wing" d="M10.5 18.5Q16 15 21.5 19.5"/>';
+  const birdSVG=i=>`<svg class="bird ${M.WRITERS[i].name.toLowerCase()}" viewBox="0 0 40 32" aria-hidden="true">${BIRD[i]}${HEAD}</svg>`;
+  if(!COURSE)M.WRITERS.forEach((w,i)=>{
+    const wrap=document.createElement('div');wrap.className='wwrap';
+    wrap.innerHTML=`<button type="button" class="writer" data-w="${i}" aria-describedby="wd-${i}">${birdSVG(i)}<span class="wname">${w.name}</span><span class="wdone" hidden><span aria-hidden="true">✓</span><span class="sr-only">passed</span></span></button><div class="wtip" role="tooltip" id="wd-${i}"><strong>${w.name}</strong>${w.desc}</div>`;
+    wrap.querySelector('button').onclick=()=>pickWriter(i);
+    $('writers').appendChild(wrap);
+  });
+  function showWriter(){
+    if(COURSE)return;
+    $('st-writer').textContent=W.name;
+    $('riff-name').textContent=riffName();
+    $('wdesc').innerHTML=`<strong>${W.name}</strong>: ${W.desc}`;
+    [...$('writers').querySelectorAll('button.writer')].forEach(b=>{const i=+b.dataset.w;b.setAttribute('aria-pressed',String(i===wi));b.querySelector('.wdone').hidden=!passed.has(i);});
+  }
+  function pickWriter(i){
+    if(i===wi)return;
+    wi=i;W=M.WRITERS[wi];
+    seed=visited.has(wi)?freshSeed():M.INTRO[wi];visited.add(wi);R=M.round(wi,seed);setURL();
+    begin(`Now ${W.name}, whose riff is ${riffName()}. Your dials stay as they are.`);
+  }
+  function begin(note){
+    cancel();setRunning(false);cur=null;prev=null;stale=false;sel=null;clearOutcome();showWriter();
+    drawPiece(0);showSel();say('',note);
+  }
+  $('new-tune').onclick=()=>{seed=freshSeed();R=M.round(wi,seed);setURL();begin(W.words?'A new sentence from the same model, with new luck. The dial stays as it is.':`A new tune from ${W.name}, with new luck. Your dials stay as they are.`);};
+  $('reset').onclick=()=>{t=START_T;k=COURSE?0:M.DEFAULTS.k;showDials();begin(W.words?'Back to the starting dial.':'Back to the starting dials.');};
+  showDials();
+  begin(W.words?'Set the dial, then write the sentence.':'Set the dials, then write the tune.');
+})();
+</script>
+</body></html>

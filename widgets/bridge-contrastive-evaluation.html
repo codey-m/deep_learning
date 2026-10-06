@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Contrastive neighborhood evaluation</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box}body{margin:0;padding:16px;font-family:Georgia,'Times New Roman',serif;background:#FAFAF8;color:#1A1A1A}
+  main{max-width:760px;margin:0 auto}h1{font-size:1.3rem;margin:0 0 6px}.sub,.note{font-size:.88rem;color:#555;line-height:1.5}
+  .controls{display:flex;flex-wrap:wrap;gap:18px;align-items:end;margin:14px 0}.control{min-width:210px}label{display:block;font-weight:700;margin-bottom:6px}
+  select,input[type=range]{width:100%;min-height:34px}.wrap{overflow-x:auto;border:1px solid #ddd;border-radius:8px;background:#fff}
+  table{width:100%;min-width:520px;border-collapse:collapse}th,td{padding:9px;text-align:left;border-top:1px solid #ddd}th{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}
+  .match{font-weight:700}.metric{margin:14px 0;padding:13px;border-left:5px solid #8C1830;background:#fff}.value{font:700 1rem 'Courier New',monospace;color:#8C1830}
+  select:focus-visible,input:focus-visible{outline:3px solid #1D4ED8;outline-offset:3px}@media(max-width:480px){body{padding:10px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Inspect contrastive neighborhoods</h1>
+  <p class="sub">Cosine similarity is computed after normalization. Change the held-out query and k; inspect labels as well as the aggregate precision.</p>
+  <div class="controls">
+    <div class="control"><label for="query">Held-out query</label><select id="query"><option value="0">q0 — class bird</option><option value="1">q1 — class car</option><option value="2">q2 — class bird</option></select></div>
+    <div class="control"><label for="k">Neighbors, k = <output id="kValue" for="k">3</output></label><input id="k" type="range" min="1" max="5" value="3" step="1" /></div>
+  </div>
+  <div class="wrap"><table><thead><tr><th>Rank</th><th>Reference</th><th>Label</th><th>Cosine similarity</th><th>Matches query?</th></tr></thead><tbody id="rows"></tbody></table></div>
+  <div class="metric" id="status" role="status" aria-live="polite">Precision@<span id="kEcho">3</span> = <span class="value" id="precision"></span></div>
+  <p class="note">A same-class example treated as a training negative is a potential false negative. Inspecting neighborhoods can reveal this failure even when average kNN accuracy looks acceptable.</p>
+</main>
+<script>
+(() => {
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const refs=[{n:'r0',l:'bird',v:[1,.1]},{n:'r1',l:'car',v:[.1,1]},{n:'r2',l:'bird',v:[.8,.3]},{n:'r3',l:'boat',v:[.45,.55]},{n:'r4',l:'car',v:[-.1,.9]}];
+  const queries=[{l:'bird',v:[.9,.2]},{l:'car',v:[0,1]},{l:'bird',v:[.55,.55]}];
+  const cosine=(a,b)=>{const dot=a[0]*b[0]+a[1]*b[1],na=Math.hypot(...a),nb=Math.hypot(...b);return dot/(na*nb);};
+  const query=document.getElementById('query'),kr=document.getElementById('k'),rows=document.getElementById('rows');
+  function render(){const q=queries[Number(query.value)],k=Number(kr.value);const ranked=refs.map(r=>({...r,s:cosine(q.v,r.v)})).sort((a,b)=>b.s-a.s).slice(0,k);rows.innerHTML='';ranked.forEach((r,i)=>{const match=r.l===q.l;const tr=document.createElement('tr');tr.innerHTML=`<td>${i+1}</td><td>${r.n}</td><td>${r.l}</td><td>${r.s.toFixed(3)}</td><td class="match">${match?'yes':'no'}</td>`;rows.append(tr);});const matches=ranked.filter(r=>r.l===q.l).length,p=matches/k;document.getElementById('kValue').textContent=k;document.getElementById('kEcho').textContent=k;document.getElementById('precision').textContent=p.toFixed(3);document.getElementById('status').setAttribute('aria-label',`Query label ${q.l}. ${matches} of ${k} neighbors match. Precision at ${k} is ${p.toFixed(3)}.`);}
+  query.addEventListener('change',render);kr.addEventListener('input',render);render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Frozen probes and controls</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;padding:16px;font-family:Georgia,'Times New Roman',serif;background:#FAFAF8;color:#1A1A1A}
+  main{max-width:720px;margin:0 auto}
+  h1{font-size:1.3rem;margin:0 0 6px} p{line-height:1.5}
+  .sub{font-size:.9rem;color:#555;margin:0 0 16px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+  .control,.card{background:#fff;border:1px solid #ddd;border-radius:8px;padding:14px}
+  label{display:block;font-weight:700;margin-bottom:7px}
+  input[type=range]{width:100%}
+  output,.value{font-family:'Courier New',monospace;color:#8C1830;font-weight:700}
+  .result{margin:16px 0;padding:14px;border-left:5px solid #8C1830;background:#fff;line-height:1.6}
+  .table-wrap{max-width:100%;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;margin-top:10px} th,td{padding:8px;text-align:left;border-top:1px solid #ddd}
+  th{font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}
+  button{padding:7px 12px;border:1px solid #8C1830;border-radius:5px;background:#fff;color:#8C1830;font-weight:700;cursor:pointer}
+  button:hover{background:#fff5f6} button:focus-visible,input:focus-visible,.table-wrap:focus-visible{outline:3px solid #1D4ED8;outline-offset:3px}
+  .note{font-size:.84rem;color:#555}
+  @media (max-width:480px){body{padding:10px}.control,.card{padding:11px}}
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Frozen probe with a shuffled-label control</h1>
+  <p class="sub">Both probes use the same frozen features, probe class, training size, and held-out split. Only the target labels change.</p>
+  <div class="grid">
+    <div class="control">
+      <label for="real">Held-out accuracy: real labels</label>
+      <input id="real" type="range" min="40" max="100" value="84" step="1" />
+      <output id="realValue" for="real">84%</output>
+    </div>
+    <div class="control">
+      <label for="control">Held-out accuracy: shuffled labels</label>
+      <input id="control" type="range" min="40" max="100" value="52" step="1" />
+      <output id="controlValue" for="control">52%</output>
+    </div>
+  </div>
+  <div class="result" id="status" role="status" aria-live="polite">
+    Probe selectivity = <span class="value" id="selectivity">32 percentage points</span>.
+  </div>
+  <div class="card">
+    <strong>Claim boundary</strong>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Probe comparison table">
+    <table>
+      <thead><tr><th>Claim</th><th>Supported?</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>The attribute is accessible to this probe.</td><td>Conditionally</td><td>Use held-out selectivity and report the protocol.</td></tr>
+        <tr><td>The source model causally uses the attribute.</td><td>No</td><td>Accessibility is not an intervention on source-model behavior.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <p><button id="reset" type="button">Reset example</button></p>
+  <p class="note">Next step for a causal-use claim: intervene on the attribute while preserving other factors, then measure the original model's response.</p>
+</main>
+<script>
+(() => {
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const real = document.getElementById('real');
+  const control = document.getElementById('control');
+  function render(){
+    const r=Number(real.value), c=Number(control.value), gap=r-c;
+    document.getElementById('realValue').textContent=r+'%';
+    document.getElementById('controlValue').textContent=c+'%';
+    document.getElementById('selectivity').textContent=gap+' percentage points';
+    document.getElementById('status').setAttribute('aria-label',`Real-label accuracy ${r} percent; shuffled-label accuracy ${c} percent; selectivity ${gap} percentage points.`);
+  }
+  real.addEventListener('input',render); control.addEventListener('input',render);
+  document.getElementById('reset').addEventListener('click',()=>{real.value=84;control.value=52;render();real.focus();});
+  render();
+})();
+</script>
+</body>
+</html>

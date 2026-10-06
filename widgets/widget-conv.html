@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Convolution and the receptive field</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,'Times New Roman',serif;background:#FAFAF8;color:#1A1A1A;padding:16px}
+  #app{max-width:820px;margin:0 auto}
+  h1{font-size:20px;font-weight:600;margin-bottom:4px}
+  .sub{font-size:13px;color:#666;margin-bottom:14px}
+  .controls{display:flex;flex-wrap:wrap;gap:20px;align-items:center;margin-bottom:14px}
+  .ctrl{display:flex;align-items:center}
+  .ctrl label{font-size:12px;font-family:'Courier New',monospace;color:#444;margin-right:8px}
+  .seg button{font-family:'Courier New',monospace;font-size:12px;padding:5px 10px;border:1px solid #CCC;background:#fff;cursor:pointer;border-radius:4px;margin-right:4px}
+  .seg button.on{background:#A31F34;color:#fff;border-color:#A31F34}
+  button.act{font-family:'Courier New',monospace;font-size:12px;padding:5px 12px;border:1px solid #A31F34;background:#fff;color:#A31F34;border-radius:4px;cursor:pointer}
+  input[type=range]{vertical-align:middle}
+  .val{font-family:'Courier New',monospace;font-size:12px;color:#A31F34;font-weight:700;margin-left:6px}
+  .stage{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start;justify-content:center;margin-bottom:12px}
+  .panel{text-align:center}
+  .panel h2{font-size:13px;font-weight:600;margin-bottom:6px;color:#333}
+  canvas{background:#fff;border:1px solid #E0E0E0;border-radius:6px;cursor:crosshair;display:block;max-width:100%;height:auto}
+  .readout{font-size:13px;line-height:1.7;background:#fff;border:1px solid #E5E5E5;border-radius:6px;padding:10px 14px;margin-bottom:10px}
+  .v{font-weight:700;font-family:'Courier New',monospace;color:#A31F34}
+  code{font-family:'Courier New',monospace;background:#F0F0EC;padding:1px 4px;border-radius:3px}
+  .growth{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+  .chip{font-family:'Courier New',monospace;font-size:12px;border:1px solid #DDD;border-radius:4px;padding:3px 8px;background:#fbfbf9}
+  .chip b{color:#A31F34}
+  .note{font-size:12px;color:#595959;line-height:1.6}
+  button:focus-visible,input:focus-visible,canvas:focus-visible{outline:3px solid #1D4ED8;outline-offset:3px}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  @media (max-width:520px){body{padding:10px}.stage{gap:14px}.panel{width:100%}.controls{gap:12px}}
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Convolution and the receptive field</h1>
+  <p class="sub">Pick a kernel size, stride, and padding. Click any output cell to see the input patch it reads.</p>
+
+  <div class="controls">
+    <div class="ctrl"><span id="kernelLabel">kernel K</span><span class="seg" id="segK" role="group" aria-labelledby="kernelLabel"></span></div>
+    <div class="ctrl"><span id="strideLabel">stride S</span><span class="seg" id="segS" role="group" aria-labelledby="strideLabel"></span></div>
+    <div class="ctrl"><span id="paddingLabel">padding P</span><span class="seg" id="segP" role="group" aria-labelledby="paddingLabel"></span></div>
+    <div class="ctrl"><label for="depth">stack depth</label>
+      <input type="range" id="depth" min="1" max="5" step="1" value="1"><span class="val" id="depthV">1</span></div>
+    <div class="ctrl"><button class="act" id="slide" type="button">&#9654; slide the kernel</button></div>
+    <div class="ctrl"><button class="act" id="reset" type="button">reset</button></div>
+  </div>
+
+  <div class="stage">
+    <div class="panel"><h2>Input (16 &times; 16)</h2><canvas id="cin" width="288" height="288" role="img" aria-label="Sixteen by sixteen grayscale input" aria-describedby="canvasSummary"></canvas></div>
+    <div class="panel"><h2>Feature map (fixed illustrative local-average kernel)</h2><canvas id="cout" width="288" height="288" tabindex="0" role="img" aria-label="Interactive convolution feature map; use arrow keys to move the selected cell" aria-describedby="canvasSummary"></canvas></div>
+  </div>
+
+  <div class="readout" id="readout" role="status" aria-live="polite">
+    Output size <code>= floor((W &minus; K + 2P) / S) + 1</code> =
+    <span class="v" id="outsize">16</span> per side, from a 16&times;16 input.<br>
+    Selected output cell reads a <span class="v" id="rfpatch">3&times;3</span> patch of the input (its
+    <b>receptive field</b> for one layer).<br>
+    Stacking this layer <span class="v" id="depthEcho">1</span>&times; grows the effective receptive field:
+    <div class="growth" id="growth"></div>
+  </div>
+  <p id="canvasSummary" class="sr-only"></p>
+  <p class="note">A convolution slides one small kernel across the image and shares its weights at every
+    position. Deeper layers see wider patches of the original image even though each kernel stays small.</p>
+</div>
+
+<script>
+(function(){
+  const N = 16, CELL = 18;                 // input grid: 16 cells x 18px = 288
+  let K = 3, S = 1, P = 1, depth = 1, sel = {i:0, j:0}, revealed = Infinity, anim = null;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  // A fixed high-contrast input: a plus sign, so local averaging is visible.
+  const img = [];
+  for (let r=0;r<N;r++){ img[r]=[]; for (let c=0;c<N;c++){
+    const bar = (c>=6 && c<=9) || (r>=6 && r<=9);
+    img[r][c] = bar ? 0.92 : 0.10;
+  }}
+
+  const cin = document.getElementById('cin'), gin = cin.getContext('2d');
+  const cout = document.getElementById('cout'), gout = cout.getContext('2d');
+
+  function outSize(){ return Math.floor((N - K + 2*P)/S) + 1; }
+
+  // Feature map = strided K x K average over the zero-padded input.
+  function featureMap(){
+    const M = outSize(), out = [];
+    for (let oi=0; oi<M; oi++){ out[oi]=[]; for (let oj=0; oj<M; oj++){
+      let s=0, n=0;
+      for (let a=0;a<K;a++) for (let b=0;b<K;b++){
+        const r = oi*S - P + a, c = oj*S - P + b;
+        if (r>=0 && r<N && c>=0 && c<N){ s += img[r][c]; }
+        n++;
+      }
+      out[oi][oj] = s/n;
+    }}
+    return out;
+  }
+
+  // Effective receptive field after stacking this layer `d` times (jump = S^l).
+  function rfGrowth(){
+    const sizes=[]; let rf=1, jump=1;
+    for (let l=1;l<=5;l++){ rf = rf + (K-1)*jump; jump *= S; sizes.push(rf); }
+    return sizes;
+  }
+
+  function drawInput(){
+    gin.clearRect(0,0,288,288);
+    for (let r=0;r<N;r++) for (let c=0;c<N;c++){
+      const v = img[r][c]; const g = Math.round(255*(1-v));
+      gin.fillStyle = `rgb(${g},${g},${g})`;
+      gin.fillRect(c*CELL, r*CELL, CELL, CELL);
+    }
+    // Grid
+    gin.strokeStyle='#8A8A8A'; gin.lineWidth=1;
+    for (let k=0;k<=N;k++){ gin.beginPath(); gin.moveTo(k*CELL,0); gin.lineTo(k*CELL,288); gin.stroke();
+      gin.beginPath(); gin.moveTo(0,k*CELL); gin.lineTo(288,k*CELL); gin.stroke(); }
+    // Receptive-field box for the selected output cell (single layer).
+    const r0 = sel.i*S - P, c0 = sel.j*S - P;
+    gin.strokeStyle='#A31F34'; gin.lineWidth=2.5;
+    gin.strokeRect(c0*CELL, r0*CELL, K*CELL, K*CELL);
+  }
+
+  function drawOutput(){
+    const M = outSize(), out = featureMap();
+    const cell = 288/M;
+    gout.clearRect(0,0,288,288);
+    for (let oi=0;oi<M;oi++) for (let oj=0;oj<M;oj++){
+      if (oi*M+oj >= revealed) continue;          // during play, only cells computed so far
+      const g = Math.round(255*(1-out[oi][oj]));
+      gout.fillStyle=`rgb(${g},${g},${g})`;
+      gout.fillRect(oj*cell, oi*cell, cell, cell);
+    }
+    gout.strokeStyle='#8A8A8A'; gout.lineWidth=1;
+    for (let k=0;k<=M;k++){ gout.beginPath(); gout.moveTo(k*cell,0); gout.lineTo(k*cell,288); gout.stroke();
+      gout.beginPath(); gout.moveTo(0,k*cell); gout.lineTo(288,k*cell); gout.stroke(); }
+    gout.strokeStyle='#A31F34'; gout.lineWidth=2.5;
+    gout.strokeRect(sel.j*cell, sel.i*cell, cell, cell);
+  }
+
+  function render(){
+    const M = outSize();
+    if (sel.i>=M) sel.i=M-1; if (sel.j>=M) sel.j=M-1;
+    drawInput(); drawOutput();
+    document.getElementById('outsize').textContent = M;
+    document.getElementById('rfpatch').innerHTML = K+'&times;'+K;
+    document.getElementById('depthEcho').textContent = depth;
+    const sizes = rfGrowth();
+    const g = document.getElementById('growth'); g.innerHTML='';
+    for (let l=0;l<depth;l++){
+      const chip=document.createElement('span'); chip.className='chip';
+      chip.innerHTML='layer '+(l+1)+': <b>'+sizes[l]+'&times;'+sizes[l]+'</b>';
+      g.appendChild(chip);
+    }
+    const r0=sel.i*S-P, c0=sel.j*S-P;
+    const summary=`Output grid ${M} by ${M}. Selected output row ${sel.i+1}, column ${sel.j+1} reads input rows ${r0+1} through ${r0+K} and columns ${c0+1} through ${c0+K}, including padding outside the input when an index is out of range. Effective receptive field after ${depth} layer${depth===1?'':'s'} is ${sizes[depth-1]} by ${sizes[depth-1]}.`;
+    document.getElementById('canvasSummary').textContent=summary;
+    cout.setAttribute('aria-label',summary+' Use arrow keys to move the selected output cell.');
+    cin.setAttribute('aria-label','Sixteen by sixteen grayscale input with a plus-sign pattern. '+summary);
+  }
+
+  cout.addEventListener('click', e=>{
+    const M = outSize(), cell = 288/M;
+    const rect = cout.getBoundingClientRect();
+    const x = (e.clientX-rect.left)*(288/rect.width), y=(e.clientY-rect.top)*(288/rect.height);
+    stopAnim(); revealed = Infinity;
+    sel = { i: Math.min(M-1,Math.max(0,Math.floor(y/cell))), j: Math.min(M-1,Math.max(0,Math.floor(x/cell))) };
+    render();
+  });
+  cout.addEventListener('keydown',e=>{
+    const moves={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]};
+    if(!moves[e.key])return;e.preventDefault();stopAnim();revealed=Infinity;
+    const M=outSize(),move=moves[e.key];
+    sel={i:Math.max(0,Math.min(M-1,sel.i+move[0])),j:Math.max(0,Math.min(M-1,sel.j+move[1]))};render();
+  });
+
+  function seg(id, values, cur, setter){
+    const host=document.getElementById(id);
+    values.forEach(v=>{
+      const b=document.createElement('button'); b.type='button'; b.textContent=v;
+      b.setAttribute('aria-pressed',v===cur?'true':'false');
+      if (v===cur) b.className='on';
+      b.onclick=()=>{ stopAnim(); revealed=Infinity; setter(v); [...host.children].forEach(c=>{c.className='';c.setAttribute('aria-pressed','false');}); b.className='on';b.setAttribute('aria-pressed','true'); render(); };
+      host.appendChild(b);
+    });
+  }
+  seg('segK',[3,5], K, v=>{K=v;}); seg('segS',[1,2], S, v=>{S=v;}); seg('segP',[0,1], P, v=>{P=v;});
+  const dv=document.getElementById('depth');
+  dv.oninput=()=>{ stopAnim(); revealed=Infinity; depth=+dv.value; document.getElementById('depthV').textContent=depth; render(); };
+
+  // Play: clear the feature map and reproduce it in real time as the kernel slides. The
+  // per-cell delay scales with the number of outputs, so small and large kernels (and
+  // strides) take about the same total time.
+  function stopAnim(){ if(anim){ clearTimeout(anim); anim=null; } document.getElementById('slide').innerHTML='&#9654; slide the kernel'; }
+  document.getElementById('slide').onclick=()=>{
+    if(anim){stopAnim();return;}
+    stopAnim();
+    const M=outSize(), total=M*M;
+    if(reducedMotion.matches){revealed=Infinity;sel={i:M-1,j:M-1};render();return;}
+    document.getElementById('slide').textContent='pause animation';
+    const perCell = Math.max(10, Math.round(3500/total));
+    let idx=0;
+    (function step(){
+      sel={i: Math.floor(idx/M), j: idx%M};
+      revealed = idx+1;
+      render();
+      idx++;
+      if(idx>=total){ anim=null;document.getElementById('slide').innerHTML='&#9654; slide the kernel'; return; }
+      anim=setTimeout(step, perCell);
+    })();
+  };
+  document.getElementById('reset').onclick=()=>{stopAnim();K=3;S=1;P=1;depth=1;sel={i:0,j:0};revealed=Infinity;dv.value=1;document.getElementById('depthV').textContent='1';[['segK',3],['segS',1],['segP',1]].forEach(([id,value])=>{[...document.getElementById(id).children].forEach(button=>{const on=Number(button.textContent)===value;button.className=on?'on':'';button.setAttribute('aria-pressed',on?'true':'false');});});render();};
+  reducedMotion.addEventListener?.('change',()=>{if(reducedMotion.matches)stopAnim();});
+
+  render();
+})();
+</script>
+</body>
+</html>

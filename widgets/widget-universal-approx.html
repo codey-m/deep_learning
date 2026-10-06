@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Universal approximation with ReLU units</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,'Times New Roman',serif;background:#FAFAF8;color:#1A1A1A;padding:16px}
+  #app{max-width:640px;margin:0 auto}
+  h1{font-size:20px;font-weight:600;margin-bottom:4px}
+  .sub{font-size:13px;color:#666;margin-bottom:14px}
+  .controls{display:flex;flex-wrap:wrap;gap:20px;align-items:center;margin-bottom:12px}
+  .ctrl{display:flex;align-items:center}
+  .ctrl label,.control-label{font-size:12px;font-family:'Courier New',monospace;color:#444;margin-right:8px}
+  .seg button{font-family:'Courier New',monospace;font-size:12px;padding:5px 10px;border:1px solid #CCC;background:#fff;cursor:pointer;border-radius:4px;margin-right:4px}
+  .seg button.on{background:#A31F34;color:#fff;border-color:#A31F34}
+  button.act{font-family:'Courier New',monospace;font-size:12px;padding:5px 12px;border:1px solid #A31F34;background:#fff;color:#A31F34;border-radius:4px;cursor:pointer}
+  input[type=range]{vertical-align:middle;width:150px}
+  .val{font-family:'Courier New',monospace;font-size:12px;color:#A31F34;font-weight:700;margin-left:6px}
+  button:focus-visible,input:focus-visible{outline:3px solid #1D4ED8;outline-offset:3px}
+  canvas{background:#fff;border:1px solid #E0E0E0;border-radius:6px;display:block;margin-bottom:10px;width:100%;max-width:608px;height:auto}
+  .legend{font-size:12px;color:#555;margin-bottom:8px}
+  .swatch{display:inline-block;width:22px;height:3px;vertical-align:middle;margin:0 5px 0 12px}
+  .readout{font-size:13px;background:#fff;border:1px solid #E5E5E5;border-radius:6px;padding:10px 14px;margin-bottom:10px}
+  .v{font-weight:700;font-family:'Courier New',monospace;color:#A31F34}
+  .note{font-size:12px;color:#595959;line-height:1.6}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Universal approximation with ReLU units</h1>
+  <p class="sub">A one-hidden-layer network of ReLU units is a sum of hinges. Add units and watch a piecewise-linear
+    fit close in on any smooth target.</p>
+
+  <div class="controls">
+    <div class="ctrl"><span id="targetLabel" class="control-label">target</span><span class="seg" id="segT" role="group" aria-labelledby="targetLabel"></span></div>
+    <div class="ctrl"><label for="n">hidden units</label>
+      <input type="range" id="n" min="1" max="24" step="1" value="4"><span class="val" id="nV">4</span></div>
+    <div class="ctrl"><button class="act" type="button" id="ramp">Add units</button></div>
+    <div class="ctrl"><button class="act" type="button" id="pause">Pause</button></div>
+    <div class="ctrl"><button class="act" type="button" id="reset">Reset</button></div>
+  </div>
+
+  <div class="legend">
+    <span class="swatch" style="background:#111"></span>target function
+    <span class="swatch" style="background:#A31F34"></span>ReLU network output
+  </div>
+  <canvas id="cv" width="608" height="300" role="img" aria-label="Target curve and constructed piecewise-linear ReLU spline" aria-describedby="canvasSummary"></canvas>
+
+  <div class="readout" id="canvasSummary">
+    With <span class="v" id="nEcho">4</span> hidden units, the construction has <span class="v" id="segments">5</span>
+    linear segments and <span class="v" id="breaks">4</span> interior kinks. Its largest sampled gap to the target is <span class="v" id="err">0.00</span>.
+  </div>
+  <div class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+  <p class="note">This display constructs an interpolating spline; it does not train weights. An affine base supplies
+    the first segment, and each hidden ReLU unit supplies one interior kink. Increasing width can approximate a
+    continuous target on a bounded interval arbitrarily closely, but this existence result does not guarantee
+    optimization or generalization.</p>
+</div>
+
+<script>
+(function(){
+  const W=608,H=300,pad=28;
+  const xmin=-1,xmax=1,ymin=-1.25,ymax=1.25;
+  let N=4, target='wave';
+  const targets={
+    wave:  x=>Math.sin(3.4*x),
+    bump:  x=>2*Math.exp(-9*x*x)-1,
+    s_curve:  x=>Math.tanh(6*x),
+  };
+  const cv=document.getElementById('cv'), g=cv.getContext('2d');
+
+  const X = x => pad + (x-xmin)/(xmax-xmin)*(W-2*pad);
+  const Y = y => H-pad - (y-ymin)/(ymax-ymin)*(H-2*pad);
+
+  // With an affine base plus N ReLU hinges, construct N interior kinks,
+  // N+1 linear segments, and N+2 interpolation knots including the endpoints.
+  function knots(){
+    const f=targets[target], pts=[];
+    for(let i=0;i<=N+1;i++){
+      const x=xmin+(xmax-xmin)*i/(N+1);
+      pts.push([x,f(x)]);
+    }
+    return pts;
+  }
+  function approx(x, pts){
+    for(let i=0;i<pts.length-1;i++){
+      if(x<=pts[i+1][0]){
+        const [x0,y0]=pts[i],[x1,y1]=pts[i+1];
+        return y0 + (y1-y0)*(x-x0)/(x1-x0);
+      }
+    }
+    return pts[pts.length-1][1];
+  }
+
+  function draw(announce=true){
+    const f=targets[target], pts=knots();
+    g.clearRect(0,0,W,H);
+    // axes
+    g.strokeStyle='#8A8A8A'; g.lineWidth=1;
+    g.beginPath(); g.moveTo(pad,Y(0)); g.lineTo(W-pad,Y(0)); g.stroke();
+    g.beginPath(); g.moveTo(X(0),pad); g.lineTo(X(0),H-pad); g.stroke();
+    // target
+    g.strokeStyle='#111'; g.lineWidth=2; g.beginPath();
+    for(let p=0;p<=240;p++){ const x=xmin+(xmax-xmin)*p/240; const px=X(x),py=Y(f(x));
+      p?g.lineTo(px,py):g.moveTo(px,py); }
+    g.stroke();
+    // approximation
+    g.strokeStyle='#A31F34'; g.lineWidth=2.4; g.beginPath();
+    pts.forEach((p,i)=>{ const px=X(p[0]),py=Y(p[1]); i?g.lineTo(px,py):g.moveTo(px,py); });
+    g.stroke();
+    // knots
+    g.fillStyle='#A31F34';
+    pts.forEach(p=>{ g.beginPath(); g.arc(X(p[0]),Y(p[1]),3,0,7); g.fill(); });
+    // max error
+    let err=0;
+    for(let p=0;p<=400;p++){ const x=xmin+(xmax-xmin)*p/400; err=Math.max(err,Math.abs(f(x)-approx(x,pts))); }
+    document.getElementById('nEcho').textContent=N;
+    document.getElementById('segments').textContent=N+1;
+    document.getElementById('breaks').textContent=N;
+    document.getElementById('err').textContent=err.toFixed(3);
+    if(announce){
+      document.getElementById('announcement').textContent=
+        `${N} hidden units, ${N+1} segments, ${N} interior kinks, maximum sampled gap ${err.toFixed(3)}.`;
+    }
+  }
+
+  function seg(id, opts, cur, setter){
+    const host=document.getElementById(id);
+    opts.forEach(([val,lab])=>{
+      const b=document.createElement('button'); b.type='button'; b.textContent=lab;
+      b.setAttribute('aria-pressed', val===cur ? 'true' : 'false');
+      if(val===cur) b.className='on';
+      b.onclick=()=>{
+        setter(val);
+        [...host.children].forEach(c=>{c.className='';c.setAttribute('aria-pressed','false');});
+        b.className='on'; b.setAttribute('aria-pressed','true'); draw();
+      };
+      host.appendChild(b);
+    });
+  }
+  seg('segT',[['wave','wave'],['bump','bump'],['s_curve','S-curve']], target, v=>{target=v;});
+  const nr=document.getElementById('n');
+  nr.oninput=()=>{ N=+nr.value; document.getElementById('nV').textContent=N; draw(); };
+
+  // Play button: ramp the number of units up so the fit visibly converges.
+  const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
+  let anim=null;
+  function stopAnimation(){ if(anim){clearTimeout(anim);anim=null;} }
+  document.getElementById('ramp').onclick=()=>{
+    stopAnimation();
+    if(reduceMotion.matches){
+      N=24; nr.value=N; document.getElementById('nV').textContent=N; draw(true);
+      return;
+    }
+    N=1;
+    (function step(){
+      nr.value=N; document.getElementById('nV').textContent=N; draw(false);
+      if(N>=24){ anim=null; draw(true); return; }
+      N++; anim=setTimeout(step, 130);
+    })();
+  };
+  document.getElementById('pause').onclick=()=>{stopAnimation();draw(true);};
+  document.getElementById('reset').onclick=()=>{
+    stopAnimation(); N=4; target='wave'; nr.value=N;
+    document.getElementById('nV').textContent=N;
+    [...document.getElementById('segT').children].forEach((b,index)=>{
+      const selected=index===0; b.className=selected?'on':'';
+      b.setAttribute('aria-pressed',selected?'true':'false');
+    });
+    draw();
+  };
+  reduceMotion.addEventListener?.('change', event=>{if(event.matches){stopAnimation();draw(true);}});
+
+  draw();
+})();
+</script>
+</body>
+</html>

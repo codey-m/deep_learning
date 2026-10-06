@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Scaled dot-product attention</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,'Times New Roman',serif;background:#FAFAF8;color:#1A1A1A;padding:16px}
+  #app{max-width:760px;margin:0 auto}
+  h1{font-size:20px;font-weight:600;margin-bottom:4px}
+  .sub{font-size:13px;color:#666;margin-bottom:16px}
+  .dctrl{display:flex;align-items:center;gap:10px;margin-bottom:16px;font-family:'Courier New',monospace;font-size:13px;color:#444}
+  .dctrl .val{color:#A31F34;font-weight:700}
+  button.act{font-family:'Courier New',monospace;font-size:12px;padding:5px 12px;border:1px solid #A31F34;background:#fff;color:#A31F34;border-radius:4px;cursor:pointer;margin-left:6px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#595959;font-weight:600;text-align:left;padding:4px 8px;font-family:'Courier New',monospace}
+  td{padding:5px 8px;border-top:1px solid #EEE;vertical-align:middle}
+  .tok{font-family:'Courier New',monospace;font-weight:700;color:#333}
+  input[type=range]{width:120px;vertical-align:middle}
+  .mono{font-family:'Courier New',monospace;color:#555}
+  .barwrap{background:#F1F1EC;border-radius:4px;height:20px;position:relative;min-width:150px}
+  .bar{background:#A31F34;height:20px;border-radius:4px;transition:width .12s}
+  .wlabel{font-family:'Courier New',monospace;font-size:12px;color:#A31F34;font-weight:700;margin-left:6px}
+  .out{margin-top:16px;background:#fff;border:1px solid #E5E5E5;border-radius:6px;padding:12px 14px;font-size:13px;line-height:1.7}
+  .v{font-weight:700;font-family:'Courier New',monospace;color:#A31F34}
+  code{font-family:'Courier New',monospace;background:#F0F0EC;padding:1px 4px;border-radius:3px}
+  .note{font-size:12px;color:#595959;line-height:1.6;margin-top:10px}
+  .tablewrap{overflow-x:auto;border:1px solid #EEE;border-radius:6px;background:#fff}
+  button:focus-visible,input:focus-visible{outline:3px solid #1D4ED8;outline-offset:3px}
+  @media(max-width:560px){body{padding:10px}.dctrl{align-items:flex-start;flex-wrap:wrap}.dctrl label{width:100%}input[type=range]{width:min(220px,100%)}}
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Scaled dot-product attention</h1>
+  <p class="sub">One query attends to five keys. Set each raw score (the query&middot;key match), then change the
+    dimension <code>d</code> to see the <code>&radic;d</code> scaling reshape the weights.</p>
+
+  <div class="dctrl">
+    <label for="d">dimension d</label>
+    <input type="range" id="d" min="1" max="64" step="1" value="4">
+    <span class="mono">d = <span class="val" id="dV">4</span>, &nbsp; &radic;d = <span class="val" id="sqV">2.00</span></span>
+    <button class="act" id="sweep" type="button">&#9654; sweep d</button>
+    <button class="act" id="reset" type="button">reset</button>
+  </div>
+
+  <div class="tablewrap" tabindex="0" aria-label="Attention calculation table; scroll horizontally on small screens"><table>
+    <thead><tr><th>key</th><th>raw score</th><th>score/&radic;d</th><th>attention weight</th><th>value</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table></div>
+
+  <div class="out" id="status" role="status" aria-live="polite">
+    Weights are <code>softmax(score / &radic;d)</code> and always sum to
+    <span class="v" id="sum">1.00</span>.<br>
+    Attention output <code>= &Sigma; weight &times; value</code> = <span class="v" id="output">0.00</span>.
+    <span id="peakNote"></span>
+  </div>
+  <p class="note"><b>What this sweep holds fixed:</b> only the divisor changes; all five raw scores stay fixed.
+    Under that condition, larger <code>d</code> flattens the weights. In a real head, unscaled query-key dot-product
+    variance typically grows with dimension; dividing by <code>&radic;d</code> counteracts that growth.</p>
+</div>
+
+<script>
+(function(){
+  const keys = [
+    {name:"k1", raw: 3.0, val: 10},
+    {name:"k2", raw: 1.0, val: 4},
+    {name:"k3", raw: 0.0, val: 8},
+    {name:"k4", raw: 2.0, val: 2},
+    {name:"k5", raw: -1.0, val: 6},
+  ];
+  let d = 4;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  const rows = document.getElementById('rows');
+  keys.forEach((k,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML =
+      '<td class="tok">'+k.name+'</td>'+
+      '<td><input type="range" min="-4" max="4" step="0.5" value="'+k.raw+'" data-i="'+i+'" aria-label="raw score for '+k.name+'">'+
+        ' <span class="mono" id="raw'+i+'">'+k.raw.toFixed(1)+'</span></td>'+
+      '<td class="mono" id="scaled'+i+'">0.00</td>'+
+      '<td><div class="barwrap"><div class="bar" id="bar'+i+'"></div></div>'+
+        '<span class="wlabel" id="w'+i+'">0%</span></td>'+
+      '<td class="mono">'+k.val+'</td>';
+    rows.appendChild(tr);
+  });
+
+  let suppressAnnouncements=false;
+  function render(){
+    const sq = Math.sqrt(d);
+    document.getElementById('dV').textContent = d;
+    document.getElementById('sqV').textContent = sq.toFixed(2);
+    const scaled = keys.map(k=>k.raw/sq);
+    const m = Math.max(...scaled);
+    const exps = scaled.map(s=>Math.exp(s-m));
+    const Z = exps.reduce((a,b)=>a+b,0);
+    const w = exps.map(e=>e/Z);
+    let out=0, peak=0, peakI=0;
+    keys.forEach((k,i)=>{
+      document.getElementById('scaled'+i).textContent = scaled[i].toFixed(2);
+      document.getElementById('bar'+i).style.width = (w[i]*100).toFixed(1)+'%';
+      document.getElementById('w'+i).textContent = (w[i]*100).toFixed(0)+'%';
+      out += w[i]*k.val;
+      if (w[i]>peak){ peak=w[i]; peakI=i; }
+    });
+    document.getElementById('sum').textContent = w.reduce((a,b)=>a+b,0).toFixed(2);
+    document.getElementById('output').textContent = out.toFixed(2);
+    const spread = peak - Math.min(...w);
+    document.getElementById('peakNote').innerHTML =
+      spread > 0.35 ? ' The weights are peaked on <b>'+keys[peakI].name+'</b>.'
+                    : ' The weights are spread fairly evenly.';
+    if(!suppressAnnouncements){
+      document.getElementById('status').setAttribute('aria-label',`At dimension ${d}, square root ${sq.toFixed(2)}. Attention weights ${w.map(value=>(value*100).toFixed(1)+' percent').join(', ')}. Weighted output ${out.toFixed(2)}.`);
+    }
+  }
+
+  rows.addEventListener('input', e=>{
+    if (e.target.dataset.i!==undefined){
+      const i=+e.target.dataset.i; keys[i].raw=+e.target.value;
+      document.getElementById('raw'+i).textContent = keys[i].raw.toFixed(1);
+      render();
+    }
+  });
+  const dr=document.getElementById('d');
+  dr.oninput=()=>{ d=+dr.value; render(); };
+
+  // Play button: sweep d upward so the weights visibly flatten toward uniform.
+  let anim=null;
+  function stopSweep(){if(anim){clearTimeout(anim);anim=null;}suppressAnnouncements=false;document.getElementById('sweep').innerHTML='&#9654; sweep d';render();}
+  document.getElementById('sweep').onclick=()=>{
+    if(anim){stopSweep();return;}
+    if(reducedMotion.matches){d=64;dr.value=d;render();return;}
+    document.getElementById('sweep').textContent='pause sweep';suppressAnnouncements=true;
+    d=1;
+    (function step(){
+      dr.value=d; render();
+      if(d>=64){ anim=null;suppressAnnouncements=false;document.getElementById('sweep').innerHTML='&#9654; sweep d';render(); return; }
+      d=Math.min(64, d+2); anim=setTimeout(step, 70);
+    })();
+  };
+  document.getElementById('reset').onclick=()=>{stopSweep();d=4;dr.value=d;keys.forEach((key,index)=>{key.raw=[3,1,0,2,-1][index];const slider=rows.querySelector(`input[data-i="${index}"]`);slider.value=key.raw;document.getElementById('raw'+index).textContent=key.raw.toFixed(1);});render();dr.focus();};
+  reducedMotion.addEventListener?.('change',()=>{if(reducedMotion.matches)stopSweep();});
+  render();
+})();
+</script>
+</body>
+</html>

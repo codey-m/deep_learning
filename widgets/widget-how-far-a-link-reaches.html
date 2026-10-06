@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>How far can a link reach?</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,'Times New Roman',serif;background:#FAFAF8;color:#1A1A1A;padding:16px}
+  #app{max-width:640px;margin:0 auto}
+  h1{font-size:20px;font-weight:600;margin-bottom:4px}
+  .sub{font-size:13px;color:#595959;margin-bottom:14px}
+  .controls{display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin-bottom:12px}
+  .ctrl{display:flex;align-items:center}
+  .ctrl label,.control-label{font-size:12px;font-family:'Courier New',monospace;color:#444;margin-right:8px}
+  .ctrl.off label{color:#8A8A8A}
+  .seg button{font-family:'Courier New',monospace;font-size:12px;padding:5px 10px;border:1px solid #767676;background:#fff;color:#1A1A1A;cursor:pointer;border-radius:4px;margin-right:4px}
+  .seg button.on{background:#A31F34;color:#fff;border-color:#A31F34}
+  button.act{font-family:'Courier New',monospace;font-size:12px;padding:5px 12px;border:1px solid #A31F34;background:#fff;color:#A31F34;border-radius:4px;cursor:pointer}
+  input[type=range]{vertical-align:middle;width:120px}
+  input[type=range]:disabled{opacity:.45}
+  .val{font-family:'Courier New',monospace;font-size:12px;color:#A31F34;font-weight:700;margin-left:6px}
+  button:focus-visible,input:focus-visible{outline:3px solid #1D4ED8;outline-offset:3px}
+  canvas{background:#fff;border:1px solid #767676;border-radius:6px;display:block;margin-bottom:10px;width:100%;max-width:608px;height:auto}
+  .legend{font-size:12px;color:#444;margin-bottom:8px}
+  .key{display:inline-block;width:11px;height:11px;vertical-align:-1px;margin:0 5px 0 14px}
+  .key.a{background:#A31F34;border-radius:50%}
+  .key.b{background:#16456B}
+  .key.line{width:20px;height:3px;background:#111;border-radius:0}
+  .readout{font-size:13px;background:#fff;border:1px solid #767676;border-radius:6px;padding:10px 14px;margin-bottom:10px}
+  .v{font-weight:700;font-family:'Courier New',monospace;color:#A31F34}
+  .note{font-size:12px;color:#444;line-height:1.6}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>How far can a link reach?</h1>
+  <p class="sub">Lengthen the sentence, then switch between reading in order and looking at every word at once.</p>
+
+  <div class="controls">
+    <div class="ctrl"><label for="idx">words in between</label>
+      <input type="range" id="idx" min="0" max="6" step="1" value="1"><span class="val" id="idxV">1</span></div>
+    <div class="ctrl"><span id="segRLabel" class="control-label">method</span><span class="seg" id="segR" role="group" aria-labelledby="segRLabel"></span></div>
+    <div class="ctrl"><button class="act" type="button" id="reset">Reset</button></div>
+  </div>
+
+  <canvas id="cv" width="608" height="205" role="img" aria-label="A sentence drawn as a row of words, with the link from keys to were shown either as a chain of hops or as one direct arc" aria-describedby="canvasSummary"></canvas>
+
+  <div class="readout" id="canvasSummary">“keys” and “were” have <span class="v" id="dEcho">3</span> words between them. The link is worth <span class="v" id="str">0%</span>, at a cost of <span class="v" id="comp">0</span> comparisons. <span id="verdict"></span></div>
+  <div class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+  <p class="note">The underlined nouns are singular and sit closer to “were”, so the link has to reach past them to “keys”.</p>
+</div>
+
+<script>
+(function(){
+
+  function bind(id, places, setter){
+    const r=document.getElementById(id);
+    r.oninput=()=>{ setter(+r.value); document.getElementById(id+'V').textContent=(+r.value).toFixed(places); draw(true); };
+  }
+  function seg(id, opts, cur, setter){
+    const host=document.getElementById(id);
+    opts.forEach(([val,lab])=>{
+      const b=document.createElement('button'); b.type='button'; b.textContent=lab;
+      b.setAttribute('aria-pressed', val===cur?'true':'false');
+      if(val===cur) b.className='on';
+      b.onclick=()=>{ setter(val);
+        [...host.children].forEach(c=>{c.className='';c.setAttribute('aria-pressed','false');});
+        b.className='on'; b.setAttribute('aria-pressed','true'); draw(true); };
+      host.appendChild(b);
+    });
+  }
+  function say(t){ document.getElementById('announcement').textContent=t; }
+
+  const W=608,H=205,pad=24;
+  const cv=document.getElementById('cv'), g=cv.getContext('2d');
+  let idx=1, mode=0;                      // 0 = read in order, 1 = look at all at once
+
+  // Every sentence is grammatical, and in each one "were" has to agree with "keys"
+  // across a growing gap that contains singular nouns it must not agree with.
+  const S=["The keys were on the table.",
+           "The keys to the cabinet were on the table.",
+           "The keys to the old cabinet were on the table.",
+           "The keys to the cabinet in the hall were on the table.",
+           "The keys that the man left in the hall were on the table.",
+           "The keys that the man left in the hall last night were on the table.",
+           "The keys that the man who fixed the door left in the hall were on the table."];
+  const DECOY=new Set(['cabinet','hall','man','door']);
+  const words=()=>S[idx].split(' ');
+  const from=()=>words().indexOf('keys'), to=()=>words().indexOf('were');
+  const dist=()=>to()-from();
+  const strength=()=> mode===0 ? Math.pow(0.74,dist()) : 1;
+  const comparisons=()=> mode===0 ? words().length : words().length*words().length;
+
+  function layout(){
+    const ws=words(); let fs=14, boxes;
+    for(;fs>=9;fs--){
+      g.font=fs+'px Georgia';
+      const wd=ws.map(w=>g.measureText(w).width+8);
+      const total=wd.reduce((a,b)=>a+b,0)+4*(ws.length-1);
+      if(total<=W-2*pad||fs===9){
+        let x=pad+(W-2*pad-total)/2; boxes=wd.map(w=>{const b={x,w}; x+=w+4; return b;}); break;
+      }
+    }
+    return {fs,boxes};
+  }
+
+  function draw(announce){
+    g.clearRect(0,0,W,H);
+    const ws=words(), {fs,boxes}=layout(), y=H-64, bh=fs+12, a=from(), b=to();
+    const cx=i=>boxes[i].x+boxes[i].w/2;
+
+    if(mode===1){
+      g.strokeStyle='#111'; g.lineWidth=1;
+      ws.forEach((w,i)=>{ if(i===b||i===a) return;
+        g.globalAlpha=0.16; g.beginPath(); g.moveTo(cx(b),y-2);
+        g.quadraticCurveTo((cx(b)+cx(i))/2, y-24-Math.abs(b-i)*4, cx(i), y-2); g.stroke(); });
+      g.globalAlpha=1; g.lineWidth=2.6;
+      g.beginPath(); g.moveTo(cx(a),y-2);
+      g.quadraticCurveTo((cx(a)+cx(b))/2, y-40-dist()*5, cx(b), y-2); g.stroke();
+    } else {
+      // The weakening shows in the height and thickness of each hop, never in its
+      // opacity, so every hop keeps full contrast against the background.
+      for(let i=a;i<b;i++){
+        const s=Math.pow(0.74,i-a+1), x0=cx(i), x1=cx(i+1);
+        g.strokeStyle='#111'; g.lineWidth=1.8+3.2*s;
+        g.beginPath(); g.moveTo(x0,y-2); g.quadraticCurveTo((x0+x1)/2, y-16-62*s, x1, y-2); g.stroke();
+        g.beginPath(); g.arc(x1,y-2,2.4+2.6*s,0,7); g.fillStyle='#111'; g.fill();
+      }
+    }
+
+    ws.forEach((w,i)=>{
+      const bx=boxes[i];
+      g.fillStyle = i===a ? '#A31F34' : i===b ? '#16456B' : '#EDEDEA';
+      g.fillRect(bx.x,y,bx.w,bh);
+      g.strokeStyle='#767676'; g.lineWidth=1; g.strokeRect(bx.x,y,bx.w,bh);
+      g.fillStyle = (i===a||i===b) ? '#fff' : '#1A1A1A';
+      g.font=fs+'px Georgia'; g.fillText(w, bx.x+4, y+bh-6);
+      if(DECOY.has(w)){ g.strokeStyle='#767676'; g.setLineDash([2,2]);
+        g.beginPath(); g.moveTo(bx.x+3,y+bh+4); g.lineTo(bx.x+bx.w-3,y+bh+4); g.stroke(); g.setLineDash([]); }
+    });
+
+    const s=strength(), bx=pad, by=26, bw=W-2*pad;
+    g.fillStyle='#444'; g.font='11px Courier New'; g.fillText('link strength', bx, by-8);
+    g.strokeStyle='#767676'; g.lineWidth=1; g.strokeRect(bx,by,bw,16);
+    g.fillStyle='#A31F34'; g.fillRect(bx+1,by+1,(bw-2)*s,14);
+
+    document.getElementById('dEcho').textContent=dist()-1;
+    document.getElementById('str').textContent=Math.round(s*100)+'%';
+    document.getElementById('comp').textContent=comparisons().toLocaleString();
+    document.getElementById('verdict').textContent =
+      mode===1 ? '“were” looks straight back at “keys”, however far away it is. The cost is comparing every word with every other.'
+      : s<0.05 ? 'By the time the reader reaches “were”, almost nothing of “keys” is left to agree with.'
+      : 'The link survives, weaker with every word in between.';
+    if(announce) say(`${S[idx]} ${mode===1?'Looking at all at once':'Reading in order'}: link strength ${Math.round(s*100)} percent, ${comparisons()} comparisons.`);
+  }
+  const r=document.getElementById('idx');
+  r.oninput=()=>{ idx=+r.value; document.getElementById('idxV').textContent=String(dist()-1); draw(true); };
+  seg('segR',[[0,'read in order'],[1,'look at all at once']], mode, v=>{mode=v;});
+  document.getElementById('reset').onclick=()=>{
+    idx=1; mode=0; r.value=1; document.getElementById('idxV').textContent=String(dist()-1);
+    [...document.getElementById('segR').children].forEach((b,i)=>{
+      const on=i===0; b.className=on?'on':''; b.setAttribute('aria-pressed',on?'true':'false');});
+    draw(true);
+  };
+  document.getElementById('idxV').textContent=String(dist()-1);
+  draw(false);
+
+})();
+</script>
+</body>
+</html>

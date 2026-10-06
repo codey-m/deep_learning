@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VAE objective diagnostic practice</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:16px;font-family:system-ui,-apple-system,sans-serif;background:#fafaf8;color:#1a1a1a}main{max-width:720px;margin:auto}h1{font-size:1.25rem;margin:0 0 6px}.lead{margin:0 0 16px;color:#555;line-height:1.5}.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.control{background:#fff;border:1px solid #ddd;border-radius:8px;padding:12px}label{display:block;font-weight:650;margin-bottom:8px}input,select{width:100%;font:inherit}.value{color:#a31f34;font-variant-numeric:tabular-nums}.results{margin-top:14px;padding:14px;background:#fff;border-left:5px solid #a31f34;border-radius:6px;line-height:1.7}.formula{font-family:ui-monospace,monospace}.note{font-size:.9rem;color:#555;line-height:1.5}input:focus-visible,select:focus-visible{outline:3px solid #1d4ed8;outline-offset:3px}@media(max-width:420px){body{padding:10px}}@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<main>
+<h1>Practice: diagnose a VAE objective</h1>
+<p class="lead">Change one term at a time. Predict the direction first, then distinguish the minimized positive loss from the maximized ELBO convention.</p>
+<div class="controls">
+  <div class="control"><label for="recon">Reconstruction cost: <span class="value" id="recon-v">40</span></label><input id="recon" type="range" min="20" max="60" value="40"></div>
+  <div class="control"><label for="kl">KL cost: <span class="value" id="kl-v">5</span></label><input id="kl" type="range" min="0" max="20" value="5"></div>
+  <div class="control"><label for="beta">KL weight beta</label><select id="beta"><option value="0.1">0.1</option><option value="1" selected>1</option><option value="4">4</option></select></div>
+</div>
+<div class="results" id="status" role="status" aria-live="polite" aria-atomic="true">
+  <div class="formula">positive beta-VAE loss = reconstruction + beta x KL = <strong id="loss">45.0</strong></div>
+  <div class="formula">standard-sign ELBO-style value = -reconstruction - KL = <strong id="elbo">-45.0</strong></div>
+</div>
+<p class="note">Lower positive loss is preferred during minimization. Larger ELBO is preferred during maximization. When beta differs from 1, the beta-weighted training objective is not the standard ELBO.</p>
+</main>
+<script>
+(()=>{const recon=document.querySelector('#recon'),kl=document.querySelector('#kl'),beta=document.querySelector('#beta');function update(){const r=+recon.value,k=+kl.value,b=+beta.value;document.querySelector('#recon-v').textContent=r;document.querySelector('#kl-v').textContent=k;document.querySelector('#loss').textContent=(r+b*k).toFixed(1);document.querySelector('#elbo').textContent=(-r-k).toFixed(1)}[recon,kl,beta].forEach(el=>el.addEventListener('input',update));update()})();
+</script>
+</body>
+</html>

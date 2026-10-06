@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Diffusion schedule diagnostic practice</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:16px;font-family:system-ui,-apple-system,sans-serif;background:#fafaf8;color:#1a1a1a}main{max-width:760px;margin:auto}h1{font-size:1.25rem;margin:0 0 6px}.lead,.note{color:#555;line-height:1.5}.panel{background:#fff;border:1px solid #ddd;border-radius:8px;padding:14px;margin:14px 0;overflow-x:auto}label{display:block;font-weight:650;margin-bottom:8px}select{width:min(520px,100%);font:inherit;padding:7px}table{width:100%;border-collapse:collapse;margin-top:14px}th,td{text-align:left;padding:9px;border-bottom:1px solid #e5e5e5}th{width:52%;color:#444}.ok{color:#08783e}.bad{color:#a31f34}.status{font-weight:750}select:focus-visible{outline:3px solid #1d4ed8;outline-offset:3px}@media(max-width:440px){body{padding:10px}th,td{display:block;width:100%;padding:6px}th{border-bottom:0;padding-top:12px}}@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<main>
+<h1>Practice: audit a diffusion sampler</h1>
+<p class="lead">A valid comparison needs a trained terminal state near noise, an explicit clean endpoint, and one distinct trained level per claimed denoiser call.</p>
+<div class="panel">
+  <label for="case">Schedule and sampling request</label>
+  <select id="case">
+    <option value="old">50 trained levels, terminal alpha-bar 0.603, request 100 calls</option>
+    <option value="repair">100 trained levels, terminal alpha-bar 0.00000024, request 100 calls</option>
+    <option value="fast">100 trained levels, terminal alpha-bar 0.00000024, request 25 calls</option>
+  </select>
+  <table aria-describedby="diagnosis">
+    <tr><th>Terminal signal weight</th><td id="signal"></td></tr>
+    <tr><th>Distinct trained levels used</th><td id="unique"></td></tr>
+    <tr><th>Pure-noise start matches endpoint</th><td id="start"></td></tr>
+    <tr><th>Claimed calls are distinct</th><td id="calls"></td></tr>
+  </table>
+  <p id="diagnosis" class="status" role="status" aria-live="polite" aria-atomic="true"></p>
+</div>
+<p class="note">More calls mean more compute. They may improve, plateau, or worsen a metric depending on the checkpoint, sampler, and discretization; call count alone is not quality evidence.</p>
+</main>
+<script>
+(()=>{const cases={old:{a:.603,trained:50,calls:100,unique:50},repair:{a:2.4e-7,trained:100,calls:100,unique:100},fast:{a:2.4e-7,trained:100,calls:25,unique:25}},select=document.querySelector('#case');function mark(id,text,ok){const el=document.querySelector(id);el.textContent=text;el.className=ok?'ok':'bad'}function update(){const c=cases[select.value],near=c.a<1e-4,distinct=c.calls===c.unique;document.querySelector('#signal').textContent=Math.sqrt(c.a).toPrecision(3);document.querySelector('#unique').textContent=`${c.unique} of ${c.trained}`;mark('#start',near?'supported':'mismatched',near);mark('#calls',distinct?'yes':'no',distinct);const good=near&&distinct;mark('#diagnosis',good?'The schedule supports this sampling comparison.':'Repair the endpoint or remove duplicate calls before comparing.',good)}select.addEventListener('change',update);update()})();
+</script>
+</body>
+</html>

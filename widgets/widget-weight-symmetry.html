@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Weight symmetries: the same function, different weights</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, 'Times New Roman', serif; background: #FFF; color: #1A1A1A; }
+  #app { max-width: 860px; margin: 0 auto; padding: 18px 16px 28px; }
+  h1 { font-size: 19px; font-weight: 600; margin-bottom: 6px; }
+  .sub { font-size: 14px; color: #666; margin-bottom: 14px; line-height: 1.55; }
+  canvas { width: 100%; max-width: 520px; height: auto; display: block; border: 1px solid #E3E3E3; }
+  .row { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+  .controls { flex: 1 1 250px; min-width: 240px; }
+  .ctl { margin-bottom: 14px; }
+  .ctl label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  input[type=range] { width: 100%; }
+  input:focus-visible, button:focus-visible, canvas:focus-visible {
+    outline: 3px solid #A31F34; outline-offset: 2px; }
+  .legend { font-size: 12px; margin: 10px 0 4px; line-height: 1.9; }
+  .swatch { display: inline-block; width: 34px; height: 0; vertical-align: middle;
+            margin-right: 7px; border-top-width: 3px; }
+  .sw-a { border-top-style: solid;  border-top-color: #1A1A1A; }
+  .sw-b { border-top-style: dashed; border-top-color: #A31F34; }
+  .sw-m { border-top-style: dotted; border-top-color: #0B5CAB; }
+  table { border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+  .tablewrap { overflow-x: auto; }
+  th, td { border: 1px solid #DDD; padding: 4px 9px; text-align: left; }
+  th { font-weight: 600; background: #F7F7F5; }
+  .num { font-family: 'Courier New', monospace; }
+  .read { font-size: 13px; line-height: 1.7; margin-top: 10px; padding: 9px 11px;
+          background: #F7F7F5; border-left: 3px solid #A31F34; }
+  .note { font-size: 12px; color: #595959; line-height: 1.6; margin-top: 12px; }
+  button { font-family: inherit; font-size: 13px; padding: 5px 12px; cursor: pointer;
+           border: 1px solid #BBB; background: #FFF; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Weight symmetries: the same function, different weights</h1>
+  <p class="sub">Two networks, A and B, compute <em>the same</em> function. B is A with its two
+  hidden units swapped. Rescale a unit of A, or align B, and watch what happens to the weights,
+  to the distance between them, and to their coordinatewise average.</p>
+
+  <div class="row">
+    <div>
+      <canvas id="cv" width="520" height="340" role="img"
+              aria-label="Plot of network A, network B and their coordinatewise average"
+              aria-describedby="summary"></canvas>
+      <p class="legend">
+        <span class="swatch sw-a"></span>A: solid<br />
+        <span class="swatch sw-b"></span>B: dashed, drawn over A<br />
+        <span class="swatch sw-m"></span>average of A and B: dotted
+      </p>
+    </div>
+
+    <div class="controls">
+      <div class="ctl">
+        <label for="alpha">Rescale A's first hidden unit by a = <span id="alphaOut" class="num">1.00</span></label>
+        <input id="alpha" type="range" min="0.25" max="4" step="0.05" value="1" />
+      </div>
+      <div class="ctl">
+        <label for="align">Align B by swapping its two hidden units</label>
+        <input id="align" type="checkbox" />
+      </div>
+      <div class="ctl"><button id="reset" type="button">Reset</button></div>
+
+      <div class="tablewrap">
+        <table>
+          <caption class="sr-only" style="font-size:12px;text-align:left;padding-bottom:4px;">Weights of both networks</caption>
+          <thead>
+            <tr><th scope="col">Network</th><th scope="col">incoming u</th><th scope="col">outgoing v</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">A</th><td class="num" id="wa">(1.00, -1.00)</td><td class="num" id="va">(1.00, -1.00)</td></tr>
+            <tr><th scope="row">B</th><td class="num" id="wb">(-1.00, 1.00)</td><td class="num" id="vb">(-1.00, 1.00)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="read" id="summary" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <p class="note">Each unit computes r(z) = max(0, z), and the network outputs
+  v<sub>1</sub>r(u<sub>1</sub>x) + v<sub>2</sub>r(u<sub>2</sub>x). Scaling one unit's incoming
+  weight by a positive a and dividing its outgoing weight by the same a leaves the function
+  alone, which is why A never moves in the plot however far its weights travel.</p>
+</div>
+
+<script>
+(function () {
+  var cv = document.getElementById("cv"), g = cv.getContext("2d");
+  var W = cv.width, H = cv.height, PAD = 34;
+  var XMIN = -5, XMAX = 5, YMIN = -5, YMAX = 5;
+  var alphaEl = document.getElementById("alpha"),
+      alignEl = document.getElementById("align"),
+      resetEl = document.getElementById("reset");
+
+  function X(x) { return PAD + (x - XMIN) / (XMAX - XMIN) * (W - 2 * PAD); }
+  function Y(y) { return H - PAD - (y - YMIN) / (YMAX - YMIN) * (H - 2 * PAD); }
+  function r(z) { return z > 0 ? z : 0; }
+  function net(w, x) { return w.v[0] * r(w.u[0] * x) + w.v[1] * r(w.u[1] * x); }
+  function fmt(p) { return "(" + p[0].toFixed(2) + ", " + p[1].toFixed(2) + ")"; }
+
+  function state() {
+    var a = parseFloat(alphaEl.value);
+    var A = { u: [1 * a, -1], v: [1 / a, -1] };
+    var B = alignEl.checked ? { u: [1, -1], v: [1, -1] } : { u: [-1, 1], v: [-1, 1] };
+    var M = { u: [(A.u[0] + B.u[0]) / 2, (A.u[1] + B.u[1]) / 2],
+              v: [(A.v[0] + B.v[0]) / 2, (A.v[1] + B.v[1]) / 2] };
+    return { a: a, A: A, B: B, M: M };
+  }
+
+  function curve(w, dash, color, width) {
+    g.save();
+    g.setLineDash(dash); g.strokeStyle = color; g.lineWidth = width;
+    g.beginPath();
+    for (var i = 0; i <= 240; i++) {
+      var x = XMIN + (XMAX - XMIN) * i / 240, y = net(w, x);
+      if (i === 0) g.moveTo(X(x), Y(y)); else g.lineTo(X(x), Y(y));
+    }
+    g.stroke(); g.restore();
+  }
+
+  function draw() {
+    var s = state();
+    g.clearRect(0, 0, W, H);
+
+    g.strokeStyle = "#8A8A8A"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(X(XMIN), Y(0)); g.lineTo(X(XMAX), Y(0)); g.stroke();
+    g.beginPath(); g.moveTo(X(0), Y(YMIN)); g.lineTo(X(0), Y(YMAX)); g.stroke();
+    g.fillStyle = "#595959"; g.font = "11px Courier New";
+    g.fillText("x", X(XMAX) - 10, Y(0) - 6);
+    g.fillText("f(x)", X(0) + 6, Y(YMAX) + 12);
+    g.fillText("-4", X(-4) - 6, Y(0) + 14);
+    g.strokeStyle = "#CFCFCF"; g.setLineDash([2, 3]);
+    g.beginPath(); g.moveTo(X(-4), Y(YMIN)); g.lineTo(X(-4), Y(YMAX)); g.stroke();
+    g.setLineDash([]);
+
+    curve(s.A, [], "#1A1A1A", 2.4);
+    curve(s.B, [7, 5], "#A31F34", 2.4);
+    curve(s.M, [2, 4], "#0B5CAB", 3);
+
+    g.fillStyle = "#1A1A1A"; g.font = "12px Georgia";
+    g.fillText("A and B (identical)", X(1.1), Y(3.6));
+    g.fillStyle = "#0B5CAB";
+    g.fillText("average", X(1.1), Y(2.6));
+
+    document.getElementById("alphaOut").textContent = s.a.toFixed(2);
+    document.getElementById("wa").textContent = fmt(s.A.u);
+    document.getElementById("va").textContent = fmt(s.A.v);
+    document.getElementById("wb").textContent = fmt(s.B.u);
+    document.getElementById("vb").textContent = fmt(s.B.v);
+
+    var d = Math.sqrt(
+      Math.pow(s.A.u[0] - s.B.u[0], 2) + Math.pow(s.A.u[1] - s.B.u[1], 2) +
+      Math.pow(s.A.v[0] - s.B.v[0], 2) + Math.pow(s.A.v[1] - s.B.v[1], 2));
+    var atA = net(s.A, -4), atM = net(s.M, -4);
+    var msg = "A and B compute the same function, so their solid and dashed curves coincide"
+      + " and both output " + atA.toFixed(2) + " at x = -4."
+      + " Their weight vectors sit " + d.toFixed(2) + " apart."
+      + " The coordinatewise average outputs " + atM.toFixed(2) + " at x = -4"
+      + (Math.abs(atM - atA) < 1e-9
+          ? ", matching them, because the units were aligned before averaging."
+          : ", which is not what either network does.");
+    if (Math.abs(s.a - 1) > 1e-9) {
+      msg += " Rescaling A's first unit by " + s.a.toFixed(2)
+        + " left A's own curve untouched while moving its weights, and the average moved with them.";
+    }
+    document.getElementById("summary").textContent = msg;
+    cv.setAttribute("aria-label",
+      "Network A and network B trace the same curve. Their average at x = -4 is " + atM.toFixed(2) + ".");
+  }
+
+  alphaEl.addEventListener("input", draw);
+  alignEl.addEventListener("change", draw);
+  resetEl.addEventListener("click", function () {
+    alphaEl.value = 1; alignEl.checked = false; draw();
+  });
+  draw();
+})();
+</script>
+</body>
+</html>

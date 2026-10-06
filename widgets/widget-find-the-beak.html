@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Find the beak</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,'Times New Roman',serif;background:#FAFAF8;color:#1A1A1A;padding:16px}
+  #app{max-width:640px;margin:0 auto}
+  h1{font-size:20px;font-weight:600;margin-bottom:4px}
+  .sub{font-size:13px;color:#595959;margin-bottom:14px}
+  .controls{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;margin-bottom:12px}
+  .ctrl{display:flex;align-items:center;gap:6px}
+  .ctrl label,.control-label{font-size:12px;font-family:'Courier New',monospace;color:#444;margin-right:2px}
+  .seg button{font-family:'Courier New',monospace;font-size:12px;padding:5px 10px;border:1px solid #767676;background:#fff;color:#1A1A1A;cursor:pointer;border-radius:4px;margin-right:4px}
+  .seg button.on{background:#A31F34;color:#fff;border-color:#A31F34}
+  button.act{font-family:'Courier New',monospace;font-size:12px;padding:5px 12px;border:1px solid #A31F34;background:#fff;color:#A31F34;border-radius:4px;cursor:pointer}
+  button.act.primary{background:#A31F34;color:#fff}
+  input[type=range]{vertical-align:middle;width:130px}
+  .val{font-family:'Courier New',monospace;font-size:12px;color:#A31F34;font-weight:700;margin-left:4px;min-width:3ch}
+  button:focus-visible,input:focus-visible{outline:3px solid #1D4ED8;outline-offset:3px}
+  canvas{background:#fff;border:1px solid #767676;border-radius:6px;display:block;margin-bottom:10px;width:100%;max-width:608px;height:auto}
+  .readout{font-size:13px;background:#fff;border:1px solid #767676;border-radius:6px;padding:10px 14px;margin-bottom:10px}
+  .v{font-weight:700;font-family:'Courier New',monospace;color:#A31F34}
+  .note{font-size:12px;color:#444;line-height:1.6}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Find the beak</h1>
+  <p class="sub">Slide the window across the picture, or drag it yourself. Then move the bird and try the other design.</p>
+
+  <div class="controls">
+    <div class="ctrl"><button class="act primary" type="button" id="play">Slide the window</button></div>
+    <div class="ctrl"><label for="at">window at</label>
+      <input type="range" id="at" min="0" max="259" step="1" value="0"><span class="val" id="atV">1</span></div>
+    <div class="ctrl"><span id="segMLabel" class="control-label">design</span><span class="seg" id="segM" role="group" aria-labelledby="segMLabel"></span></div>
+    <div class="ctrl"><button class="act" type="button" id="move">Move the bird</button></div>
+  </div>
+
+  <canvas id="cv" width="608" height="252" role="img" aria-label="A bird drawn on a coarse grid with a small window moving across it, and beside it a map that fills in with how well the window matched at each spot" aria-describedby="canvasSummary"></canvas>
+
+  <div class="readout" id="canvasSummary">Numbers to learn: <span class="v" id="nums">0</span>. <span id="status"></span> <span id="verdict"></span></div>
+  <div class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+  <p class="note">A window only learns from beaks that appeared under it during training, and in the training photos the beak was always at the dotted spot. With a separate window for every spot, the others never saw one. Reusing one window means whatever it learned there is tried everywhere.</p>
+</div>
+
+<script>
+(function(){
+
+  function seg(id, opts, cur, setter){
+    const host=document.getElementById(id);
+    opts.forEach(([val,lab])=>{
+      const b=document.createElement('button'); b.type='button'; b.textContent=lab;
+      b.setAttribute('aria-pressed', val===cur?'true':'false');
+      if(val===cur) b.className='on';
+      b.onclick=()=>{ setter(val);
+        [...host.children].forEach(c=>{c.className='';c.setAttribute('aria-pressed','false');});
+        b.className='on'; b.setAttribute('aria-pressed','true'); };
+      host.appendChild(b);
+    });
+  }
+  function say(t){ document.getElementById('announcement').textContent=t; }
+
+  const W=608,H=252;
+  const cv=document.getElementById('cv'), g=cv.getContext('2d');
+  const reduce=window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  const BIRD=[
+    "....................",
+    "..XX................",
+    ".XXXXX......XX......",
+    "XXXXXXXX...XXXXXXX..",
+    ".XXXXXXXXXXXXX......",
+    "..XXXXXXXXXXX.......",
+    "...XXXXXXXXX........",
+    "....XXXXXXXX........",
+    "....XXXXXXX.........",
+    "...XXXXXX...........",
+    "..XX.XXXX...........",
+    ".X...XXX............",
+    ".....X..............",
+    "...................."];
+  const BH=BIRD.length, BW=BIRD[0].length, GW=30, K=5;
+  const ROWS=BH-K+1, COLS=GW-K+1, SPOTS=ROWS*COLS;   // 10 x 26 = 260 places the window can sit
+  const TR=1, TC=12;                                  // where the beak sat in every training photo
+  const MOVES=[0,7,3,10,5];                           // where "Move the bird" puts it, in turn
+
+  let bx=0, moveIdx=0, mode=0, seen=0, win=0, timer=null;  // mode 0 = a window per spot, 1 = one shared window
+  // seen = how many spots the map has filled in; win = where the window sits now
+
+  const at=(r,c)=>{const cc=c-bx; return r>=0&&r<BH&&cc>=0&&cc<BW&&BIRD[r][cc]==='X';};
+  const TPL=[]; for(let i=0;i<K;i++){const row=[];for(let j=0;j<K;j++){const cc=TC+j; row.push(BIRD[TR+i][cc]==='X'?1:0);} TPL.push(row);}
+
+  // A real match score, not an assertion: reward template cells that are filled,
+  // penalise filled cells the template says should be empty.
+  function match(r,c){
+    let hit=0,tot=0;
+    for(let i=0;i<K;i++)for(let j=0;j<K;j++){
+      const v=at(r+i,c+j)?1:0;
+      if(TPL[i][j]){tot++; hit+=v;} else if(v) hit-=0.7;
+    }
+    return Math.max(0,hit/tot);
+  }
+  // With a window per spot, only the window at the training spot ever learned a beak.
+  const knows=(r,c)=> mode===1 || (r===TR && c===TC);
+  const score=(r,c)=> knows(r,c) ? match(r,c) : 0;
+  const spot=p=>[Math.floor(p/COLS), p%COLS];
+  const numbers=()=> mode===0 ? SPOTS*K*K : K*K;
+
+  function bestSoFar(){
+    let b={v:0,p:-1};
+    for(let p=0;p<seen;p++){ const [r,c]=spot(p), v=score(r,c); if(v>b.v) b={v,p}; }
+    return b;
+  }
+
+  function draw(){
+    g.clearRect(0,0,W,H);
+    const cell=12, ox=18, oy=30;
+    g.fillStyle='#444'; g.font='11px Courier New';
+    g.fillText('the picture', ox, oy-10);
+    for(let r=0;r<BH;r++) for(let c=0;c<GW;c++){
+      g.fillStyle = at(r,c) ? '#1A1A1A' : '#F2F1EE';
+      g.fillRect(ox+c*cell, oy+r*cell, cell-1, cell-1);
+    }
+    g.strokeStyle='#767676'; g.lineWidth=1; g.strokeRect(ox-0.5,oy-0.5,GW*cell,BH*cell);
+    // Where the training beaks were.
+    g.setLineDash([2,3]); g.strokeStyle='#595959'; g.lineWidth=1.5;
+    g.strokeRect(ox+TC*cell-3, oy+TR*cell-3, K*cell+5, K*cell+5); g.setLineDash([]);
+
+    const [wr,wc]=spot(win), wv=score(wr,wc);
+    g.strokeStyle='#A31F34'; g.lineWidth=3;
+    g.strokeRect(ox+wc*cell-1.5, oy+wr*cell-1.5, K*cell+2, K*cell+2);
+
+    // The match map: one square per spot, filled in as the window visits it.
+    const mx=ox+GW*cell+26, my=oy, mc=6.4;
+    g.fillStyle='#444'; g.fillText('match at each spot', mx, oy-10);
+    for(let p=0;p<SPOTS;p++){
+      const [r,c]=spot(p);
+      if(p<seen){ const v=score(r,c);
+        const R=Math.round(255+(163-255)*v), G=Math.round(255+(31-255)*v), Bc=Math.round(255+(52-255)*v);
+        g.fillStyle=`rgb(${R},${G},${Bc})`; }
+      else g.fillStyle='#E4E2DC';
+      g.fillRect(mx+c*mc, my+r*mc, mc-0.8, mc-0.8);
+    }
+    g.strokeStyle='#767676'; g.lineWidth=1; g.strokeRect(mx-0.5,my-0.5,COLS*mc,ROWS*mc);
+    if(seen>0 && seen<SPOTS){ g.strokeStyle='#111'; g.lineWidth=1.5; g.strokeRect(mx+wc*mc-1, my+wr*mc-1, mc+1.2, mc+1.2); }
+    const b=bestSoFar();
+    if(seen===SPOTS && b.v>0.5){ const [br,bc]=spot(b.p);
+      g.strokeStyle='#111'; g.lineWidth=2; g.beginPath(); g.arc(mx+bc*mc+mc/2, my+br*mc+mc/2, 8, 0, 7); g.stroke(); }
+    const ly=my+ROWS*mc+14;
+    g.fillStyle='#444'; g.fillText('pale: no match', mx, ly);
+    g.fillStyle='#A31F34'; g.fillRect(mx+104, ly-8, 8, 8); g.fillStyle='#444'; g.fillText('strong', mx+116, ly);
+
+    // What the window at the current spot is looking for.
+    const py=ly+22, pc=10;
+    g.fillStyle='#444';
+    g.fillText(mode===1 ? 'the window looks for' : 'this spot’s window looks for', mx, py);
+    const k=knows(wr,wc);
+    for(let i=0;i<K;i++)for(let j=0;j<K;j++){
+      g.fillStyle = k&&TPL[i][j] ? '#1A1A1A' : '#F2F1EE';
+      g.fillRect(mx+j*pc, py+8+i*pc, pc-1, pc-1);
+    }
+    g.strokeStyle='#A31F34'; g.lineWidth=2; g.strokeRect(mx-1, py+7, K*pc+1, K*pc+1);
+    g.fillStyle='#444';
+    if(!k){ g.fillText('nothing: it never', mx+K*pc+10, py+24); g.fillText('saw a beak here', mx+K*pc+10, py+38); }
+    else { g.fillText('a beak', mx+K*pc+10, py+24); }
+    g.fillText((seen===SPOTS?'window parked on the strongest match: ':'reading here: ')+Math.round(wv*100)+'%', ox, oy+BH*cell+20);
+  }
+
+  function text(){
+    const b=bestSoFar();
+    document.getElementById('nums').textContent=numbers().toLocaleString();
+    document.getElementById('atV').textContent=String(win+1);
+    document.getElementById('status').textContent =
+      seen===0 ? 'Press Slide the window to run it across the picture.'
+      : seen<SPOTS ? `Checked ${seen} of ${SPOTS} spots. Strongest match so far: ${Math.round(b.v*100)}%.`
+      : `Checked all ${SPOTS} spots. Strongest match: ${Math.round(b.v*100)}%.`;
+    document.getElementById('verdict').textContent =
+      seen<SPOTS ? ''
+      : mode===1 ? 'Found, wherever the bird is, by one window of 25 numbers.'
+      : b.v>0.9 ? 'Found, but only because the bird is exactly where the training beaks were.'
+      : 'Nothing found. Only the window at the dotted spot ever learned a beak, and this bird is somewhere else. This design would have to learn the beak again at every spot.';
+  }
+  function finished(){
+    const b=bestSoFar();
+    say(`${mode===1?'One shared window':'A window for every spot'}, ${numbers().toLocaleString()} numbers to learn: checked all ${SPOTS} spots, strongest match ${Math.round(b.v*100)} percent. ${document.getElementById('verdict').textContent}`);
+  }
+  function render(){ draw(); text(); document.getElementById('at').value=win; }
+
+  function stop(){ if(timer){ clearTimeout(timer); timer=null; } document.getElementById('play').textContent= seen===SPOTS?'Slide again':'Slide the window'; }
+  function play(){
+    stop();
+    if(seen>=SPOTS) seen=0;
+    if(reduce.matches){ seen=SPOTS; win=Math.max(0,bestSoFar().p); render(); stop(); finished(); return; }
+    document.getElementById('play').textContent='Pause';
+    const tick=()=>{
+      seen++; win=seen-1;
+      if(seen>=SPOTS){ win=Math.max(0,bestSoFar().p); render(); timer=null; stop(); finished(); return; }
+      render();
+      timer=setTimeout(tick, seen<COLS ? 60 : 14);    // slow along the first row, then quicker
+    };
+    tick();
+  }
+
+  document.getElementById('play').onclick=()=>{ if(timer){ stop(); } else play(); };
+  const sl=document.getElementById('at');
+  sl.oninput=()=>{ stop(); win=+sl.value; seen=win+1; render(); stop(); if(seen===SPOTS) finished();
+    else { const [r,c]=spot(seen-1); say(`Window at row ${r+1}, column ${c+1}: reading ${Math.round(score(r,c)*100)} percent.`); } };
+  seg('segM',[[0,'a window for every spot'],[1,'one window, reused']], mode, v=>{ mode=v; seen=0; win=0; play(); });
+  document.getElementById('move').onclick=()=>{ moveIdx=(moveIdx+1)%MOVES.length; bx=MOVES[moveIdx]; seen=0; win=0; play(); };
+  render(); stop();
+
+})();
+</script>
+</body>
+</html>

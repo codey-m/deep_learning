@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en" data-mode="course"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rover Route</title><style>:root{color-scheme:light;--ink:#203d35;--muted:#5d6c63;--ground:#f3f4f0;--line:#dce2da;--red:#750014;--blue:#245779;--gold:#d28a31;--win:#216044;--amber:#925119}
+*{box-sizing:border-box}body{margin:0;background:var(--ground);color:var(--ink);font:16px/1.55 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}button,input{font:inherit}button,a,input{touch-action:manipulation}button{cursor:pointer;border:1px solid #acb9ad;background:#fff;color:var(--ink);padding:11px 16px;min-height:44px;border-radius:5px;font-weight:600}button:hover:enabled{background:#f2f5ef}button:disabled{cursor:default;opacity:.55}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #2579a0;outline-offset:4px}a{color:var(--red);text-underline-offset:4px}[hidden]{display:none!important}.gamebar{background:#fff;display:grid;grid-template-columns:52px 1fr 52px;align-items:center;padding:12px 24px;border-bottom:1px solid var(--line)}.gamebar .back{display:flex;align-items:center;justify-content:center;width:44px;height:44px;color:var(--ink);border-radius:4px}.gamebar .back svg{width:26px;height:26px}.gamebar h1{grid-column:2;text-align:center;margin:0;font-size:clamp(26px,3vw,38px);font-weight:700;letter-spacing:-.02em;color:var(--ink);line-height:1.2}main{max-width:1250px;margin:auto;padding:38px 28px 48px}.eyebrow{font-size:11px;letter-spacing:.14em;font-weight:750;margin:0 0 9px;color:var(--muted)}.gamewrap{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:26px;align-items:start}.playcard,.howto,.explainer{background:#fff;border:1px solid var(--line);border-radius:9px}.playcard{overflow:hidden;box-shadow:0 7px 25px #263d3510}.brief{padding:25px 28px 20px}.brief>p:first-child{font-size:12px;color:var(--muted);margin:0 0 4px}.brief h2{font-size:25px;letter-spacing:-.025em;margin:0 0 9px;line-height:1.25}.brief>p:last-child{font-size:14px;color:var(--muted);margin:0;max-width:600px}.scene{margin:0 18px;border:1px solid #bdcdbc;border-radius:6px;overflow:hidden}.scene.win{outline:3px solid var(--win)}.scene.miss{outline:3px solid #bd864b}.scene-top{padding:10px 13px;display:flex;justify-content:space-between;gap:10px;background:#f1f5eb;font:10px ui-monospace,monospace;letter-spacing:.04em;align-items:center}.scene-top>span{display:flex;align-items:center;gap:7px}.dot{width:6px;height:6px;background:#5b8054;border-radius:50%}#stamp{background:#fff;padding:4px 8px;border-radius:3px;font-weight:500;white-space:nowrap}#map{display:block;width:100%;height:auto}.legend{display:flex;flex-wrap:wrap;gap:7px 19px;padding:11px 13px;background:#f7f9f3;font-size:10px;color:#4b6052}.legend>span{display:flex;align-items:center;gap:7px}.marker-icon{width:9px;height:9px;background:var(--gold);border:1px solid #80531d;border-radius:50%}.survey-icon{width:8px;height:8px;background:#28483d;transform:rotate(45deg)}.line-icon{width:18px;height:3px;background:var(--blue)}.reason{font-size:13px;text-align:center;margin:14px 24px 5px;min-height:40px;color:var(--muted)}.controls{padding:15px 28px 25px}fieldset{padding:0;border:0;margin:0}legend,.survey-row b,.bend-row b{font-size:12px;color:#7a877c;letter-spacing:.04em}legend span,.survey-row b span,.bend-row b span{margin-left:9px;color:var(--ink);letter-spacing:0}.bend-row,.survey-row{display:flex;gap:14px;justify-content:space-between;align-items:center;margin:23px 0 18px}.bend-row p,.survey-row p{font-size:11px;margin:4px 0 0;color:var(--muted)}.bend-buttons{display:flex;gap:8px}.bend-buttons button,.survey-row button{font-size:12px;white-space:nowrap}.readouts{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:13px 0;gap:12px}.readouts>span{font-size:10px;color:var(--muted)}.readouts b{display:block;color:var(--ink);font:12px ui-monospace,monospace;margin-top:5px}.launch{display:flex;align-items:center;gap:20px;margin-top:20px}.primary{background:var(--red);color:#fff;border-color:var(--red);min-width:195px}.primary:hover:enabled{background:#590012}.primary span{margin-left:20px}.launch p{font-size:11px;color:var(--muted);margin:0;max-width:230px}#after-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}#after-actions button{font-size:12px}.howto{padding:24px;background:#fff}.howto h2{display:flex;align-items:center;gap:12px;font-size:20px;font-weight:500;margin:0 0 16px;letter-spacing:0}.howto h2 svg{width:28px;height:20px;flex:none}.howto p{font-size:14px;line-height:1.6;color:var(--muted);margin:0 0 14px}.howto strong{color:var(--ink)}.result{padding:24px 28px;background:#f0f5ed;border-top:1px solid #d3dfcb}.result h2{font-size:23px;margin:0 0 9px}.result>p:not(.eyebrow){font-size:13px;margin:0 0 16px}.compare-row{display:grid;grid-template-columns:100px 1fr 65px;gap:12px;align-items:center;font-size:12px;margin-top:9px}.compare-bar{height:7px;background:#d8e2d2;border-radius:8px;overflow:hidden}.compare-bar i{height:100%;display:block;background:#5b7c61;border-radius:8px}.compare-row.chosen{font-weight:750}.explainer{margin-top:26px;padding:27px;max-width:calc(100% - 296px)}.explainer h2{font-size:25px;letter-spacing:-.025em;margin:0 0 14px}.explainer p,.explainer summary{font-size:14px}.explainer details{border-top:1px solid var(--line);padding-top:13px;margin-top:20px}.explainer summary{cursor:pointer;font-weight:600}.explainer details p{color:var(--muted);font-size:12px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}body.embedded{background:#fff}body.embedded .gamebar,body.embedded .review-about,body.embedded .howto{display:none}body.embedded main{padding:12px;max-width:900px}body.embedded .gamewrap{display:block}body.embedded .explainer{max-width:none}body.course .course-copy{display:none}
+@media(max-width:950px){.gamewrap{grid-template-columns:1fr}.howto{display:none}.explainer{max-width:none}main{max-width:870px}}@media(max-width:560px){.bend-row{align-items:stretch;flex-direction:column;gap:10px}.bend-buttons button{flex:1}.gamebar{padding:10px 12px}main{padding:20px 12px}.brief{padding:20px 18px}.brief h2{font-size:22px}.scene{margin:0 10px}.scene-top{font-size:8px;padding:8px}.legend{gap:6px 12px;font-size:9px;padding:9px}.controls{padding:12px 16px 20px}.survey-row{align-items:stretch;flex-direction:column;gap:10px}.bend-buttons{display:flex;gap:8px}.bend-buttons button,.survey-row button{width:100%}.launch{flex-direction:column;align-items:stretch;gap:10px}.launch p{max-width:none}.reason{font-size:12px;margin:12px 16px 0}.readouts{gap:7px}.readouts b{font-size:10px}.readouts>span{font-size:9px}.result{padding:22px 18px}.explainer{padding:21px}.compare-row{grid-template-columns:77px 1fr 53px;gap:8px;font-size:11px}body.embedded main{padding:5px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+#map{touch-action:pan-y;user-select:none;-webkit-user-select:none}.bend{cursor:ew-resize;outline:none}.bend .knob{fill:#fff;stroke:var(--blue);stroke-width:2.5}.bend .arrows{fill:var(--blue)}.bend .focus-ring{fill:none;stroke:#2579a0;stroke-width:2.5;opacity:0}.bend:focus-visible .focus-ring{opacity:1}.bend.selected .knob{fill:var(--blue)}.bend.selected .arrows{fill:#fff}.bend[aria-disabled=true]{cursor:default}.bend-icon{width:11px;height:11px;border:2px solid var(--blue);border-radius:50%;background:#fff}.bend-row{margin:4px 0 18px}.bend-row p{min-height:17px}.result .diagnosis{background:#fff;border-left:3px solid #a34b35;padding:10px 13px;border-radius:0 4px 4px 0}#log-wrap{border-top:1px solid #d3dfcb;margin-top:18px;padding-top:16px}.log-row{display:grid;grid-template-columns:1fr 70px 65px 95px;gap:10px;font-size:12px;padding:5px 0}.log-row b{font-weight:600;color:#925119}.log-row.pass b{color:var(--win)}@media(max-width:560px){.log-row{grid-template-columns:1fr 55px 55px;font-size:11px}.log-row b{grid-column:1/-1;margin-top:-4px}}
+.statusline{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 34px;margin:0;padding:20px 24px 0;font-size:16px;color:var(--muted)}.statusline b{color:var(--ink);font-weight:600}.review-about{margin-top:24px;font-size:13px;color:var(--muted)}.review-about summary{cursor:pointer}.review-about p{font-size:13px}@media(max-width:560px){.statusline{font-size:14px;gap:4px 20px;padding:16px 16px 0}.brief{padding-top:12px}}
+body.course .explainer>:not(details){display:none}body.course .explainer details{border-top:0;margin-top:0;padding-top:0}
+</style></head>
+<body>
+<header class="gamebar"><a class="back" href="index.html" aria-label="Back to the arcade"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a><h1 id="title">Rover Route</h1></header>
+<main id="app">
+<div class="gamewrap"><section class="playcard" aria-label="Trail challenge">
+<p class="statusline"><span>Trail: <b id="st-trail">Misty Hollow (1 of 3)</b></span><span>Bends: <b id="st-bends">0 / 4</b></span></p>
+<div class="brief"><p id="case-note">Nine markers, measured in thick mist.</p><h2>Plan the rover’s route from these measurements.</h2><p>The route starts straight. Add up to four bends where it may change direction, then send the rover. Aim for an average miss of <strong>2 m or less</strong> from the trail.</p></div>
+<div class="scene" id="scene"><div class="scene-top"><span><i class="dot"></i> <span id="scene-name">MISTY HOLLOW</span> / FIELD SURVEY</span><b id="stamp">Planning</b></div>
+<svg id="map" viewBox="0 0 800 420" role="group" aria-labelledby="map-title map-desc"><title id="map-title">A forest trail hidden by mist</title><desc id="map-desc">Nine orange measurements cross the map from west to east. The blue route runs from the depot to the delivery hut and bends only where you place a bend.</desc>
+<defs><pattern id="grain" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="3" cy="8" r=".7" fill="#526f61" opacity=".12"/><circle cx="17" cy="19" r=".6" fill="#526f61" opacity=".15"/></pattern><radialGradient id="fog"><stop stop-color="#f5f5ed" stop-opacity=".98"/><stop offset="1" stop-color="#e7eee5" stop-opacity=".8"/></radialGradient><clipPath id="reveal"><rect id="reveal-rect" x="0" y="0" width="0" height="420"/></clipPath><symbol id="tree" viewBox="0 0 30 44"><path d="M15 0 3 22h6L0 35h12v9h6v-9h12L21 22h6Z" fill="currentColor"/></symbol></defs>
+<rect width="800" height="420" fill="#dce6d9"/><g id="scenery"></g><rect width="800" height="420" fill="url(#grain)"/>
+<g id="mist"><path d="M0 135Q130 10 330 115T800 105V360Q550 440 310 323T0 360Z" fill="url(#fog)"/><path d="M0 222Q220 77 390 207T800 200" stroke="#f6f6ef" stroke-width="100" fill="none" opacity=".5"/></g>
+<g id="band"></g>
+<g clip-path="url(#reveal)"><path id="trail-bed" fill="none" stroke="#8d7854" stroke-width="27" stroke-linecap="round" opacity=".4"/><path id="trail" fill="none" stroke="#eadbb6" stroke-width="20" stroke-linecap="round"/><path id="trail-center" fill="none" stroke="#a58d61" stroke-width="1" stroke-dasharray="2 6"/><g id="errors"></g></g>
+<g id="sticks"></g>
+<path id="route-halo" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/><path id="route" fill="none" stroke="#245779" stroke-width="3" stroke-linecap="round"/>
+<g id="markers"></g><g id="survey-points"></g><g id="bases"></g><g id="handles"></g>
+<g id="rover"><ellipse cy="9" rx="14" ry="7" fill="#193b31" opacity=".2"/><rect x="-12" y="-11" width="8" height="7" rx="2" fill="#203b35"/><rect x="4" y="-11" width="8" height="7" rx="2" fill="#203b35"/><rect x="-12" y="5" width="8" height="7" rx="2" fill="#203b35"/><rect x="4" y="5" width="8" height="7" rx="2" fill="#203b35"/><rect x="-12" y="-7" width="26" height="15" rx="5" fill="#efb64b" stroke="#544722" stroke-width="1.5"/><rect x="-7" y="-4" width="10" height="9" rx="2" fill="#fff0c9"/><circle cx="10" cy="0" r="2" fill="#fff"/></g>
+<g fill="#496356" font-family="Arial,sans-serif" font-size="10" pointer-events="none"><g id="compass" transform="translate(754 67)"><path d="M0 0v-28m-5 7 5-8 5 8" fill="none" stroke="#496356" stroke-width="1.5"/><text x="-4" y="-37">N</text></g><g id="scalebar" transform="translate(50 379)"></g></g></svg>
+<div class="legend"><span><i class="marker-icon"></i> Measurement</span><span><i class="line-icon"></i> Your route</span><span><i class="bend-icon"></i> Bend</span><span id="survey-legend" hidden><i class="survey-icon"></i> Extra survey</span></div></div>
+<p class="reason" id="reason">Tap the route to add a bend. Drag a bend left or right.</p>
+<div class="controls">
+<div class="bend-row"><div><b>01 <span>Bends</span></b><p id="bend-note">None yet. Each bend lets the route change direction once.</p></div><div class="bend-buttons"><button id="add">Add a bend</button><button id="remove" disabled>Remove bend</button></div></div>
+<div class="survey-row" id="survey-row" hidden><div><b>02 <span>Check against more evidence</span></b><p>Eight extra measurements, spread along the route. They never change the route.</p></div><button id="survey">Reveal extra survey</button></div>
+<div class="readouts"><span>Distance to markers <b id="train-error">–</b></span><span>Extra survey <b id="survey-error">After delivery</b></span><span>Trail <b id="trail-error">After delivery</b></span></div>
+<div class="launch"><button id="send" class="primary">Send the rover <span aria-hidden="true">→</span></button><p id="commit-note">Sending locks your route and lifts the mist.</p></div>
+<div id="after-actions" hidden><button id="replay">Replay delivery</button><button id="explore">Explore this trail</button><button id="next" class="primary">Next trail <span aria-hidden="true">→</span></button></div>
+</div>
+<div id="result" class="result" hidden><p class="eyebrow">DELIVERY REPORT</p><h2 id="result-title"></h2><p id="result-text"></p><p id="diagnosis" class="diagnosis"></p><p id="trail-note"></p><div id="log-wrap" hidden><p class="eyebrow">YOUR DELIVERIES</p><div id="log"></div></div></div>
+</section>
+<aside class="howto" aria-labelledby="howto-title"><h2 id="howto-title"><svg viewBox="0 0 28 20" aria-hidden="true"><rect x="1.5" y="1.5" width="25" height="17" rx="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 7v6M5 10h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18.5" cy="8" r="1.4" fill="currentColor"/><circle cx="21.5" cy="11.5" r="1.4" fill="currentColor"/></svg>How to play</h2>
+<p><strong>The markers</strong> are nine measurements of a forest trail hidden by mist. The note above the map says how each trail was measured.</p>
+<p><strong>The route</strong> starts as a straight line from the depot to the delivery hut. Each bend lets it change direction once.</p>
+<p><strong>Add a bend</strong> by tapping the route, up to four, then drag it left or right. The route refits to the markers each time. With a keyboard, Tab to a bend, move it with the arrow keys and remove it with Delete.</p>
+<p><strong>Send the rover</strong> to lock the route. The mist lifts as it drives, showing the trail and an extra survey. Aim for an average miss of 2 m or less.</p>
+<p><strong>Three trails</strong> follow, each measured differently. After a delivery you can replay it, explore the revealed trail, or move on.</p></aside></div>
+<section id="explainer" class="explainer" hidden><p class="eyebrow">WHAT THE TRAIL SHOWS</p><h2>Each bend is one more way to change direction.</h2><p>A bend near a real turn lets the route follow the trail. A bend anywhere else still brings the route closer to the markers, because it can follow their measurement errors. That is why the distance to the markers keeps falling as you add bends, while the distance to the trail can rise.</p><p>The extra survey was measured the same way as the markers but played no part in the fit. Its distance tends to rise and fall with the trail's, which is why separate measurements are used to choose between routes.</p><p class="course-copy">In the course, this connects to approximation, generalization, and using separate data to choose and evaluate a model.</p><details><summary>How this small simulation works</summary><p>All scenery and measurements are synthetic. The route is pinned to the depot and the delivery hut. You choose where its bends go; the size of each turn is fitted to the markers by least squares. A network with one hidden layer of ReLU units draws exactly this kind of route, one bend per unit.</p><p>Average miss is the mean north-south distance between route and trail at 401 evenly spaced positions, measured on the underlying simulated trail rather than another noisy sample. The rover animation illustrates this score; it does not simulate vehicle dynamics. Once the trail is revealed, further changes are labeled exploration.</p></details></section>
+
+<div id="status" role="status" aria-live="polite" class="sr-only"></div>
+</main><script>/* A small route-fitting demonstration. Geometry is synthetic; no trained model.
+   The route is pinned to the depot and the delivery hut. Each bend the player places
+   adds one change of direction; how much it turns is fitted to the markers by least squares. */
+(function(root){
+  const W=.018,LAM=1e-5,METRES=50,LIMIT=2.0,MAX_BENDS=4,MIN_GAP=.04,EDGE=.05;
+  const sp=z=>z>30?z:Math.log1p(Math.exp(z));
+  const hinge=(x,b,w=W)=>w*sp((x-b)/w);
+  // Authored trails. Corners are the real turns; noise is each marker's measurement error in metres
+  // (positive = south). Tuned so each trail rewards a different choice: Misty Hollow two bends
+  // at its turns, Long Meadow all four, Rocky Pass one bend that ignores the rock-slide pair.
+  const specs=[
+    {id:'misty',name:'Misty Hollow',note:'Nine markers, measured in thick mist.',
+     corners:[[0,.45],[.33,.36],[.67,.68],[1,.6]],round:.035,
+     mx:[.06,.17,.27,.38,.49,.6,.71,.82,.93],noise:[-3.4,4.1,3.6,-3.7,4.7,4.2,-3.9,-4.8,-2.9],
+     sx:[.11,.22,.32,.43,.55,.66,.77,.88],snoise:[3.2,-3.8,-2.9,4.1,-3.5,3.3,-4.2,3.6],
+     reveal:'Misty Hollow turns twice. Every marker here was measured 3 to 5 m off, so any bend beyond the two turns had only those errors to follow.'},
+    {id:'meadow',name:'Long Meadow',note:'Nine markers, measured on a clear day.',
+     corners:[[0,.5],[.2,.25],[.4,.68],[.6,.28],[.8,.72],[1,.5]],round:.035,
+     mx:[.06,.17,.27,.38,.49,.6,.71,.82,.93],noise:[1.4,-1.2,1.6,-1.8,1.4,1.1,1.1,1.2,-1.8],
+     sx:[.11,.22,.32,.43,.55,.66,.77,.88],snoise:[-1.3,1.6,-1.2,1.5,-1.7,1.2,-1.4,1.5],
+     reveal:'Long Meadow turns four times, and its markers were measured within 2 m. A route needs a bend at each turn, and three bends cannot cover four turns.'},
+    {id:'rocky',name:'Rocky Pass',note:'Nine markers. Part of the pass lies under a rock slide.',
+     corners:[[0,.62],[.5,.4],[1,.62]],round:.04,
+     mx:[.06,.17,.27,.38,.49,.6,.71,.82,.93],noise:[1.5,1.1,1.4,1.2,1.4,.9,-9.6,-9.1,-1.5],
+     sx:[.11,.22,.32,.43,.55,.66,.77,.88],snoise:[-1.2,1.4,-1.1,1.3,-1.5,1.2,-1.0,1.3],
+     reveal:'Rocky Pass turns once. The two markers on the rock slide were both measured about 9 m north of the trail, so together they look like a turn the trail never makes.'}
+  ];
+  function polyline(pts,round){
+    const slopes=pts.slice(1).map((p,i)=>(p[1]-pts[i][1])/(p[0]-pts[i][0]));
+    return x=>{let y=pts[0][1]+slopes[0]*(x-pts[0][0]);for(let i=1;i<slopes.length;i++)y+=(slopes[i]-slopes[i-1])*hinge(x,pts[i][0],round);return y;};
+  }
+  function make(spec){
+    const truth=polyline(spec.corners,spec.round);
+    return {...spec,truth,
+      markers:spec.mx.map((x,i)=>({x,y:truth(x)+spec.noise[i]/METRES,error:spec.noise[i]})),
+      survey:spec.sx.map((x,i)=>({x,y:truth(x)+spec.snoise[i]/METRES,error:spec.snoise[i]})),
+      turns:spec.corners.slice(1,-1).map(p=>p[0])};
+  }
+  const cases=specs.map(make);
+  function solve(A,b){
+    const n=b.length,a=A.map((r,i)=>[...r,b[i]]);
+    for(let k=0;k<n;k++){
+      let p=k;for(let r=k+1;r<n;r++)if(Math.abs(a[r][k])>Math.abs(a[p][k]))p=r;
+      [a[k],a[p]]=[a[p],a[k]];const d=a[k][k];for(let c=k;c<=n;c++)a[k][c]/=d;
+      for(let r=0;r<n;r++)if(r!==k){const m=a[r][k];for(let c=k;c<=n;c++)a[r][c]-=m*a[k][c];}
+    }
+    return a.map(r=>r[n]);
+  }
+  // Each bend feature is zero at both ends, so the route always runs from depot to hut.
+  function fit(c,bends){
+    const y0=c.truth(0),y1=c.truth(1),bs=[...bends].sort((a,b)=>a-b),k=bs.length;
+    const base=x=>y0+(y1-y0)*x,feat=(x,b)=>hinge(x,b)-hinge(0,b)*(1-x)-hinge(1,b)*x;
+    let coef=[];
+    if(k){
+      const A=Array.from({length:k},()=>Array(k).fill(0)),r=Array(k).fill(0);
+      for(const p of c.markers){const f=bs.map(b=>feat(p.x,b)),res=p.y-base(p.x);for(let i=0;i<k;i++){r[i]+=f[i]*res;for(let j=0;j<k;j++)A[i][j]+=f[i]*f[j];}}
+      for(let i=0;i<k;i++)A[i][i]+=LAM;
+      coef=solve(A,r);
+    }
+    const f=x=>base(x)+bs.reduce((s,b,i)=>s+coef[i]*feat(x,b),0);
+    f.bends=bs;return f;
+  }
+  const miss=(f,points)=>METRES*points.reduce((s,p)=>s+Math.abs(f(p.x)-p.y),0)/points.length;
+  const grid=Array.from({length:401},(_,i)=>i/400);
+  function evaluate(c,bends){
+    const f=fit(c,bends),trail=METRES*grid.reduce((s,x)=>s+Math.abs(f(x)-c.truth(x)),0)/grid.length;
+    return {route:f,markers:miss(f,c.markers),survey:miss(f,c.survey),trail,pass:trail<=LIMIT};
+  }
+  // Finds the stretch where the route strayed furthest and names the likeliest cause there.
+  function diagnose(c,bends){
+    const f=fit(c,bends),half=.06;let worst=null;
+    for(let cx=.06;cx<=.9401;cx+=.01){let s=0,n=0;for(let x=cx-half;x<=cx+half+1e-9;x+=.005){s+=Math.abs(f(x)-c.truth(x));n++;}
+      if(!worst||s/n>worst.miss)worst={centre:cx,miss:s/n};}
+    const lo=worst.centre-half,hi=worst.centre+half;
+    let peak=lo;for(let x=lo;x<=hi;x+=.005)if(Math.abs(f(x)-c.truth(x))>Math.abs(f(peak)-c.truth(peak)))peak=x;
+    const near=f.bends.filter(b=>b>=lo-.03&&b<=hi+.03).sort((a,b)=>Math.abs(a-worst.centre)-Math.abs(b-worst.centre));
+    const turn=c.turns.find(t=>t>=lo&&t<=hi);
+    const pulled=c.markers.map((m,i)=>({...m,index:i}))
+      .filter(m=>m.x>=lo-.02&&m.x<=hi+.02&&Math.abs(m.error)>=3&&Math.abs(f(m.x)-m.y)<.7*Math.abs(c.truth(m.x)-m.y))
+      .sort((a,b)=>Math.abs(b.error)-Math.abs(a.error))[0]||null;
+    const nearest=turn==null?null:f.bends.slice().sort((a,b)=>Math.abs(a-turn)-Math.abs(b-turn))[0];
+    // A bend sitting on a real turn is never blamed for chasing a marker.
+    const stray=near.filter(b=>!c.turns.some(t=>Math.abs(b-t)<.06));
+    let kind='gap';
+    if(stray.length&&pulled)kind='chased';
+    else if(turn!=null&&(nearest==null||Math.abs(nearest-turn)>.08))kind='missed-turn';
+    else if(turn!=null&&Math.abs(nearest-turn)>.03)kind='misplaced';
+    else if(pulled)kind='leaned';
+    return {kind,from:lo,to:hi,centre:worst.centre,miss:worst.miss*METRES,peak,offset:(f(peak)-c.truth(peak))*METRES,
+      bend:kind==='misplaced'?nearest:kind==='chased'?stray[0]:null,turn:turn??null,marker:pulled};
+  }
+  root.TrailModel={cases,make,fit,evaluate,diagnose,limit:LIMIT,metres:METRES,maxBends:MAX_BENDS,minGap:MIN_GAP,edge:EDGE,hinge};
+})(globalThis);
+</script><script>(function(){
+ const M=TrailModel,$=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg';
+ const COURSE=document.documentElement.dataset.mode==='course'||new URLSearchParams(location.search).get('mode')==='course';
+ const params=new URLSearchParams(location.search),course=COURSE,embed=COURSE||params.get('embed')==='1';
+ document.body.classList.toggle('course',course);document.body.classList.toggle('embedded',embed);
+ const reduce=matchMedia('(prefers-reduced-motion: reduce)');
+ const X=x=>80+640*x,Y=y=>55+310*y,east=x=>Math.round(100*x);
+ const cases=course?[M.cases[0]]:M.cases;
+ // On narrow screens the map trims empty forest, and gs keeps markers, route and labels at a readable on-screen size.
+ let vb={x:0,y:0,w:800,h:420},gs=1;
+ let ci=0,c=cases[0],bends=[],selected=-1,survey=false,phase='planning',snapshot=null,frame=null,endTimer=null,drag=null,log=[];
+ function node(tag,attrs,parent){const n=document.createElementNS(NS,tag);for(const [k,v]of Object.entries(attrs))n.setAttribute(k,v);parent.appendChild(n);return n;}
+ const path=f=>Array.from({length:321},(_,i)=>`${i?'L':'M'}${X(i/320).toFixed(2)},${Y(f(i/320)).toFixed(2)}`).join(' ');
+ const m=v=>v.toFixed(2)+' m';
+ function say(s){$('status').textContent=s;}
+ let r=19;const rand=()=>{r=(r*16807)%2147483647;return r/2147483647;};
+ for(let i=0;i<65;i++){
+   const x=rand()*800,y=rand()*400,s=15+rand()*20;
+   if(x>50&&x<745&&y>95&&y<325)continue;
+   node('use',{href:'#tree',x,y,width:s,height:s*1.47,color:i%3?'#8ba589':'#648467',opacity:.55+rand()*.3},$('scenery'));
+ }
+ for(let i=0;i<5;i++)node('path',{d:`M-60 ${40+i*80}Q150 ${-60+i*75} 390 ${30+i*90}T850 ${20+i*70}`,fill:'none',stroke:'#92ad91','stroke-width':1,opacity:.2},$('scenery'));
+ if(course){$('survey-row').hidden=false;$('next').hidden=true;$('case-note').hidden=true;document.querySelector('.brief h2').hidden=true;}
+
+ // Px-to-viewBox factor, so handles and hit areas keep a usable size on narrow screens.
+ const unit=()=>{const w=$('map').getBoundingClientRect?.().width;return w>0?Math.max(1,vb.w/w):1;};
+ function fitView(){
+   const w=$('map').getBoundingClientRect?.().width||0;
+   if(w>0&&w<560){
+     const ys=[...c.markers,...c.survey].map(p=>Y(p.y)).concat(Array.from({length:41},(_,i)=>Y(c.truth(i/40)))),h=330;
+     const mid=(Math.min(...ys)-45+Math.max(...ys)+60)/2;
+     vb={x:20,y:Math.max(0,Math.min(420-h,mid-h/2)),w:760,h};gs=Math.min(2.2,Math.max(1,.9*vb.w/w));
+   }else{vb={x:0,y:0,w:800,h:420};gs=1;}
+   $('map').setAttribute('viewBox',`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+   const k=Math.min(gs,1.5);
+   $('compass').setAttribute('transform',gs>1?`translate(${vb.x+vb.w-24*k} ${vb.y+46*k}) scale(${k})`:'translate(754 67)');
+   // The bar stays 64 units long (10 m); only its ticks and label grow.
+   const bar=$('scalebar');bar.replaceChildren();bar.setAttribute('transform',gs>1?`translate(${vb.x+24} ${vb.y+vb.h-30*gs})`:'translate(50 379)');
+   node('path',{d:`M0 0h64m-64-${4*gs}v${8*gs}m64-${8*gs}v${8*gs}`,stroke:'#496356','stroke-width':gs},bar);
+   node('text',{x:32,y:18*gs,'text-anchor':'middle','font-size':10*gs},bar).textContent='10 m';
+ }
+ const editable=()=>phase==='planning'||phase==='explore';
+ const current=()=>M.evaluate(c,bends);
+
+ function loadCase(i){
+   ci=i;c=cases[i];bends=[];selected=-1;survey=false;phase='planning';snapshot=null;
+   ['trail','trail-bed','trail-center'].forEach(id=>$(id).setAttribute('d',path(c.truth)));
+   $('errors').replaceChildren();$('band').replaceChildren();
+   fitView();drawCase();
+   $('reveal-rect').setAttribute('width',0);$('mist').setAttribute('opacity',1);$('rover').hidden=false;
+   $('scene').classList.remove('win','miss');$('stamp').textContent='Planning';
+   $('st-trail').textContent=course?c.name:`${c.name} (${i+1} of ${cases.length})`;$('scene-name').textContent=c.name.toUpperCase();$('case-note').textContent=c.note;
+   $('reason').textContent='Tap the route to add a bend. Drag a bend left or right.';
+   $('result').hidden=true;$('after-actions').hidden=true;$('send').hidden=false;$('survey').textContent='Reveal extra survey';
+   $('commit-note').textContent='Sending locks your route and lifts the mist.';$('trail-error').textContent='After delivery';$('survey-legend').hidden=true;
+   $('map-desc').textContent=`${c.markers.length} orange measurements cross the map from west to east. The blue route runs from the depot to the delivery hut and bends only where you place a bend.`;
+   render();
+ }
+
+ function drawCase(){
+   $('markers').replaceChildren();$('survey-points').replaceChildren();$('bases').replaceChildren();
+   c.markers.forEach((p,i)=>{node('circle',{cx:X(p.x),cy:Y(p.y),r:14*gs,fill:'#dca047',opacity:.13,class:'halo'},$('markers'));const n=node('circle',{cx:X(p.x),cy:Y(p.y),r:4.8*gs,fill:'#d99535',stroke:'#785023','stroke-width':1.3*gs},$('markers'));node('title',{},n).textContent=`Measurement ${i+1}`;});
+   c.survey.forEach((p,i)=>{const d=6*gs,n=node('path',{d:`M${X(p.x)} ${Y(p.y)-d}l${d} ${d}-${d} ${d}-${d}-${d}Z`,fill:'#2c4c3e',stroke:'#fff','stroke-width':1.5*gs,opacity:0},$('survey-points'));node('title',{},n).textContent=`Extra survey measurement ${i+1}`;});
+   [0,1].forEach(x=>{const g=node('g',{transform:`translate(${X(x)},${Y(c.truth(x))}) scale(${gs})`},$('bases'));node('path',{d:'M-14 12V-9L0-20 14-9v21Z',fill:'#f6f2dc',stroke:'#597259','stroke-width':1.5},g);node('rect',{x:-4,y:0,width:8,height:12,fill:'#718a6c'},g);node('text',{x:0,y:32,'text-anchor':'middle',fill:'#3e5c48','font-size':10,'font-family':'Arial'},g).textContent=x?'DELIVERY':'DEPOT';});
+   $('route').setAttribute('stroke-width',3*gs);$('route-halo').setAttribute('stroke-width',6*gs);
+ }
+ function render(){
+   const s=current(),f=s.route,u=unit(),active=editable();
+   $('route').setAttribute('d',path(f));$('route-halo').setAttribute('d',path(f));
+   $('sticks').replaceChildren();
+   if(phase!=='running')c.markers.forEach(p=>node('line',{x1:X(p.x),x2:X(p.x),y1:Y(p.y),y2:Y(f(p.x)),stroke:'#8a5a22','stroke-width':1.2*gs,'stroke-dasharray':`${2*gs} ${3*gs}`,opacity:.6},$('sticks')));
+   drawHandles(f,u,active);
+   $('add').disabled=!active||bends.length>=M.maxBends;$('remove').disabled=!active||!bends.length;
+   $('st-bends').textContent=`${bends.length} / ${M.maxBends}`;
+   $('bend-note').textContent=bends.length?`${bends.length} of ${M.maxBends}: ${bends.map(b=>east(b)+' m').join(', ')} east.`:'None yet. Each bend lets the route change direction once.';
+   $('train-error').textContent=m(s.markers);
+   const known=phase==='done'||phase==='explore';
+   $('survey-error').textContent=known||survey?m(s.survey):course?'Not revealed':'After delivery';
+   if(phase==='explore'){$('trail-error').textContent=m(s.trail);drawErrors(f);}
+   $('survey').disabled=survey||!active;$('send').disabled=phase!=='planning';
+   if(phase==='planning')$('rover').setAttribute('transform',`translate(${X(0)},${Y(f(0))}) scale(${gs})`);
+   showSurvey(survey||known?1:0);
+ }
+ function drawHandles(f,u,active){
+   $('handles').replaceChildren();
+   bends.forEach((b,i)=>{
+     const g=node('g',{class:'bend'+(i===selected?' selected':''),transform:`translate(${X(b)},${Y(f(b))})`,role:'slider',tabindex:active?0:-1,'aria-label':`Bend ${i+1}`,'aria-valuemin':5,'aria-valuemax':95,'aria-valuenow':east(b),'aria-valuetext':`${east(b)} metres east`,'aria-disabled':active?'false':'true'},$('handles'));
+     g.dataset.index=i;const k=u*.95;
+     node('circle',{class:'focus-ring',r:15*k},g);
+     node('circle',{class:'knob',r:9*k},g);
+     node('path',{class:'arrows',d:`M${-4.5*k} 0l${3*k} ${-3*k}v${6*k}Zm${9*k} 0l${-3*k} ${-3*k}v${6*k}Z`},g);
+     g.addEventListener('focus',()=>{if(selected!==i){selected=i;render();$('handles').querySelector(`[data-index="${i}"]`)?.focus();}});
+   });
+   $('handles').style.display=phase==='running'?'none':'';
+ }
+ function showSurvey(t){
+   $('survey-points').querySelectorAll('path').forEach((n,i)=>n.setAttribute('opacity',(t===1||c.survey[i].x<=t)?1:0));
+   $('survey-legend').hidden=!(t>0);
+ }
+
+ // Bends keep their west-to-east order and stay at least 4 m apart.
+ function place(i,x){
+   const lo=i>0?bends[i-1]+M.minGap:M.edge,hi=i<bends.length-1?bends[i+1]-M.minGap:1-M.edge;
+   bends[i]=Math.max(lo,Math.min(hi,x));
+ }
+ function addAt(x){
+   if(bends.length>=M.maxBends)return -1;
+   x=Math.max(M.edge,Math.min(1-M.edge,x));
+   if(bends.some(b=>Math.abs(b-x)<M.minGap))return -1;
+   bends.push(x);bends.sort((a,b)=>a-b);return bends.indexOf(x);
+ }
+ function addInGap(){
+   const edges=[0,...bends,1];let best=0;
+   for(let i=1;i<edges.length-1;i++)if(edges[i+1]-edges[i]>edges[best+1]-edges[best])best=i;
+   return addAt((edges[best]+edges[best+1])/2);
+ }
+ function announce(){const s=current();say(bends.length?`${bends.length} bend${bends.length>1?'s':''}. Distance to markers ${s.markers.toFixed(2)} metres.`:`Straight route. Distance to markers ${s.markers.toFixed(2)} metres.`);}
+ function select(i){selected=i;render();if(i>=0)$('handles').querySelector(`[data-index="${i}"]`)?.focus({preventScroll:true});}
+
+ function svgPoint(e){const svg=$('map'),p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse());}
+ const toX=px=>(px-80)/640;
+ $('map').addEventListener('pointerdown',e=>{
+   if(!editable())return;
+   const p=svgPoint(e),f=current().route,u=unit();
+   let hit=-1,dist=Infinity;
+   bends.forEach((b,i)=>{const dx=Math.abs(X(b)-p.x),dy=Math.abs(Y(f(b))-p.y);if(dx<22*u&&dy<40*u&&dx<dist){hit=i;dist=dx;}});
+   if(hit<0){
+     const x=toX(p.x);if(x<0||x>1||Math.abs(Y(f(x))-p.y)>26*u)return;
+     hit=addAt(x);if(hit<0)return;
+     say(`Bend added at ${east(bends[hit])} metres east.`);
+   }
+   e.preventDefault();drag={index:hit,id:e.pointerId};$('map').setPointerCapture?.(e.pointerId);select(hit);
+ });
+ $('map').addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;place(drag.index,toX(svgPoint(e).x));render();});
+ const endDrag=e=>{if(!drag||e.pointerId!==drag.id)return;drag=null;select(selected);announce();};
+ $('map').addEventListener('pointerup',endDrag);$('map').addEventListener('pointercancel',endDrag);
+ $('handles').addEventListener('keydown',e=>{
+   const g=e.target.closest?.('.bend');if(!g||!editable())return;const i=+g.dataset.index,step=e.shiftKey?.05:.01;
+   if(e.key==='ArrowLeft'||e.key==='ArrowDown')place(i,bends[i]-step);
+   else if(e.key==='ArrowRight'||e.key==='ArrowUp')place(i,bends[i]+step);
+   else if(e.key==='Delete'||e.key==='Backspace'){remove(i);e.preventDefault();return;}
+   else return;
+   e.preventDefault();select(i);announce();
+ });
+ function remove(i){if(i<0||!bends.length)return;bends.splice(i,1);selected=bends.length?Math.min(i,bends.length-1):-1;render();announce();if(selected<0)$('add').focus();}
+
+ function reveal(t,f){
+   $('reveal-rect').setAttribute('width',t===1?800:X(t));$('mist').setAttribute('opacity',1-t*.68);showSurvey(t);
+   const a=Math.max(0,t-.001),b=Math.min(1,t+.001),angle=Math.atan2(Y(f(b))-Y(f(a)),X(b)-X(a))*180/Math.PI;
+   $('rover').setAttribute('transform',`translate(${X(t)},${Y(f(t))}) rotate(${angle}) scale(${gs})`);
+ }
+ function drawErrors(f){$('errors').replaceChildren();for(let i=1;i<40;i++){const x=i/40;node('line',{x1:X(x),x2:X(x),y1:Y(c.truth(x)),y2:Y(f(x)),stroke:'#a34b35','stroke-width':1.4*gs,opacity:.65},$('errors'));}}
+ function drawBand(d){
+   $('band').replaceChildren();if(!d)return;
+   node('rect',{x:X(d.from),y:0,width:X(d.to)-X(d.from),height:420,fill:'#a34b35',opacity:.09},$('band'));
+   [d.from,d.to].forEach(x=>node('line',{x1:X(x),x2:X(x),y1:0,y2:420,stroke:'#a34b35','stroke-dasharray':'4 4',opacity:.5},$('band')));
+   if(d.marker)node('circle',{cx:X(d.marker.x),cy:Y(d.marker.y),r:13*gs,fill:'none',stroke:'#a34b35','stroke-width':2.5*gs},$('band'));
+ }
+ const dir=v=>v>0?'south':'north';
+ function diagnosisText(d){
+   const at=`The biggest gap was around ${east(d.centre)} m east`;
+   if(d.kind==='chased')return `${at}. Your bend at ${east(d.bend)} m let the route swing toward the circled marker, which was measured ${Math.abs(d.marker.error).toFixed(1)} m ${dir(d.marker.error)} of the trail.`;
+   if(d.kind==='missed-turn')return `${at}. The trail turns there, and the route had no bend nearby, so it cut across the turn.`;
+   if(d.kind==='misplaced')return `${at}. The trail turns at ${east(d.turn)} m, and your nearest bend was at ${east(d.bend)} m.`;
+   if(d.kind==='leaned')return `${at}, where the route leaned toward the circled marker. It was measured ${Math.abs(d.marker.error).toFixed(1)} m ${dir(d.marker.error)} of the trail.`;
+   return `${at}, where the route ran ${Math.abs(d.offset).toFixed(1)} m ${dir(d.offset)} of the trail.`;
+ }
+ function finish(){
+   clearTimeout(endTimer);endTimer=null;
+   phase='done';const s=snapshot.score,d=snapshot.diagnosis;render();reveal(1,s.route);
+   $('stamp').textContent=s.pass?'Delivered on the trail':'Off the trail';
+   $('scene').classList.toggle('win',s.pass);$('scene').classList.toggle('miss',!s.pass);
+   $('trail-error').textContent=m(s.trail);
+   $('reason').textContent=`Average miss from the trail: ${m(s.trail)}. ${s.pass?'Within the 2 m brief.':'The brief was 2 m or less.'}`;
+   $('result-title').textContent=s.pass?'The rover stayed on the trail.':'The rover reached the hut, but off the trail.';
+   const n=snapshot.bends.length;
+   $('result-text').textContent=`Your route used ${n?n+' bend'+(n>1?'s':''):'no bends'}. It ran ${m(s.markers)} from the markers you planned with, ${m(s.survey)} from the extra survey, and ${m(s.trail)} from the trail.`;
+   $('diagnosis').textContent=diagnosisText(d);drawBand(d);
+   $('trail-note').textContent=c.reveal;
+   if(!course){
+     log=log.filter(e=>e.id!==c.id).concat({id:c.id,name:c.name,bends:n,trail:s.trail,pass:s.pass});
+     $('log').replaceChildren(...log.map(e=>{const row=document.createElement('div');row.className='log-row'+(e.pass?' pass':'');row.innerHTML=`<span></span><span></span><span></span><b></b>`;const [a,b,t,v]=row.children;a.textContent=e.name;b.textContent=e.bends+(e.bends===1?' bend':' bends');t.textContent=m(e.trail);v.textContent=e.pass?'On the trail':'Off the trail';return row;}));
+     $('log-wrap').hidden=log.length<2;
+     $('next').innerHTML=(ci===cases.length-1?'Back to trail 1':'Next trail')+' <span aria-hidden="true">→</span>';
+   }
+   $('result').hidden=false;$('explainer').hidden=false;$('after-actions').hidden=false;$('send').hidden=true;
+   $('commit-note').textContent='This delivery is locked. Replay it, explore the revealed trail, or move on.';
+   $('map-desc').textContent=`The trail and the extra survey are revealed. ${$('reason').textContent} ${diagnosisText(d)}`;
+   say($('result-title').textContent+' '+$('reason').textContent);
+ }
+ function run(replay=false){
+   if(!replay&&phase!=='planning')return;
+   if(frame)cancelAnimationFrame(frame);clearTimeout(endTimer);
+   if(!replay)snapshot={bends:[...bends],score:M.evaluate(c,bends),diagnosis:M.diagnose(c,bends)};
+   bends=[...snapshot.bends];selected=-1;
+   phase='running';$('band').replaceChildren();$('scene').classList.remove('win','miss');$('after-actions').hidden=true;$('result').hidden=true;$('rover').hidden=false;
+   $('stamp').textContent='On the way';$('reason').textContent='The route is locked. The mist lifts as the rover drives.';render();
+   const f=snapshot.score.route;drawErrors(f);reveal(0,f);$('scene').scrollIntoView?.({behavior:reduce.matches?'instant':'smooth',block:'start'});say('Delivery started. Your route is locked.');
+   if(reduce.matches){reveal(1,f);finish();return;}
+   const start=performance.now();function tick(now){const t=Math.max(0,Math.min(1,(now-start)/6500));reveal(t,f);if(t<1)frame=requestAnimationFrame(tick);else{frame=null;finish();}}frame=requestAnimationFrame(tick);
+   // Background browsers may suspend painting; the completed run must still unlock.
+   endTimer=setTimeout(()=>{if(phase==='running'){if(frame)cancelAnimationFrame(frame);frame=null;reveal(1,f);finish();}},6800);
+ }
+ $('add').addEventListener('click',()=>{const i=addInGap();if(i<0)return;select(i);announce();});
+ $('remove').addEventListener('click',()=>remove(selected>=0?selected:bends.length-1));
+ $('survey').addEventListener('click',()=>{survey=true;$('survey').textContent='Extra survey revealed';render();say(`Eight extra survey measurements revealed. Distance to the extra survey ${current().survey.toFixed(2)} metres. They do not change the route.`);});
+ $('send').addEventListener('click',()=>run());
+ $('replay').addEventListener('click',()=>{$('explore').hidden=false;run(true);});
+ $('explore').addEventListener('click',()=>{phase='explore';$('scene').classList.remove('win','miss');$('band').replaceChildren();$('errors').replaceChildren();$('explore').hidden=true;$('rover').hidden=true;$('stamp').textContent='Exploring';$('reason').textContent='The trail is visible now. Move or add bends and watch the trail distance; this no longer counts as a delivery.';render();say('Exploration unlocked. The trail stays visible, and the delivery report is preserved.');});
+ $('next').addEventListener('click',()=>{loadCase((ci+1)%cases.length);$('explore').hidden=false;$('scene').scrollIntoView?.({behavior:reduce.matches?'instant':'smooth',block:'start'});say(`${c.name}. ${c.note}`);});
+ reduce.addEventListener('change',()=>{if(reduce.matches&&phase==='running'){if(frame)cancelAnimationFrame(frame);frame=null;reveal(1,snapshot.score.route);finish();}});
+ addEventListener('resize',()=>{
+   if(phase==='running')return;
+   fitView();drawCase();render();
+   if(phase==='done'){reveal(1,snapshot.score.route);drawErrors(snapshot.score.route);drawBand(snapshot.diagnosis);}
+ });
+ loadCase(0);
+ // In a course page on the same origin, size the frame to the game.
+ if(course){
+   const fit=()=>{try{const f=window.frameElement,mn=document.querySelector('main');if(f&&mn){const h=Math.ceil(mn.getBoundingClientRect().bottom+window.scrollY+8);if(Math.abs(f.offsetHeight-h)>4)f.style.height=h+'px';}}catch(e){}};
+   if(typeof ResizeObserver!=='undefined')new ResizeObserver(fit).observe(document.body);
+   addEventListener('load',fit);
+ }
+})();
+</script></body></html>
