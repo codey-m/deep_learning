@@ -1,223 +1,863 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Convolution and the receptive field</title>
-<style>
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:Georgia,'Times New Roman',serif;background:#FAFAF8;color:#1A1A1A;padding:16px}
-  #app{max-width:820px;margin:0 auto}
-  h1{font-size:20px;font-weight:600;margin-bottom:4px}
-  .sub{font-size:13px;color:#666;margin-bottom:14px}
-  .controls{display:flex;flex-wrap:wrap;gap:20px;align-items:center;margin-bottom:14px}
-  .ctrl{display:flex;align-items:center}
-  .ctrl label{font-size:12px;font-family:'Courier New',monospace;color:#444;margin-right:8px}
-  .seg button{font-family:'Courier New',monospace;font-size:12px;padding:5px 10px;border:1px solid #CCC;background:#fff;cursor:pointer;border-radius:4px;margin-right:4px}
-  .seg button.on{background:#A31F34;color:#fff;border-color:#A31F34}
-  button.act{font-family:'Courier New',monospace;font-size:12px;padding:5px 12px;border:1px solid #A31F34;background:#fff;color:#A31F34;border-radius:4px;cursor:pointer}
-  input[type=range]{vertical-align:middle}
-  .val{font-family:'Courier New',monospace;font-size:12px;color:#A31F34;font-weight:700;margin-left:6px}
-  .stage{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start;justify-content:center;margin-bottom:12px}
-  .panel{text-align:center}
-  .panel h2{font-size:13px;font-weight:600;margin-bottom:6px;color:#333}
-  canvas{background:#fff;border:1px solid #E0E0E0;border-radius:6px;cursor:crosshair;display:block;max-width:100%;height:auto}
-  .readout{font-size:13px;line-height:1.7;background:#fff;border:1px solid #E5E5E5;border-radius:6px;padding:10px 14px;margin-bottom:10px}
-  .v{font-weight:700;font-family:'Courier New',monospace;color:#A31F34}
-  code{font-family:'Courier New',monospace;background:#F0F0EC;padding:1px 4px;border-radius:3px}
-  .growth{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
-  .chip{font-family:'Courier New',monospace;font-size:12px;border:1px solid #DDD;border-radius:4px;padding:3px 8px;background:#fbfbf9}
-  .chip b{color:#A31F34}
-  .note{font-size:12px;color:#595959;line-height:1.6}
-  button:focus-visible,input:focus-visible,canvas:focus-visible{outline:3px solid #1D4ED8;outline-offset:3px}
-  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-  @media (max-width:520px){body{padding:10px}.stage{gap:14px}.panel{width:100%}.controls{gap:12px}}
-  @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
-</style>
-</head>
-<body>
-<div id="app">
-  <h1>Convolution and the receptive field</h1>
-  <p class="sub">Pick a kernel size, stride, and padding. Click any output cell to see the input patch it reads.</p>
+<!doctype html>
+<html lang="en" data-mode="course">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lookout Tower</title><style>/* Lookout Tower in the MIT Learn game format. The chrome rules are a local copy of the arcade standard
+   (as in backup-power/style.css). Scene colours: the Architectures (6.7960.3x) family from the Deep Learning card
+   palette, ink birds with gold bills, gold for a lookout's view, green/amber/red only for outcomes. Outcomes also
+   carry a shape (check, cross, link), so state never rests on colour alone. */
+:root{color-scheme:light;--ink:#0C0C0D;--ink-2:#40464C;--body:#212326;--muted:#626A73;--line:#DDE1E6;--rule:#E6E9EE;--ground:#F3F4F8;--red:#750014;--red-dark:#5A0010;--button-line:#B8C2CC;
+  --win:#216044;--over:#B45309;--lose:#A31F34;
+  --a-base:#37A584;--a-body:#83C7B3;--a-neck:#28775F;--a-darks:#3D6868;--a-line:#047854;--a-wash:#C8E8DE;
+  --land:#F3F9F6;--water:#DDEFE8;--reed:#B5DDD0;--gold:#E9A83C;--gold-dark:#8F5B0A;--gold-wash:#FDF3E1;--art-ink:#111827;--frame:#CBD2DB}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--body);font:16px/1.55 "neue-haas-grotesk-text","Helvetica Neue",Helvetica,Arial,sans-serif}
+a{color:var(--red);text-underline-offset:3px}button,input{font:inherit}button,summary{cursor:pointer}
+button{border:1px solid var(--button-line);border-radius:4px;padding:10px 15px;background:#fff;color:var(--ink-2);font-weight:500;min-height:44px;touch-action:manipulation}
+button.primary{background:var(--red);border-color:var(--red);color:#fff;font-weight:600}button.primary:hover:not(:disabled){background:var(--red-dark);border-color:var(--red-dark)}
+button:disabled{cursor:default;opacity:.55}
+button:focus-visible,a:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:3px solid #1472ae;outline-offset:3px}
+[tabindex="-1"]:focus:not(:focus-visible){outline:none}
+[hidden]{display:none!important}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
-  <div class="controls">
-    <div class="ctrl"><span id="kernelLabel">kernel K</span><span class="seg" id="segK" role="group" aria-labelledby="kernelLabel"></span></div>
-    <div class="ctrl"><span id="strideLabel">stride S</span><span class="seg" id="segS" role="group" aria-labelledby="strideLabel"></span></div>
-    <div class="ctrl"><span id="paddingLabel">padding P</span><span class="seg" id="segP" role="group" aria-labelledby="paddingLabel"></span></div>
-    <div class="ctrl"><label for="depth">stack depth</label>
-      <input type="range" id="depth" min="1" max="5" step="1" value="1"><span class="val" id="depthV">1</span></div>
-    <div class="ctrl"><button class="act" id="slide" type="button">&#9654; slide the kernel</button></div>
-    <div class="ctrl"><button class="act" id="reset" type="button">reset</button></div>
+/* Page chrome */
+.gamebar{background:#fff;display:grid;grid-template-columns:52px 1fr 52px;align-items:center;padding:12px 24px;border-bottom:1px solid var(--rule)}
+.gamebar .back{display:flex;align-items:center;justify-content:center;width:44px;height:44px;color:var(--ink);border-radius:4px}.gamebar .back svg{width:26px;height:26px}
+.gamebar h1{grid-column:2;text-align:center;margin:0;font-size:clamp(26px,3vw,38px);font-weight:700;letter-spacing:-.02em;color:var(--ink)}
+main{max-width:1240px;margin:auto;padding:28px 24px 56px}
+.gamewrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:28px;align-items:start}
+.playcard,.howto,.explainer{background:#fff;border-radius:6px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 3px 10px rgba(16,24,40,.05)}
+.playcard{overflow:hidden}
+.gamestatus{display:flex;justify-content:center;gap:12px 36px;flex-wrap:wrap;padding:26px 24px 4px;font-size:18px;color:var(--muted)}
+.gamestatus b{color:var(--body);font-weight:600;font-variant-numeric:tabular-nums}.gamestatus b.win{color:var(--win)}.gamestatus b.over{color:var(--over)}.gamestatus b.lose{color:var(--lose)}
+.gameprompt{text-align:center;color:var(--muted);font-size:17px;margin:8px 24px 18px}
+.gameplay{padding:0 24px}
+.reason{text-align:center;min-height:3.2em;margin:10px 0 0;font-size:15px;color:var(--muted)}.reason strong{color:var(--body);font-weight:600}
+.gamecontrols{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px 28px;align-items:end;padding:14px 24px 24px}
+.gamecontrols .actions{display:flex;flex-direction:column;gap:10px;align-items:stretch;margin:0 0 6px}.gamecontrols .actions button{min-width:200px}
+.actions button svg,.gamefoot button svg{width:22px;height:22px;flex:none}
+.actions button{display:inline-flex;align-items:center;justify-content:center;gap:10px}
+.gamefoot{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;padding:18px 24px 22px;border-top:1px solid var(--rule);background:linear-gradient(#FBFBFC,#F6F7F9)}
+.gamefoot p{margin:0 0 12px;font-size:16px;color:var(--muted)}.gamefoot strong{color:var(--body);font-weight:600}
+.gamefoot button{display:inline-flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--button-line);border-radius:4px;padding:10px 22px;font-weight:500;color:var(--ink-2)}
+.howto{padding:24px}.howto h2{display:flex;align-items:center;gap:12px;font-size:20px;font-weight:500;margin:0 0 16px;color:var(--ink)}.howto h2 svg{width:28px;height:20px;flex:none}
+.howto p{font-size:15px;line-height:1.6;color:var(--body);margin:0 0 14px}.howto strong{font-weight:700}
+.explainer{margin-top:28px;padding:24px}.explainer h2{font-size:19px;margin:0 0 10px;letter-spacing:-.015em;color:var(--ink)}.explainer p{font-size:15px;line-height:1.65;margin:0 0 12px}
+.explainer .explainer-note{color:var(--muted);font-size:13px}
+.review-about{margin-top:24px}details summary{min-height:40px;padding:8px 0;font-size:14px;font-weight:600;color:var(--ink-2)}.review-about p{font-size:13px;color:var(--muted)}
+body.embedded .gamebar,body.embedded .review-about{display:none}body.embedded main{padding-top:20px}
+
+/* The stage: the photo at left, the tower at right */
+.stage{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,330px);gap:18px;align-items:start}
+.photo-wrap{position:relative;border:1px solid var(--line);border-radius:4px;overflow:hidden;transition:box-shadow .2s;background:var(--land)}
+.photo-wrap.outcome-win{box-shadow:0 0 0 3px var(--win)}.photo-wrap.outcome-over,.photo-wrap.outcome-guess{box-shadow:0 0 0 3px var(--over)}.photo-wrap.outcome-lose{box-shadow:0 0 0 3px var(--lose)}
+.corner{position:absolute;top:8px;font:12px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace;padding:3px 7px;border-radius:3px;background:rgba(255,255,255,.92);color:var(--ink-2);z-index:1}.corner-right{right:8px;font-weight:600}
+.corner-right.win{color:var(--win)}.corner-right.over{color:var(--over)}.corner-right.lose{color:var(--lose)}.corner-right:empty{display:none}
+.photo,.tower{display:block;width:100%;height:auto}
+.px-land{fill:var(--land)}.px-water{fill:var(--water)}.px-reed{fill:var(--reed)}
+.px-grid{fill:none;stroke:#fff;stroke-width:.6;opacity:.8}
+.bird-px,.px-land,.px-water,.px-reed{shape-rendering:crispEdges}
+.bird{cursor:pointer}.bird .hit{fill:transparent}
+.cell-line{stroke:var(--a-darks);stroke-width:1;stroke-dasharray:3 4;opacity:.55}
+.grid-dot{fill:var(--a-darks);opacity:.5}
+.view{fill:rgba(233,168,60,.16);stroke:var(--gold-dark);stroke-width:3}
+.view.growing{transition:x .35s,y .35s,width .35s,height .35s}
+.view.other{fill:none;stroke-width:1.5;stroke-dasharray:5 4;opacity:.75}
+.lookout{fill:var(--gold);stroke:var(--art-ink);stroke-width:1.6}
+.tether{stroke:var(--art-ink);stroke-width:1.6;stroke-dasharray:2 3}
+.box{fill:none;stroke-width:2.4}.box.ok{stroke:var(--win)}.box.guessed{stroke:var(--over);stroke-dasharray:6 4}.box.missed{stroke:var(--lose);stroke-dasharray:6 4}.box.shared{stroke:var(--lose)}
+.box.selected{stroke-width:3.6}
+.badge circle{stroke:#fff;stroke-width:1.5}.badge.ok circle{fill:var(--win)}.badge.guessed circle{fill:var(--over)}.badge.missed circle,.badge.shared circle{fill:var(--lose)}.badge path{fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.share-link{stroke:var(--lose);stroke-width:2.4}
+/* What the floors find during a scan: the current floor strong, earlier floors faint */
+.find-edge{fill:none;stroke:var(--gold-dark);stroke-width:2.6;stroke-linecap:square}
+.find-part{fill:none;stroke:var(--gold-dark);stroke-width:2.2}
+.find-whole{fill:none;stroke:var(--gold-dark);stroke-width:2.6}
+.find-edge.before{opacity:.35;stroke-dasharray:4 4}.find-part.before,.find-whole.before{opacity:.6;stroke-width:1.6;stroke-dasharray:5 4}
+.part-in{fill:none;stroke:var(--gold-dark);stroke-width:2;stroke-dasharray:4 3}
+
+/* The tower: floors stacked over the photo in isometric, after the layer stacks in Lectures 1.1 and 4.1 */
+#tw-photo .px-land{stroke:var(--land);stroke-width:.4}#tw-photo .px-water{stroke:var(--water);stroke-width:.4}#tw-photo .px-reed{stroke:var(--reed);stroke-width:.4}
+.plane{fill:#F7FBF9;fill-opacity:.62}.plane.lit{fill:var(--gold-wash);fill-opacity:.7}
+.plane.ghost{fill:none;stroke:var(--frame);stroke-dasharray:4 4;stroke-width:1}
+.plane-edge{fill:none;stroke:var(--a-darks);stroke-width:1.2}
+.plane-grid{fill:none;stroke:var(--a-darks);stroke-width:.8;stroke-opacity:.5}.plane-grid.fine{stroke-width:.5;stroke-opacity:.3}
+.plane-name{font:600 12px "Helvetica Neue",Helvetica,Arial,sans-serif;fill:var(--ink-2)}.plane-name.lit{fill:var(--gold-dark)}
+.plane-size{font:11px ui-monospace,SFMono-Regular,Consolas,monospace;fill:var(--muted)}
+.iso-edge{fill:none;stroke:var(--gold-dark);stroke-width:1.1;opacity:.55}.iso-part{fill:none;stroke:var(--gold-dark);stroke-width:1;opacity:.55}.iso-whole{fill:none;stroke:var(--gold-dark);stroke-width:1.6;opacity:.6}
+.iso-edge,.iso-part,.iso-whole{stroke-dasharray:3 2}.iso-edge.now,.iso-part.now,.iso-whole.now{opacity:1;stroke-dasharray:none}
+.foot{fill:var(--gold);fill-opacity:.35;stroke:var(--gold-dark);stroke-width:1.4}.foot.photo{fill-opacity:.22;stroke-width:1.8}
+.pyramid{fill:none;stroke:var(--gold-dark);stroke-width:1.3;stroke-dasharray:4 3}
+.bird-square{fill:var(--gold);fill-opacity:.55;stroke:var(--gold-dark);stroke-width:1}.bird-square.shared{fill:var(--lose);fill-opacity:.45;stroke:var(--lose)}.bird-square.selected{stroke-width:2}
+
+/* The scan log under the tower */
+.ladder{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px}
+.ladder li{font-size:13px;line-height:1.4;color:var(--body);border-left:3px solid var(--line);padding:2px 0 2px 9px}
+.ladder li.now{border-left-color:var(--gold-dark)}
+.lad-floor{font-weight:600}.lad-sees{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--gold-dark);font-weight:600}
+.lad-finds{display:block;color:var(--muted)}
+
+/* Birds after a scan */
+.bird-list{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:12px}
+.guess{max-width:560px;margin:10px auto 0;border:1px solid var(--line);border-radius:6px;padding:10px 14px;background:#fff}
+.guess-title{margin:0 0 8px;font-size:14px;font-weight:600;color:var(--body)}
+.guess-list{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.guess-list li{display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;column-gap:8px;align-items:center;border:1px solid var(--line);border-radius:4px;padding:5px 9px;font-size:13px;min-width:118px}
+.guess-icon{grid-row:1/3;display:flex;align-items:center;justify-content:center;width:44px;height:30px}
+.guess-name{font-weight:600;color:var(--body)}
+.guess-p{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+.guess-bar{grid-column:1/3;height:6px;border-radius:3px;background:var(--rule);overflow:hidden;margin-top:4px}.guess-bar i{display:block;height:100%;background:var(--gold-dark)}
+.chips-hint{flex-basis:100%;text-align:center;margin:0;font-size:13px;color:var(--muted)}
+.bird-chip{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:6px 12px;font-size:14px;border-radius:20px}
+.bird-chip svg{width:18px;height:18px;flex:none}
+.bird-chip[aria-pressed="true"]{border:2px solid var(--ink);padding:5px 11px}
+.bird-chip .ok{color:var(--win)}.bird-chip .guessed{color:var(--over)}.bird-chip .missed,.bird-chip .shared{color:var(--lose)}
+
+/* Levers */
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:12px 22px}
+.lever{border:1px solid var(--line);border-radius:4px;padding:10px 12px;background:#fff;display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 10px}
+.lever-name{font-size:15px;font-weight:600;color:var(--body)}
+.stepper{display:flex;align-items:center;gap:6px}.stepper button{min-width:44px;padding:6px 0;font-size:20px;line-height:1}
+.stepper output{font:600 20px ui-monospace,SFMono-Regular,monospace;min-width:1.4em;text-align:center;color:var(--ink)}
+.lever-note{grid-column:1/-1;margin:0;font-size:13px;color:var(--muted);line-height:1.45}
+.why{grid-column:1/-1;font-size:14px;color:var(--muted);margin:2px 0 0;line-height:1.5}.why b{color:var(--body);font-weight:600}
+
+@media(max-width:980px){.gamewrap{grid-template-columns:1fr}}
+@media(max-width:760px){.stage{grid-template-columns:1fr}.tower-wrap{max-width:360px;margin:0 auto;width:100%}.controls{grid-template-columns:1fr}.gamecontrols{grid-template-columns:1fr}.gamecontrols .actions{margin:0}.gamecontrols .actions button{width:100%}}
+@media(max-width:560px){main{padding:20px 12px 40px}.gamestatus{gap:6px 18px;font-size:16px}.gameprompt{font-size:15px}.gameplay,.gamecontrols,.gamefoot{padding-left:14px;padding-right:14px}.gamebar{padding:10px 12px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+body:not(.course) .course-only{display:none}
+body.course .arcade-only{display:none!important}
+
+/* Course mode: the game frame and the free-play frame (?view=free) */
+.nota{font-weight:400;color:var(--muted);font-size:13px}
+body.course main{padding:12px 12px 16px}
+body.game-only .freeplay{display:none}
+body.free-only .playcard,body.free-only .howto,body.free-only .explainer,body.free-only .review-about{display:none}
+body.free-only .gamewrap{grid-template-columns:1fr}body.free-only main{padding:12px}
+.freeplay{grid-column:1;padding:24px;background:#fff;border-radius:6px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 3px 10px rgba(16,24,40,.05)}
+.freeplay h2{font-size:19px;margin:0 0 4px;letter-spacing:-.015em;color:var(--ink)}.free-sub{font-size:14px;color:var(--muted);margin:0 0 14px}
+.free-controls{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;margin-bottom:14px}
+.seg{display:flex;align-items:center;gap:10px}.seg-name{font-size:14px;font-weight:600;color:var(--body)}
+.seg-buttons{display:flex;gap:6px}.seg-buttons button{min-width:44px;padding:6px 12px;font-variant-numeric:tabular-nums}
+.seg-buttons button[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:#fff;font-weight:600}
+.free-stage{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:10px}
+.free-stage figure{margin:0}.free-stage figcaption{font-size:13px;font-weight:600;color:var(--ink-2);margin-bottom:6px;text-align:center}
+.f-grid{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:4px;background:var(--land);cursor:crosshair}
+.f-px{shape-rendering:crispEdges}.f-lines{fill:none;stroke:#fff;stroke-width:1;opacity:.7}
+.f-patch{fill:rgba(233,168,60,.18);stroke:var(--gold-dark);stroke-width:3}.f-sel{fill:none;stroke:var(--gold-dark);stroke-width:3}
+.free-readout{font-size:14px;line-height:1.7;background:var(--ground);border-radius:4px;padding:10px 14px;margin-bottom:8px}
+.free-readout b{color:var(--ink);font-variant-numeric:tabular-nums}
+.growth{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}.chip{font:13px ui-monospace,SFMono-Regular,Consolas,monospace;border:1px solid var(--line);border-radius:4px;padding:3px 8px;background:#fff}.chip b{color:var(--gold-dark)}
+.free-actions{display:flex;gap:10px;flex-wrap:wrap}.free-actions button{display:inline-flex;align-items:center;gap:8px}.free-actions svg{width:20px;height:20px}
+.free-note{font-size:13px;color:var(--muted);margin:12px 0 0}
+@media(max-width:560px){.free-stage{grid-template-columns:1fr}.freeplay{padding:16px 12px}}
+</style></head>
+<body class="gameformat">
+<header class="gamebar"><a class="back" href="index.html" aria-label="Back to the arcade"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a><h1 id="title">Lookout Tower</h1></header>
+<main>
+  <div class="gamewrap">
+    <section class="playcard" aria-label="Game">
+      <div class="gamestatus"><span>Marsh: <b id="st-marsh">1</b></span><span>Birds: <b id="st-birds">4</b></span><span>Battery: <b id="st-battery">0 glances</b></span><span>Par: <b id="st-par">?</b></span></div>
+      <p class="gameprompt" id="prompt">Outline every bird for the census. Each top-floor square reports the one bird whose middle falls inside it, and needs that whole bird in view. Use as little battery as you can.</p>
+      <div class="gameplay">
+        <div class="stage">
+          <div class="photo-wrap" id="photo-wrap"><span class="corner corner-right" id="outcome-label"></span>
+            <svg id="photo" class="photo" viewBox="0 0 330 330" role="img" aria-labelledby="photo-title photo-desc"><title id="photo-title">The marsh photo, 33 by 33 pixels</title><desc id="photo-desc"></desc>
+              <defs><clipPath id="photo-clip"><rect width="330" height="330"/></clipPath></defs>
+              <g clip-path="url(#photo-clip)"><g id="ph-ground"></g><g id="ph-grid"></g><g id="ph-cells"></g><g id="ph-views"></g><g id="ph-birds"></g><g id="ph-finds"></g><g id="ph-marks"></g><g id="ph-lookouts"></g></g>
+            </svg>
+          </div>
+          <div class="tower-wrap">
+            <svg id="tower" class="tower" viewBox="0 0 330 326" role="img" aria-labelledby="tower-title tower-desc"><title id="tower-title">The tower, floors stacked over the photo</title><desc id="tower-desc"></desc><g id="tw-photo"></g><g id="tw-floors"></g></svg>
+            <ol class="ladder" id="ladder" aria-label="What each floor found" hidden></ol>
+          </div>
+        </div>
+        <div class="bird-list" id="bird-list" role="group" aria-label="Birds after the scan" hidden></div>
+        <p id="feedback" class="reason" role="status" aria-live="polite" aria-atomic="true"><strong id="feedback-title"></strong> <span id="feedback-text"></span></p>
+        <div id="guess" class="guess" role="group" hidden></div>
+      </div>
+      <div class="gamecontrols">
+        <div class="controls">
+          <div class="lever">
+            <span class="lever-name" id="floors-label">Floors<span class="course-only nota"> (convolution layers)</span></span>
+            <div class="stepper" role="group" aria-labelledby="floors-label"><button type="button" id="floors-down" aria-label="One floor fewer">−</button><output id="floors-out" aria-live="off">1</output><button type="button" id="floors-up" aria-label="One floor more">+</button></div>
+            <p class="lever-note">Each lookout watches a 3 × 3 patch of the floor below it.</p>
+          </div>
+          <div class="lever">
+            <span class="lever-name" id="halvings-label">Halving floors<span class="course-only nota"> (stride 2)</span></span>
+            <div class="stepper" role="group" aria-labelledby="halvings-label"><button type="button" id="halvings-down" aria-label="One halving floor fewer">−</button><output id="halvings-out" aria-live="off">0</output><button type="button" id="halvings-up" aria-label="One halving floor more">+</button></div>
+            <p class="lever-note" id="halvings-note">On a halving floor, lookouts stand twice as far apart as on the floor below.</p>
+          </div>
+          <p class="why" id="top-floor"></p>
+        </div>
+        <div class="actions"><button type="button" id="scan" class="primary"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>Scan the marsh</button></div>
+      </div>
+      <div class="gamefoot">
+        <div class="foot-left"><p><strong>New marsh</strong> <span>- new birds in new places</span></p><div class="foot-buttons"><button id="new-marsh" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18c3-3 5-3 7 0s4 3 7 0 3-2 4-1M6 13V6M9 13V8M15 12V5M18 13V8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>New marsh</button></div></div>
+        <div class="foot-right"><button id="reset" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Start over</button></div>
+      </div>
+    </section>
+    <!-- Course only: the original widget's free play, in its own frame on the course page (?view=free). -->
+    <section class="freeplay course-only" id="freeplay" aria-labelledby="free-title">
+      <h2 id="free-title">Free play: one convolution layer</h2>
+      <p class="free-sub">Pick a kernel size, stride and padding, then select any output cell to see the input patch it reads. Stack the layer to watch the receptive field grow.</p>
+      <div class="free-controls">
+        <div class="seg"><span class="seg-name" id="fk-label">Kernel K</span><span class="seg-buttons" role="group" aria-labelledby="fk-label" id="f-k"></span></div>
+        <div class="seg"><span class="seg-name" id="fs-label">Stride S</span><span class="seg-buttons" role="group" aria-labelledby="fs-label" id="f-s"></span></div>
+        <div class="seg"><span class="seg-name" id="fp-label">Padding P</span><span class="seg-buttons" role="group" aria-labelledby="fp-label" id="f-p"></span></div>
+        <div class="seg"><span class="seg-name" id="fd-label">Layers stacked</span><span class="stepper" role="group" aria-labelledby="fd-label"><button type="button" id="fd-down" aria-label="One layer fewer">−</button><output id="fd-out" aria-live="off">1</output><button type="button" id="fd-up" aria-label="One layer more">+</button></span></div>
+      </div>
+      <div class="free-stage">
+        <figure><figcaption>Input (16 × 16)</figcaption><svg id="f-in" class="f-grid" viewBox="0 0 288 288" role="img" aria-label="Sixteen by sixteen input with a heron" aria-describedby="f-summary"><g id="f-in-px"></g><g id="f-in-patch"></g></svg></figure>
+        <figure><figcaption>Feature map (a fixed averaging kernel)</figcaption><svg id="f-out" class="f-grid" viewBox="0 0 288 288" tabindex="0" role="img" aria-label="Feature map; use the arrow keys to move the selected cell" aria-describedby="f-summary"><g id="f-out-px"></g><g id="f-out-sel"></g></svg></figure>
+      </div>
+      <div class="free-readout" id="f-readout" role="status" aria-live="polite"></div>
+      <div class="growth" id="f-growth" aria-label="Receptive field after each stacked layer"></div>
+      <div class="free-actions"><button type="button" id="f-slide" class="primary"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5l11 7-11 7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Slide the kernel</span></button><button type="button" id="f-reset"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Reset</button></div>
+      <p class="free-note">A convolution slides one small kernel across the image and uses the same weights at every position. Deeper layers see wider patches of the original image even though each kernel stays small.</p>
+      <p id="f-summary" class="sr-only"></p>
+    </section>
+    <aside class="howto" aria-labelledby="howto-title">
+      <h2 id="howto-title"><svg viewBox="0 0 28 20" aria-hidden="true"><rect x="1.5" y="1.5" width="25" height="17" rx="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 7v6M5 10h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18.5" cy="8" r="1.4" fill="currentColor"/><circle cx="21.5" cy="11.5" r="1.4" fill="currentColor"/></svg>How to play</h2>
+      <p><strong>The census</strong> needs every bird in the marsh outlined: what kind it is and how big. A tower of lookouts reads the photo, floor by floor.</p>
+      <p><strong>Each floor</strong> runs over the whole photo. Every lookout watches a 3 × 3 patch of the floor below, so each floor sees a wider patch of the photo and finds bigger things: edges first, then heads and legs, then bodies and whole birds.</p>
+      <p><strong>The top floor</strong> reports. Its lookouts split the photo into squares, drawn on the photo as you build. Each reports the bird whose middle falls in its square, and only one bird. A lookout sees past its square: with a telltale part of the bird in view, one no other bird has, it can tell what bird it is. A pelican's bill gives it away, but a black neck could be a goose's, a swan's or a crane's, so the lookout can only give the odds. With the whole bird in view, it can outline it; otherwise the outline is a guess.</p>
+      <p><strong>The tower</strong> beside the photo stacks the floors over it. After a scan it shows the squares on each floor that feed one top-floor lookout, down to its view on the photo.</p>
+      <p><strong>Halving floors</strong> keep every second lookout each way, so the floors above have a quarter as many. Halving floors come first.</p>
+      <p><strong>Battery</strong> is spent on glances: every lookout takes 9, one per square of its patch. Par appears once every bird is outlined.</p>
+      <p><strong>Scan the marsh</strong> to watch what each floor finds. <strong>New marsh</strong> brings new birds.</p>
+    </aside>
   </div>
-
-  <div class="stage">
-    <div class="panel"><h2>Input (16 &times; 16)</h2><canvas id="cin" width="288" height="288" role="img" aria-label="Sixteen by sixteen grayscale input" aria-describedby="canvasSummary"></canvas></div>
-    <div class="panel"><h2>Feature map (fixed illustrative local-average kernel)</h2><canvas id="cout" width="288" height="288" tabindex="0" role="img" aria-label="Interactive convolution feature map; use arrow keys to move the selected cell" aria-describedby="canvasSummary"></canvas></div>
-  </div>
-
-  <div class="readout" id="readout" role="status" aria-live="polite">
-    Output size <code>= floor((W &minus; K + 2P) / S) + 1</code> =
-    <span class="v" id="outsize">16</span> per side, from a 16&times;16 input.<br>
-    Selected output cell reads a <span class="v" id="rfpatch">3&times;3</span> patch of the input (its
-    <b>receptive field</b> for one layer).<br>
-    Stacking this layer <span class="v" id="depthEcho">1</span>&times; grows the effective receptive field:
-    <div class="growth" id="growth"></div>
-  </div>
-  <p id="canvasSummary" class="sr-only"></p>
-  <p class="note">A convolution slides one small kernel across the image and shares its weights at every
-    position. Deeper layers see wider patches of the original image even though each kernel stays small.</p>
-</div>
-
-<script>
-(function(){
-  const N = 16, CELL = 18;                 // input grid: 16 cells x 18px = 288
-  let K = 3, S = 1, P = 1, depth = 1, sel = {i:0, j:0}, revealed = Infinity, anim = null;
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-  // A fixed high-contrast input: a plus sign, so local averaging is visible.
-  const img = [];
-  for (let r=0;r<N;r++){ img[r]=[]; for (let c=0;c<N;c++){
-    const bar = (c>=6 && c<=9) || (r>=6 && r<=9);
-    img[r][c] = bar ? 0.92 : 0.10;
-  }}
-
-  const cin = document.getElementById('cin'), gin = cin.getContext('2d');
-  const cout = document.getElementById('cout'), gout = cout.getContext('2d');
-
-  function outSize(){ return Math.floor((N - K + 2*P)/S) + 1; }
-
-  // Feature map = strided K x K average over the zero-padded input.
-  function featureMap(){
-    const M = outSize(), out = [];
-    for (let oi=0; oi<M; oi++){ out[oi]=[]; for (let oj=0; oj<M; oj++){
-      let s=0, n=0;
-      for (let a=0;a<K;a++) for (let b=0;b<K;b++){
-        const r = oi*S - P + a, c = oj*S - P + b;
-        if (r>=0 && r<N && c>=0 && c<N){ s += img[r][c]; }
-        n++;
-      }
-      out[oi][oj] = s/n;
-    }}
-    return out;
-  }
-
-  // Effective receptive field after stacking this layer `d` times (jump = S^l).
-  function rfGrowth(){
-    const sizes=[]; let rf=1, jump=1;
-    for (let l=1;l<=5;l++){ rf = rf + (K-1)*jump; jump *= S; sizes.push(rf); }
-    return sizes;
-  }
-
-  function drawInput(){
-    gin.clearRect(0,0,288,288);
-    for (let r=0;r<N;r++) for (let c=0;c<N;c++){
-      const v = img[r][c]; const g = Math.round(255*(1-v));
-      gin.fillStyle = `rgb(${g},${g},${g})`;
-      gin.fillRect(c*CELL, r*CELL, CELL, CELL);
-    }
-    // Grid
-    gin.strokeStyle='#8A8A8A'; gin.lineWidth=1;
-    for (let k=0;k<=N;k++){ gin.beginPath(); gin.moveTo(k*CELL,0); gin.lineTo(k*CELL,288); gin.stroke();
-      gin.beginPath(); gin.moveTo(0,k*CELL); gin.lineTo(288,k*CELL); gin.stroke(); }
-    // Receptive-field box for the selected output cell (single layer).
-    const r0 = sel.i*S - P, c0 = sel.j*S - P;
-    gin.strokeStyle='#A31F34'; gin.lineWidth=2.5;
-    gin.strokeRect(c0*CELL, r0*CELL, K*CELL, K*CELL);
-  }
-
-  function drawOutput(){
-    const M = outSize(), out = featureMap();
-    const cell = 288/M;
-    gout.clearRect(0,0,288,288);
-    for (let oi=0;oi<M;oi++) for (let oj=0;oj<M;oj++){
-      if (oi*M+oj >= revealed) continue;          // during play, only cells computed so far
-      const g = Math.round(255*(1-out[oi][oj]));
-      gout.fillStyle=`rgb(${g},${g},${g})`;
-      gout.fillRect(oj*cell, oi*cell, cell, cell);
-    }
-    gout.strokeStyle='#8A8A8A'; gout.lineWidth=1;
-    for (let k=0;k<=M;k++){ gout.beginPath(); gout.moveTo(k*cell,0); gout.lineTo(k*cell,288); gout.stroke();
-      gout.beginPath(); gout.moveTo(0,k*cell); gout.lineTo(288,k*cell); gout.stroke(); }
-    gout.strokeStyle='#A31F34'; gout.lineWidth=2.5;
-    gout.strokeRect(sel.j*cell, sel.i*cell, cell, cell);
-  }
-
-  function render(){
-    const M = outSize();
-    if (sel.i>=M) sel.i=M-1; if (sel.j>=M) sel.j=M-1;
-    drawInput(); drawOutput();
-    document.getElementById('outsize').textContent = M;
-    document.getElementById('rfpatch').innerHTML = K+'&times;'+K;
-    document.getElementById('depthEcho').textContent = depth;
-    const sizes = rfGrowth();
-    const g = document.getElementById('growth'); g.innerHTML='';
-    for (let l=0;l<depth;l++){
-      const chip=document.createElement('span'); chip.className='chip';
-      chip.innerHTML='layer '+(l+1)+': <b>'+sizes[l]+'&times;'+sizes[l]+'</b>';
-      g.appendChild(chip);
-    }
-    const r0=sel.i*S-P, c0=sel.j*S-P;
-    const summary=`Output grid ${M} by ${M}. Selected output row ${sel.i+1}, column ${sel.j+1} reads input rows ${r0+1} through ${r0+K} and columns ${c0+1} through ${c0+K}, including padding outside the input when an index is out of range. Effective receptive field after ${depth} layer${depth===1?'':'s'} is ${sizes[depth-1]} by ${sizes[depth-1]}.`;
-    document.getElementById('canvasSummary').textContent=summary;
-    cout.setAttribute('aria-label',summary+' Use arrow keys to move the selected output cell.');
-    cin.setAttribute('aria-label','Sixteen by sixteen grayscale input with a plus-sign pattern. '+summary);
-  }
-
-  cout.addEventListener('click', e=>{
-    const M = outSize(), cell = 288/M;
-    const rect = cout.getBoundingClientRect();
-    const x = (e.clientX-rect.left)*(288/rect.width), y=(e.clientY-rect.top)*(288/rect.height);
-    stopAnim(); revealed = Infinity;
-    sel = { i: Math.min(M-1,Math.max(0,Math.floor(y/cell))), j: Math.min(M-1,Math.max(0,Math.floor(x/cell))) };
-    render();
+  <section class="explainer" id="takeaway" hidden aria-labelledby="takeaway-title">
+    <h2 id="takeaway-title">Bigger features need wider views</h2>
+    <p>Every floor looks for things across the whole photo. A first-floor lookout sees 3 × 3 pixels, enough for an edge or a bill. A second-floor lookout combines 3 × 3 first-floor lookouts, so it covers 5 × 5 pixels, enough for a head or a leg. Each floor adds a ring to the view and finds bigger things than the floor below, until whole birds fit. After a halving floor the rings are twice as wide and the floors above run a quarter as many lookouts, which is how a tower sees whole birds cheaply.</p>
+    <p>A lookout can only use what is inside its view. One telltale part is enough to tell what bird it is, but an outline needs all of it, and a part that several birds share tells nothing. Halving has a price too: top-floor squares get wider, so two birds standing close can land in one square, and a lookout off a bird's middle needs a wider view.</p>
+    <p class="arcade-only">The tower is a stack of convolution layers. Each floor is a layer with a 3 × 3 kernel, the things a floor finds are its features, a halving floor is a layer with stride 2, and a lookout's view is its receptive field. These are the ideas of Deep Learning (6.7960.3x) Unit 1, Convolutional Networks for Grids.</p>
+    <p class="course-only">In convolution terms, each floor is a convolutional layer with a 3 × 3 kernel and padding 1, and its grid of lookouts is a feature map. A halving floor has stride 2, so its feature map is half as wide each way. A lookout's view is its receptive field: each layer widens it by (K − 1) times the product of the strides below that layer, which is why stride-2 layers make it grow faster. The parts each floor finds are its features. The top floor's squares are the cells of the last feature map, and making the cell that holds an object's centre report it is how grid detectors such as YOLO assign objects.</p>
+    <p class="explainer-note">The game assumes a floor finds any part that fits inside one of its lookouts' views. A part is telltale when its pixels, marsh included, appear nowhere in any other bird's picture. When the parts in view fit several kinds, each is counted as equally likely, which is what Bayes' rule gives when every kind starts with the same odds. A real network learns which features to look for and can miss them, and pixels near the middle of its view count far more than those at the edge, so real towers need views comfortably larger than the object. No network can use pixels outside its view. Reports work like a simple grid detector, one bird per top-floor lookout; newer detectors report several objects per lookout and read small objects from lower floors. Glances count the multiplications for one channel: 9 for every lookout on every floor. Real networks usually add channels when they halve, which spends much of the saving. Every floor pads the floor below by one pixel, so a floor without halving keeps its size. Par is the cheapest tower that outlines every bird, checked over every tower of up to 6 floors. The windows are always 3 wide because no stack with 5-wide windows, or with halving on later floors, beat that par in the marshes checked.</p>
+  </section>
+  
+  <p id="announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+</main>
+<noscript><p>This interactive activity requires JavaScript. A stack of 3 × 3 floors sees a wider patch of the photo with every floor and finds bigger features: edges, then parts, then whole birds. Halving floors widen the view faster and cost less, until close birds share one lookout.</p></noscript>
+<script>/* Lookout Tower: a stack of 3 x 3 convolutions as floors of lookouts over a marsh photo. Pure and deterministic. */
+(function(root){
+  'use strict';
+  // 33 = 16 x 2 + 1, so for every spacing up to 16 the top-floor lookouts sit symmetrically on the photo.
+  const W=33,MAX_FLOORS=6,MAX_HALVINGS=4,WINDOW=3;
+  // Birds are pixel art facing right, one colour per pixel (the legend is in app.js; '.' is the marsh behind).
+  // Each bird touches all four edges of its box, so the box is exactly the pixels a lookout needs in view to
+  // outline it. Parts are boxes [x0, y0, x1, y1] inside the art. A floor finds a part once one of its lookouts has
+  // the whole part in view.
+  const KINDS=Object.freeze({
+    sandpiper:{name:'sandpiper',plural:'sandpipers',art:['.RK','RRC','.K.'],
+      parts:{bill:[2,0,2,0],head:[1,0,2,0],body:[0,1,2,1],legs:[1,2,1,2]}},
+    duck:{name:'duck',plural:'ducks',art:['..NW.','K.NNB','KLLR.','.GGG.'],
+      parts:{bill:[4,1,4,1],head:[2,0,4,1],tail:[0,1,0,2],body:[0,2,3,3]}},
+    goose:{name:'goose',plural:'geese',art:['....KK.','....KWK','....K..','KRRRC..','.DRRr..'],
+      parts:{bill:[6,1,6,1],head:[4,0,6,1],neck:[4,0,4,2],tail:[0,3,0,3],body:[0,3,4,4]}},
+    heron:{name:'heron',plural:'herons',art:['.KGKB','..G..','.G...','.GL..','DGGL.','.DDG.','..r..','..r..','.r.r.'],
+      parts:{bill:[4,0,4,0],head:[1,0,4,0],neck:[1,1,2,3],body:[0,4,3,5],legs:[1,6,3,8]}},
+    swan:{name:'swan',plural:'swans',art:['......KKO','.....K...','.....K...','.DD..KD..','DDDDDDDD.','.DGDDDD..'],
+      parts:{bill:[8,0,8,0],head:[6,0,8,0],neck:[5,1,5,3],body:[0,3,7,5]}},
+    pelican:{name:'pelican',plural:'pelicans',art:['........GW.','........WBB','........GP.','K......GL..','KLLLLLLLG..','.GLLLLLG...','...B..B....'],
+      parts:{bill:[9,1,10,2],head:[8,0,10,2],tail:[0,3,0,4],body:[0,3,8,5],legs:[3,6,6,6]}},
+    crane:{name:'crane',plural:'cranes',art:['....OKG','....W..','....K..','...K...','..GG...','DGGGL..','.DGGG..','..GG...','..K.K..','..K.K..','..K.K..','..K.K..','.KK.KK.'],
+      parts:{bill:[6,0,6,0],head:[4,0,6,0],neck:[3,1,4,3],tail:[0,5,1,6],body:[0,4,4,7],legs:[1,8,5,12]}}
   });
-  cout.addEventListener('keydown',e=>{
-    const moves={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]};
-    if(!moves[e.key])return;e.preventDefault();stopAnim();revealed=Infinity;
-    const M=outSize(),move=moves[e.key];
-    sel={i:Math.max(0,Math.min(M-1,sel.i+move[0])),j:Math.max(0,Math.min(M-1,sel.j+move[1]))};render();
-  });
+  // The art's colours: ink, slate, grey, light grey, white, cream, brown, tan, mallard green, gold, orange, peach.
+  const COLOURS=Object.freeze({K:'#111827',D:'#3B4652',G:'#7F8C99',L:'#C3CCD5',W:'#FFFFFF',C:'#E6D3B3',R:'#7A5537',r:'#A9805C',N:'#1F6B54',B:'#E9A83C',O:'#D9752B',P:'#E8B07A'});
+  // Order the census and the scan use when naming parts, smallest first.
+  const PARTS=Object.freeze(['bill','head','neck','tail','legs','body']);
+  const PART_PLURAL=Object.freeze({bill:'bills',head:'heads',neck:'necks',tail:'tails',legs:'legs',body:'bodies'});
+  for(const k in KINDS){const a=KINDS[k].art;KINDS[k].w=a[0].length;KINDS[k].h=a.length;Object.freeze(KINDS[k].parts);Object.freeze(KINDS[k]);}
+  // A part tells which bird it is only if its patch of pixels, marsh included, appears in no other kind's art at
+  // any offset. A black neck could be a goose's or a swan's, so it tells neither; a pelican's bill tells a pelican.
+  const at=(art,x,y)=>(art[y]&&art[y][x])||'.';
+  function patch(art,p){const rows=[];for(let y=p[1];y<=p[3];y++){let r='';for(let x=p[0];x<=p[2];x++)r+=at(art,x,y);rows.push(r);}return rows;}
+  function occursIn(pat,art){
+    const ph=pat.length,pw=pat[0].length;
+    for(let dy=1-ph;dy<art.length;dy++)for(let dx=1-pw;dx<art[0].length;dx++){
+      let ok=true;
+      for(let y=0;y<ph&&ok;y++)for(let x=0;x<pw;x++)if(at(art,dx+x,dy+y)!==pat[y][x]){ok=false;break;}
+      if(ok)return true;
+    }
+    return false;
+  }
+  const LOOKALIKES={};
+  for(const k in KINDS){
+    LOOKALIKES[k]={};
+    for(const n in KINDS[k].parts){const pat=patch(KINDS[k].art,KINDS[k].parts[n]);LOOKALIKES[k][n]=Object.freeze(Object.keys(KINDS).filter(o=>o!==k&&occursIn(pat,KINDS[o].art)));}
+    Object.freeze(LOOKALIKES[k]);
+  }
+  const telltale=(kind,part)=>LOOKALIKES[kind][part].length===0;
+  // The birds a lookout could be looking at, given the whole parts it has in view: each part fits its own kind and
+  // its lookalikes, so the candidates are the kinds that fit every part. With equal odds for every kind beforehand,
+  // each candidate is equally likely. No part in view leaves all seven.
+  function candidates(kind,partsIn){
+    let set=new Set(Object.keys(KINDS));
+    for(const p of partsIn){const fit=new Set([kind,...LOOKALIKES[kind][p]]);set=new Set([...set].filter(k=>fit.has(k)));}
+    return Object.keys(KINDS).filter(k=>set.has(k));
+  }
 
-  function seg(id, values, cur, setter){
-    const host=document.getElementById(id);
-    values.forEach(v=>{
-      const b=document.createElement('button'); b.type='button'; b.textContent=v;
-      b.setAttribute('aria-pressed',v===cur?'true':'false');
-      if (v===cur) b.className='on';
-      b.onclick=()=>{ stopAnim(); revealed=Infinity; setter(v); [...host.children].forEach(c=>{c.className='';c.setAttribute('aria-pressed','false');}); b.className='on';b.setAttribute('aria-pressed','true'); render(); };
-      host.appendChild(b);
+  // A tower of F floors whose first H floors halve the lookouts each way (stride 2); every floor uses a 3 x 3 window
+  // with one pixel of padding, so a floor's size is ceil(below / stride) and lookout i sits over pixel i x spacing.
+  function tower(F,H){
+    if(!(F>=1&&F<=MAX_FLOORS&&H>=0&&H<=Math.min(F,MAX_HALVINGS)))throw new RangeError(`No tower with ${F} floors and ${H} halving`);
+    const floors=[];let view=1,spacing=1,size=W,glances=0;
+    for(let l=0;l<F;l++){
+      const halving=l<H,stride=halving?2:1;
+      view+=(WINDOW-1)*spacing;spacing*=stride;size=Math.ceil(size/stride);
+      const g=size*size*WINDOW*WINDOW;glances+=g;
+      floors.push(Object.freeze({floor:l+1,halving,size,view,spacing,glances:g}));
+    }
+    return Object.freeze({floors:Object.freeze(floors),floorsCount:F,halvings:H,view,spacing,size,glances});
+  }
+  const FAMILY=[];for(let F=1;F<=MAX_FLOORS;F++)for(let H=0;H<=Math.min(F,MAX_HALVINGS);H++)FAMILY.push([F,H]);
+
+  // The scan: every floor runs over the whole photo, so a floor finds a part wherever one of its lookouts has the
+  // whole part in view. Lookouts on floor f stand f.spacing apart, from pixel 0, and see f.view x f.view.
+  function inSomeView(f,box){
+    const r=(f.view-1)/2,J=f.spacing,last=f.size-1;
+    const axis=(a0,a1)=>Math.max(0,Math.ceil((a1-r)/J))<=Math.min(last,Math.floor((a0+r)/J));
+    return axis(box[0],box[2])&&axis(box[1],box[3]);
+  }
+  const partBox=(b,p)=>[b.x+p[0],b.y+p[1],b.x+p[2],b.y+p[3]];
+  // For each floor, the parts and whole birds it is the first to find. Floor 1 also finds edges.
+  function features(birds,F,H){
+    const t=tower(F,H),seen=new Set();
+    return t.floors.map(f=>{
+      const parts=[],whole=[];
+      birds.forEach((b,i)=>{
+        for(const name of PARTS){
+          const p=KINDS[b.kind].parts[name];
+          if(!p||seen.has(i+':'+name)||!inSomeView(f,partBox(b,p)))continue;
+          seen.add(i+':'+name);parts.push({bird:i,part:name,box:partBox(b,p)});
+        }
+        if(!seen.has(i+':whole')&&inSomeView(f,[b.x,b.y,b.x+b.w-1,b.y+b.h-1])){seen.add(i+':whole');whole.push(i);}
+      });
+      return {floor:f.floor,view:f.view,spacing:f.spacing,edges:f.floor===1,parts,whole};
     });
   }
-  seg('segK',[3,5], K, v=>{K=v;}); seg('segS',[1,2], S, v=>{S=v;}); seg('segP',[0,1], P, v=>{P=v;});
-  const dv=document.getElementById('depth');
-  dv.oninput=()=>{ stopAnim(); revealed=Infinity; depth=+dv.value; document.getElementById('depthV').textContent=depth; render(); };
 
-  // Play: clear the feature map and reproduce it in real time as the kernel slides. The
-  // per-cell delay scales with the number of outputs, so small and large kernels (and
-  // strides) take about the same total time.
-  function stopAnim(){ if(anim){ clearTimeout(anim); anim=null; } document.getElementById('slide').innerHTML='&#9654; slide the kernel'; }
-  document.getElementById('slide').onclick=()=>{
-    if(anim){stopAnim();return;}
-    stopAnim();
-    const M=outSize(), total=M*M;
-    if(reducedMotion.matches){revealed=Infinity;sel={i:M-1,j:M-1};render();return;}
-    document.getElementById('slide').textContent='pause animation';
-    const perCell = Math.max(10, Math.round(3500/total));
-    let idx=0;
-    (function step(){
-      sel={i: Math.floor(idx/M), j: idx%M};
-      revealed = idx+1;
-      render();
-      idx++;
-      if(idx>=total){ anim=null;document.getElementById('slide').innerHTML='&#9654; slide the kernel'; return; }
-      anim=setTimeout(step, perCell);
-    })();
+  // The census. Each bird belongs to the top-floor lookout nearest its middle (ties go down and right), as a grid
+  // detector makes the cell holding an object's centre responsible for it. What that lookout has in view decides
+  // the report: the whole bird, outlined; parts that fit only its kind but not all of it, the right kind with a
+  // guessed outline; parts that several kinds share, or none, missed. Two birds on one lookout get one report between them.
+  function judge(birds,F,H,tiesUp=false){
+    const t=tower(F,H),r=(t.view-1)/2,S=t.spacing,last=t.size-1,byCell=new Map();
+    const near=c=>Math.max(0,Math.min(last,tiesUp?Math.ceil(c/S-.5):Math.floor(c/S+.5)));
+    const out=birds.map((b,idx)=>{
+      const x1=b.x+b.w-1,y1=b.y+b.h-1,cx=(b.x+x1)/2,cy=(b.y+y1)/2;
+      const i=near(cx),j=near(cy),lx=i*S,ly=j*S;
+      const reach=Math.max(lx-b.x,x1-lx,ly-b.y,y1-ly);
+      const inView=box=>box[0]>=lx-r&&box[2]<=lx+r&&box[1]>=ly-r&&box[3]<=ly+r;
+      const parts=KINDS[b.kind].parts,partsIn=PARTS.filter(n=>parts[n]&&inView(partBox(b,parts[n])));
+      const key=i+','+j;if(!byCell.has(key))byCell.set(key,[]);byCell.get(key).push(idx);
+      return {i,j,lx,ly,cx,cy,needView:2*reach+1,whole:reach<=r,partsIn,candidates:candidates(b.kind,partsIn),shared:false,status:''};
+    });
+    const groups=[...byCell.values()].filter(g=>g.length>1);
+    groups.forEach(g=>g.forEach(k=>{out[k].shared=true;}));
+    out.forEach(b=>{b.identified=b.candidates.length===1;b.status=b.shared?'shared':b.whole?'outlined':b.identified?'guessed':'missed';});
+    const list=s=>out.map((b,k)=>b.status===s?k:-1).filter(k=>k>=0);
+    const cut=out.map((b,k)=>b.whole?-1:k).filter(k=>k>=0);
+    return {tower:t,birds:out,cut,groups,guessed:list('guessed'),missed:list('missed'),
+      sharedCount:groups.reduce((a,g)=>a+g.length,0),pass:!cut.length&&!groups.length};
+  }
+  function ranked(birds){return FAMILY.map(([F,H])=>({F,H,glances:tower(F,H).glances,pass:judge(birds,F,H).pass})).sort((a,b)=>a.glances-b.glances);}
+  function cheapest(birds){return ranked(birds).filter(x=>x.pass);}
+
+  function rng(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  const pick=(r,a)=>a[Math.floor(r()*a.length)],between=(r,lo,hi)=>lo+Math.floor(r()*(hi-lo+1));
+  // Marshes are drawn answer-first. "Halve every floor" and "halve, then look" alternate; the first is guided.
+  const ORDER=Object.freeze([[3,3],[3,2],[4,4],[4,3],[2,2],[4,2]].map(x=>Object.freeze(x)));
+  const BIG=['heron','swan','pelican','crane'],ALL=Object.keys(KINDS);
+  function placeBirds(r,kinds,cluster){
+    const birds=[];
+    for(const k of kinds){
+      const {w,h}=KINDS[k];let placed=false;
+      for(let tries=0;tries<300&&!placed;tries++){
+        let x,y;
+        if(cluster&&birds.length){const o=pick(r,birds);x=o.x+between(r,-w-2,o.w+1);y=o.y+between(r,-h-2,o.h+1);}
+        else{x=between(r,0,W-w);y=between(r,0,W-h);}
+        if(x<0||y<0||x+w>W||y+h>W)continue;
+        // At least one empty pixel between any two birds.
+        if(birds.some(o=>!(x+w<o.x||o.x+o.w<x||y+h<o.y||o.y+o.h<y)))continue;
+        birds.push({kind:k,x,y,w,h});placed=true;
+      }
+      if(!placed)return null;
+    }
+    return birds;
+  }
+  // A middle exactly halfway between two lookouts makes its owner a tie-break. Marshes are kept only where breaking
+  // every tie the other way gives every tower the same verdict, so no result hangs on the tie rule.
+  function tieProof(birds){return FAMILY.every(([F,H])=>judge(birds,F,H).pass===judge(birds,F,H,true).pass);}
+  function marsh(seed,index){
+    const want=ORDER[index%ORDER.length],[F,H]=want,r=rng(seed*7919+index*104729+1),guided=index===0;
+    for(let tries=0;tries<20000;tries++){
+      const n=guided?between(r,3,4):between(r,3,7);
+      const kinds=Array.from({length:n},()=>guided?pick(r,['duck','goose','heron','swan']):F===2?pick(r,['sandpiper','duck','goose']):pick(r,ALL));
+      if(F===4&&!kinds.some(k=>BIG.includes(k)))kinds[0]=pick(r,BIG);
+      const birds=placeBirds(r,kinds,!guided&&(H<F||r()<.4));
+      if(!birds)continue;
+      const ok=cheapest(birds);
+      if(!ok.length||ok[0].F!==F||ok[0].H!==H)continue;
+      if(ok.length>1&&ok[1].glances===ok[0].glances)continue;
+      if(!tieProof(birds))continue;
+      // "Halve, then look": one more halving must put two birds on one lookout, so crowding is the reason.
+      if(H<F&&!judge(birds,F,H+1).groups.length)continue;
+      if(H<F&&!judge(birds,F,F).groups.length)continue;
+      // The guided marsh has no crowding at all: only the view decides it.
+      if(guided&&FAMILY.some(([f,h])=>judge(birds,f,h).groups.length))continue;
+      return Object.freeze({seed,index,birds:Object.freeze(birds.map(b=>Object.freeze(b))),par:ok[0].glances,parPlan:want,shape:H===F?'halve-every-floor':'halve-then-look',tries});
+    }
+    throw new Error(`No marsh for seed ${seed} index ${index}`);
+  }
+  const api=Object.freeze({W,MAX_FLOORS,MAX_HALVINGS,WINDOW,KINDS,COLOURS,PARTS,PART_PLURAL,LOOKALIKES,telltale,candidates,FAMILY,ORDER,tower,features,inSomeView,judge,ranked,cheapest,marsh,rng,tieProof});
+  root.LookoutTower=api;
+  if(typeof module!=='undefined'&&module.exports)module.exports=api;
+})(globalThis);
+</script><script>(function(){
+  'use strict';
+  const M=globalThis.LookoutTower,$=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg';
+  const params=new URLSearchParams(location.search);
+  const COURSE=document.documentElement.dataset.mode==='course'||params.get('mode')==='course';
+  const embed=COURSE||params.get('embed')==='1';
+  document.body.classList.toggle('course',COURSE);document.body.classList.toggle('embedded',embed);
+  const instant=params.get('instant')==='1'||(typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const PX=10,FLOOR_MS=800,num=v=>v.toLocaleString('en-US'),plural=(n,a,b)=>n===1?a:b;
+  const words=['no','one','two','three','four','five','six','seven'];
+  const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+  const joinList=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' and '+a[a.length-1];
+  const an=n=>(n===11||n===18||String(n).charAt(0)==='8')?'an':'a';
+  function announce(text){$('announcement').textContent=text;}
+  function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+  function clear(g){const n=typeof g==='string'?$(g):g;while(n.firstChild)n.removeChild(n.firstChild);return n;}
+  const sq=(x,y)=>`M${x*PX} ${y*PX}h${PX}v${PX}h${-PX}z`;
+
+  /* ---------- State ---------- */
+  const seed=Math.max(1,Math.floor(Number(params.get('seed'))||1));
+  let index=0,marsh=null,F=1,H=0,result=null,feats=null,selected=null,parKnown=false,timers=[],running=false,ranOnce=false;
+
+  /* ---------- Where things are, in words ---------- */
+  function place(b){
+    const cx=b.x+b.w/2,cy=b.y+b.h/2,third=M.W/3;
+    const col=cx<third?'left':cx<2*third?'':'right',row=cy<third?'top':cy<2*third?'':'bottom';
+    return row&&col?`${row} ${col}`:row||col||'middle';
+  }
+  const kindName=b=>M.KINDS[b.kind].name;
+  function birdLabel(i){
+    const b=marsh.birds[i],same=marsh.birds.filter(o=>o.kind===b.kind&&place(o)===place(b));
+    return `${kindName(b)}, ${place(b)}${same.length>1?` (${same.indexOf(b)+1})`:''}`;
+  }
+
+  /* ---------- The photo ---------- */
+  // Terrain is decoration only: a band of water across the marsh and a few reeds on its banks.
+  function terrain(){
+    const r=M.rng(seed*13+index*7+3),a=2+r()*4,ph=r()*6.28,mid=10+r()*13,width=6+r()*4;
+    const kinds=[];
+    for(let y=0;y<M.W;y++){kinds.push([]);for(let x=0;x<M.W;x++){
+      const c=mid+a*Math.sin(x/7+ph),d=Math.abs(y-c);
+      kinds[y].push(d<width/2?'water':d<width/2+1.5&&r()<.12?'reed':'land');
+    }}
+    return kinds;
+  }
+  function birdPixels(b){const s=new Set();M.KINDS[b.kind].art.forEach((row,dy)=>[...row].forEach((ch,dx)=>{if(ch!=='.')s.add((b.x+dx)+','+(b.y+dy));}));return s;}
+  // The silhouette's boundary, which is what floor 1 finds as edges.
+  function edgePath(b){
+    const s=birdPixels(b);let d='';
+    for(const k of s){const [x,y]=k.split(',').map(Number);
+      if(!s.has(x+','+(y-1)))d+=`M${x*PX} ${y*PX}h${PX}`;if(!s.has(x+','+(y+1)))d+=`M${x*PX} ${(y+1)*PX}h${PX}`;
+      if(!s.has((x-1)+','+y))d+=`M${x*PX} ${y*PX}v${PX}`;if(!s.has((x+1)+','+y))d+=`M${(x+1)*PX} ${y*PX}v${PX}`;}
+    return d;
+  }
+  function drawPhoto(){
+    const t=terrain(),paths={land:'',water:'',reed:''};
+    for(let y=0;y<M.W;y++)for(let x=0;x<M.W;x++)paths[t[y][x]]+=sq(x,y);
+    const g=clear('ph-ground');
+    for(const k in paths)el('path',{class:'px-'+k,d:paths[k]},g);
+    let grid='';for(let k=1;k<M.W;k++)grid+=`M${k*PX} 0V${M.W*PX}M0 ${k*PX}H${M.W*PX}`;
+    el('path',{class:'px-grid',d:grid},clear('ph-grid'));
+    const birds=clear('ph-birds');
+    marsh.birds.forEach((b,i)=>{
+      const p={};
+      M.KINDS[b.kind].art.forEach((row,dy)=>[...row].forEach((ch,dx)=>{if(ch!=='.')p[ch]=(p[ch]||'')+sq(b.x+dx,b.y+dy);}));
+      const g=el('g',{class:'bird','data-i':i},birds);
+      el('rect',{class:'hit',x:b.x*PX-4,y:b.y*PX-4,width:b.w*PX+8,height:b.h*PX+8},g);
+      for(const ch in p)el('path',{class:'bird-px',fill:M.COLOURS[ch],d:p[ch]},g);
+      g.addEventListener('click',()=>{if(result&&!running)select(i,true);});
+    });
+    $('photo-desc').textContent=`${marsh.birds.length} birds: `+marsh.birds.map((b,i)=>`${birdLabel(i)}, ${b.w} pixels wide and ${b.h} tall`).join('; ')+'.';
+  }
+
+  /* ---------- What each floor finds ---------- */
+  function wholeWords(list){
+    const by=new Map();list.forEach(i=>{const k=marsh.birds[i].kind;by.set(k,(by.get(k)||0)+1);});
+    return [...by].map(([k,n])=>n>1?`whole ${M.KINDS[k].plural}`:`a whole ${M.KINDS[k].name}`);
+  }
+  function partNames(f){return M.PARTS.filter(n=>f.parts.some(p=>p.part===n)).map(n=>M.PART_PLURAL[n]);}
+  function findsLong(f){return (f.edges?['edges']:[]).concat(partNames(f),wholeWords(f.whole));}
+  function floorLine(f){
+    const t=M.tower(F,H).floors[f.floor-1],list=findsLong(f);
+    return `Floor ${f.floor}: each lookout sees ${f.view} × ${f.view} pixels${list.length?` and finds ${joinList(list)}`:' and finds nothing new'}.${t.halving?' The squares above are twice as wide.':''}`;
+  }
+  function drawFinds(upTo){
+    const g=clear('ph-finds');
+    if(!feats)return;
+    feats.filter(f=>f.floor<=upTo).forEach(f=>{
+      const cls=f.floor===upTo?'now':'before';
+      if(f.edges)marsh.birds.forEach(b=>el('path',{class:'find-edge '+cls,d:edgePath(b)},g));
+      f.parts.forEach(p=>el('rect',{class:'find-part '+cls,x:p.box[0]*PX+1.5,y:p.box[1]*PX+1.5,width:(p.box[2]-p.box[0]+1)*PX-3,height:(p.box[3]-p.box[1]+1)*PX-3,rx:2},g));
+      f.whole.forEach(i=>{const b=marsh.birds[i];el('rect',{class:'find-whole '+cls,x:b.x*PX-2,y:b.y*PX-2,width:b.w*PX+4,height:b.h*PX+4,rx:3},g);});
+    });
+  }
+
+  /* ---------- The tower: the floors stacked over the photo, drawn in isometric like the course's layer stacks ----------
+     Every square is drawn the same size, so a floor's plane is as wide as its number of lookouts: a halving floor is
+     half as wide each way, and the stack tapers like the shrinking feature maps in a CNN diagram. */
+  const ISO=(()=>{const c=3.85,a=Math.cos(Math.PI/6)*c,b=Math.sin(Math.PI/6)*c,gap=30,cx=112;return {a,b,gap,cx,y0:12+M.MAX_FLOORS*gap+M.W*b,labelX:cx+M.W*a+10};})();
+  // A point on a plane of n squares, in square units from its corner, at height z.
+  const iso=(p,q,n,z)=>{const u=p-n/2,v=q-n/2;return [ISO.cx+(u-v)*ISO.a,ISO.y0+(u+v)*ISO.b-z];};
+  const pt=a=>a.map(n=>n.toFixed(1)).join(' ');
+  const isoRect=(p0,q0,p1,q1,n,z)=>`M${pt(iso(p0,q0,n,z))}L${pt(iso(p1,q0,n,z))}L${pt(iso(p1,q1,n,z))}L${pt(iso(p0,q1,n,z))}Z`;
+  const isoLine=(p0,q0,p1,q1,n,z)=>`M${pt(iso(p0,q0,n,z))}L${pt(iso(p1,q1,n,z))}`;
+  // A floor with lookouts S pixels apart puts lookout i over pixel i x S. Its square i runs from i to i + 1 on its
+  // plane, so a photo position X (in pixel edges) sits at (X - .5) / S + .5 there.
+  const onFloor=(X,S)=>(X-.5)/S+.5;
+  const clip=(lo,hi,n)=>[Math.max(0,lo),Math.min(n,hi)];
+  function squareEdges(S,size){const e=[];if(S<2)return e;for(let k=0;k<size-1;k++)e.push((k+.5)*S+.5);return e;}
+  // The photo plane at the bottom of the stack, drawn once per marsh.
+  function drawStackPhoto(){
+    const g=clear('tw-photo'),t=terrain(),fills={},W=M.W;
+    for(let y=0;y<W;y++)for(let x=0;x<W;x++){const c='px-'+t[y][x];fills[c]=(fills[c]||'')+isoRect(x,y,x+1,y+1,W,0);}
+    for(const c in fills)el('path',{class:c+' iso-px',d:fills[c]},g);
+    const bird={};
+    marsh.birds.forEach(b=>M.KINDS[b.kind].art.forEach((row,dy)=>[...row].forEach((ch,dx)=>{if(ch!=='.')bird[ch]=(bird[ch]||'')+isoRect(b.x+dx,b.y+dy,b.x+dx+1,b.y+dy+1,W,0);})));
+    for(const ch in bird)el('path',{class:'iso-px',fill:M.COLOURS[ch],stroke:M.COLOURS[ch],'stroke-width':.4,d:bird[ch]},g);
+    el('path',{class:'plane-edge',d:isoRect(0,0,W,W,W,0)},g);
+    const y=iso(W/2,W/2,W,0)[1];
+    const t1=el('text',{class:'plane-name',x:ISO.labelX,y:y-2},g);t1.textContent='Photo';
+    const t2=el('text',{class:'plane-size',x:ISO.labelX,y:y+11},g);t2.textContent='33×33 pixels';
+  }
+  // The squares on floor j (0 = the photo) that feed a lookout at pixel (lx, ly) on floor k, clipped to the floor:
+  // lookouts within (view on floor k - view on floor j) / 2 pixels of it.
+  function footprint(t,lx,ly,j,k){
+    const vk=t.floors[k-1].view,vj=j?t.floors[j-1].view:1,S=j?t.floors[j-1].spacing:1,n=j?t.floors[j-1].size:M.W,half=(vk-vj)/2;
+    const [p0,p1]=clip((lx-half)/S,(lx+half)/S+1,n),[q0,q1]=clip((ly-half)/S,(ly+half)/S+1,n);
+    return [p0,q0,p1,q1,n];
+  }
+  function drawTower(lit,scanned){
+    const t=M.tower(F,H),g=clear('tw-floors'),W=M.W;
+    const rb=scanned&&result&&selected!==null?result.birds[selected]:null,top=Math.min(lit,F);
+    if(rb&&top){const f=footprint(t,rb.lx,rb.ly,0,top);el('path',{class:'foot photo',d:isoRect(...f,0)},g);}
+    t.floors.forEach(f=>{
+      const z=f.floor*ISO.gap,on=scanned&&f.floor<=lit,n=f.size,S=f.spacing;
+      el('path',{class:'plane'+(on?' lit':'')+(f.halving?' halving':''),d:isoRect(0,0,n,n,n,z)},g);
+      let d='';for(let k=1;k<n;k++)d+=isoLine(k,0,k,n,n,z)+isoLine(0,k,n,k,n,z);
+      el('path',{class:'plane-grid'+(n>20?' fine':''),d},g);
+      if(on&&feats){
+        // What this floor found, drawn at this floor's scale.
+        const fd=feats[f.floor-1],cls=f.floor===lit&&running?' now':'',m=X=>onFloor(X,S);
+        if(fd.edges){let e='';marsh.birds.forEach(b=>{const s=birdPixels(b);for(const k of s){const [x,y]=k.split(',').map(Number);
+          if(!s.has(x+','+(y-1)))e+=isoLine(m(x),m(y),m(x+1),m(y),n,z);if(!s.has(x+','+(y+1)))e+=isoLine(m(x),m(y+1),m(x+1),m(y+1),n,z);
+          if(!s.has((x-1)+','+y))e+=isoLine(m(x),m(y),m(x),m(y+1),n,z);if(!s.has((x+1)+','+y))e+=isoLine(m(x+1),m(y),m(x+1),m(y+1),n,z);}});
+          el('path',{class:'iso-edge'+cls,d:e},g);}
+        fd.parts.forEach(p=>el('path',{class:'iso-part'+cls,d:isoRect(m(p.box[0]),m(p.box[1]),m(p.box[2]+1),m(p.box[3]+1),n,z)},g));
+        fd.whole.forEach(i=>{const b=marsh.birds[i];el('path',{class:'iso-whole'+cls,d:isoRect(m(b.x),m(b.y),m(b.x+b.w),m(b.y+b.h),n,z)},g);});
+      }
+      if(rb&&f.floor<=top)el('path',{class:'foot',d:isoRect(...footprint(t,rb.lx,rb.ly,f.floor,top),z)},g);
+      // After the scan, the top floor lights every bird's square: one square per bird, as the census needs.
+      if(scanned&&result&&f.floor===F&&lit>=F)result.birds.forEach((b,i)=>{
+        const sq=el('path',{class:'bird-square'+(b.shared?' shared':'')+(i===selected?' selected':''),d:isoRect(b.i,b.j,b.i+1,b.j+1,n,z)},g);
+        if(i===selected)sq.setAttribute('aria-hidden','true');
+      });
+      el('path',{class:'plane-edge',d:isoRect(0,0,n,n,n,z)},g);
+      const y=iso(n/2,n/2,n,z)[1];
+      const t1=el('text',{class:'plane-name'+(on?' lit':''),x:ISO.labelX,y:y-2},g);t1.textContent=`Floor ${f.floor}`;
+      const t2=el('text',{class:'plane-size',x:ISO.labelX,y:y+11},g);t2.textContent=`${n}×${n}${f.halving?', halves':''}`;
+    });
+    if(rb&&top){
+      // The pyramid: from the lookout's square at the top of the scan down to its view on the photo.
+      const a=footprint(t,rb.lx,rb.ly,top,top),b=footprint(t,rb.lx,rb.ly,0,top),zt=top*ISO.gap;
+      let d='';[[0,1],[2,1],[2,3],[0,3]].forEach(([i,j])=>{d+=`M${pt(iso(a[i],a[j],a[4],zt))}L${pt(iso(b[i],b[j],W,0))}`;});
+      el('path',{class:'pyramid',d},g);
+      el('circle',{class:'lookout',cx:iso(a[0]+.5,a[1]+.5,a[4],zt)[0],cy:iso(a[0]+.5,a[1]+.5,a[4],zt)[1],r:3.5},g);
+    }
+    for(let k=F+1;k<=M.MAX_FLOORS;k++)el('path',{class:'plane ghost',d:isoRect(0,0,t.size,t.size,t.size,k*ISO.gap)},g);
+    $('tower-desc').textContent=`The photo with ${F} ${plural(F,'floor','floors')} stacked above it, each drawn as wide as its number of lookouts. `+t.floors.map(f=>`Floor ${f.floor}${f.halving?' halves':''}: ${f.size} by ${f.size} squares${scanned&&f.floor<=lit?`, each lookout seeing ${f.view} by ${f.view} pixels`:''}.`).join(' ')+(rb&&top?` Highlighted: the squares on each floor that feed the selected ${kindName(marsh.birds[selected])}'s lookout, down to its view on the photo.`:'');
+    renderLadder(scanned?lit:0);
+  }
+  // The top floor's squares, drawn on the flat photo as the levers change.
+  function drawSquares(){
+    const t=M.tower(F,H),g=clear('ph-cells');
+    let d='';for(const e of squareEdges(t.spacing,t.size))d+=`M${e*PX} 0V${M.W*PX}M0 ${e*PX}H${M.W*PX}`;
+    if(d)el('path',{class:'cell-line',d},g);
+  }
+  // The scan log under the tower: what each floor sees and what it is the first to find.
+  function renderLadder(upTo){
+    const box=$('ladder');
+    if(!feats||!upTo){box.hidden=true;box.innerHTML='';return;}
+    box.hidden=false;
+    box.innerHTML=feats.filter(f=>f.floor<=upTo).map(f=>{const list=findsLong(f);return `<li${f.floor===upTo&&running?' class="now"':''}><span class="lad-floor">Floor ${f.floor}</span> <span class="lad-sees">sees ${f.view}×${f.view}</span><span class="lad-finds">${list.length?cap(joinList(list)):'Nothing new'}</span></li>`;}).join('');
+  }
+
+  /* ---------- Levers and status ---------- */
+  function renderControls(){
+    const t=M.tower(F,H);
+    $('floors-out').textContent=F;$('halvings-out').textContent=H;
+    $('floors-down').disabled=running||F<=1;$('floors-up').disabled=running||F>=M.MAX_FLOORS;
+    $('halvings-down').disabled=running||H<=0;$('halvings-up').disabled=running||H>=Math.min(F,M.MAX_HALVINGS);
+    $('halvings-note').textContent=H===0?'A halving floor keeps every second lookout each way, so the squares above are twice as wide.':H===F?'Every floor halves. Add a floor to halve again.':`The first ${H===1?'floor halves':`${words[H]} floors halve`}; each halving makes the squares above twice as wide.`;
+    if(H>=M.MAX_HALVINGS&&H<F)$('halvings-note').textContent=`The first ${words[H]} floors halve, as many as the photo allows.`;
+    $('top-floor').innerHTML=`Top floor: <b>${t.size} × ${t.size}</b> squares, each <b>${t.spacing}</b> ${plural(t.spacing,'pixel','pixels')} wide. Battery: <b>${num(t.glances)}</b> glances.`;
+    $('scan').disabled=running;$('new-marsh').disabled=running;
+    $('st-battery').textContent=`${num(t.glances)} glances`;
+    const par=$('st-par');par.textContent=parKnown?num(marsh.par):'?';par.className='';
+  }
+
+  /* ---------- The census, after a scan ---------- */
+  const STATUS={outlined:{mark:'ok',say:'outlined'},guessed:{mark:'guessed',say:'outline guessed'},missed:{mark:'missed',say:'missed'},shared:{mark:'shared',say:'shares a square'}};
+  const ICON={
+    ok:'<path d="M4 9.5l3.2 3.2L14 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+    guessed:'<path d="M3 10.5c2-3.5 4-3.5 6 0s4 3.5 6 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+    missed:'<path d="M5 5l8 8M13 5l-8 8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+    shared:'<path d="M2 9h14M5 6L2 9l3 3M13 6l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
   };
-  document.getElementById('reset').onclick=()=>{stopAnim();K=3;S=1;P=1;depth=1;sel={i:0,j:0};revealed=Infinity;dv.value=1;document.getElementById('depthV').textContent='1';[['segK',3],['segS',1],['segP',1]].forEach(([id,value])=>{[...document.getElementById(id).children].forEach(button=>{const on=Number(button.textContent)===value;button.className=on?'on':'';button.setAttribute('aria-pressed',on?'true':'false');});});render();};
-  reducedMotion.addEventListener?.('change',()=>{if(reducedMotion.matches)stopAnim();});
+  const BADGE={ok:'M-4 0l3 3 5-6',guessed:'M-5 1.5c1.6-3 3.4-3 5 0s3.4 3 5 0',missed:'M-3.5-3.5l7 7M3.5-3.5l-7 7',shared:'M-5 0h10M-2-3l-3 3 3 3M2-3l3 3-3 3'};
+  function clearOverlay(){['ph-views','ph-finds','ph-marks','ph-lookouts'].forEach(clear);}
+  function drawView(lx,ly,view,parent,growing){
+    const r=(view-1)/2;
+    return el('rect',{class:'view'+(growing?' growing':''),x:(lx-r)*PX,y:(ly-r)*PX,width:view*PX,height:view*PX},parent);
+  }
+  function drawResult(){
+    clearOverlay();
+    const t=result.tower,marks=$('ph-marks');
+    result.birds.forEach((rb,i)=>{if(i!==selected){const r=(t.view-1)/2;el('rect',{class:'view other',x:(rb.lx-r)*PX,y:(rb.ly-r)*PX,width:t.view*PX,height:t.view*PX},$('ph-views'));}});
+    if(selected!==null){
+      const s=result.birds[selected],b=marsh.birds[selected],parts=M.KINDS[b.kind].parts;
+      drawView(s.lx,s.ly,t.view,$('ph-views'));
+      // The selected bird's parts that its lookout has in view.
+      s.partsIn.forEach(n=>{const p=parts[n];el('rect',{class:'part-in',x:(b.x+p[0])*PX+1.5,y:(b.y+p[1])*PX+1.5,width:(p[2]-p[0]+1)*PX-3,height:(p[3]-p[1]+1)*PX-3,rx:2},$('ph-finds'));});
+    }
+    result.birds.forEach((rb,i)=>{
+      const b=marsh.birds[i],cls=STATUS[rb.status].mark;
+      el('rect',{class:`box ${cls}${i===selected?' selected':''}`,x:b.x*PX-3,y:b.y*PX-3,width:b.w*PX+6,height:b.h*PX+6,rx:2},marks);
+      const mx=(rb.cx+.5)*PX,my=(rb.cy+.5)*PX,lx=(rb.lx+.5)*PX,ly=(rb.ly+.5)*PX;
+      if(rb.shared)el('line',{class:'share-link',x1:mx,y1:my,x2:lx,y2:ly},marks);
+      else if(i===selected)el('line',{class:'tether',x1:mx,y1:my,x2:lx,y2:ly},marks);
+    });
+    result.birds.forEach((rb,i)=>{
+      const b=marsh.birds[i],cls=STATUS[rb.status].mark;
+      const g=el('g',{class:'badge '+cls,transform:`translate(${Math.min(M.W*PX-10,(b.x+b.w)*PX+2)} ${Math.max(10,b.y*PX-2)})`},marks);
+      el('circle',{r:8},g);el('path',{d:BADGE[cls]},g);
+    });
+    // Lookouts go on top of everything, one dot each, so a shared lookout reads as a single dot.
+    const seen=new Set(),dots=$('ph-lookouts'),sel=selected===null?null:result.birds[selected];
+    result.birds.forEach(rb=>{const k=rb.lx+','+rb.ly;if(seen.has(k))return;seen.add(k);el('circle',{class:'lookout',cx:(rb.lx+.5)*PX,cy:(rb.ly+.5)*PX,r:sel&&sel.lx===rb.lx&&sel.ly===rb.ly?6:4.5},dots);});
+  }
+  function birdReason(i){
+    const rb=result.birds[i],b=marsh.birds[i],t=result.tower,name=kindName(b),V=t.view;
+    if(rb.status==='shared'){
+      const g=result.groups.find(x=>x.includes(i)),others=g.filter(k=>k!==i);
+      const who=others.length===1?`the ${birdLabel(others[0])}`:`${words[others.length]} other birds`;
+      return `The selected ${name}'s middle falls in the same top-floor square as ${who}. The squares are ${t.spacing} pixels wide and each reports one bird, so the census counts one bird for the ${g.length===2?'two':words[g.length]}.`;
+    }
+    // A bird's own size sets the smallest view an outline could need; an off-centre lookout needs more.
+    const big=Math.max(b.w,b.h),dim=b.h>=b.w?'tall':'wide',base=big%2?big:big+1,n=rb.needView;
+    const off=Math.max(Math.abs(rb.lx-rb.cx),Math.abs(rb.ly-rb.cy));
+    const gap=off===.5?'half a pixel from its middle':`${off} ${plural(off,'pixel','pixels')} from its middle`;
+    const need=n>base?`It is ${big} pixels ${dim} and its lookout stands ${gap}, so an outline needs ${an(n)} ${n} × ${n} view`:`It is ${big} pixels ${dim}, so an outline needs ${an(n)} ${n} × ${n} view`;
+    if(rb.status==='outlined')return `The ${name}'s lookout sees ${V} × ${V} and has the whole ${name} in view.${n>base?` It stands ${gap}, so it needed ${n} × ${n}.`:''}`;
+    if(rb.status==='guessed'){
+      const tell=['head','body','bill','neck','legs','tail'].find(p=>rb.partsIn.includes(p)&&M.telltale(b.kind,p));
+      const why=tell?`its ${tell} in view, and no other bird's ${tell} ${tell==='legs'?'look':'looks'} like that`:`its ${joinList(rb.partsIn)} in view, and together they fit only a ${name}`;
+      return `The selected ${name}'s lookout has ${why}, so it knows this is a ${name}. Not all of the ${name} is in view, so the outline is a guess. ${need}; the top floor sees ${V} × ${V}.`;
+    }
+    const k=rb.candidates.length;
+    if(!rb.partsIn.length)return `The selected ${name}'s lookout sees ${V} × ${V} and has no whole part of the ${name} in view, so it could be any of the ${words[k]} kinds of bird: 1 in ${k} each. ${need}.`;
+    const fits=joinList(rb.candidates.map(c=>`a ${M.KINDS[c].name}`));
+    return `The selected ${name}'s lookout sees ${V} × ${V} and has only its ${joinList(rb.partsIn)} in view. ${rb.partsIn.length===1&&rb.partsIn[0]!=='legs'?'That fits':'Those fit'} ${fits.replace(/ and /,' or ')}, so it can't tell which: 1 in ${k} each. ${need}.`;
+  }
+  // What the selected bird's lookout can tell: every kind that fits the parts it has in view, equally likely.
+  function sprite(kind){
+    const k=M.KINDS[kind],px=Math.max(1,Math.min(4,Math.floor(28/k.h),Math.floor(44/k.w)));
+    let r='';k.art.forEach((row,y)=>[...row].forEach((ch,x)=>{if(ch!=='.')r+=`<rect x="${x*px}" y="${y*px}" width="${px}" height="${px}" fill="${M.COLOURS[ch]}"/>`;}));
+    return `<svg viewBox="0 0 ${k.w*px} ${k.h*px}" width="${k.w*px}" height="${k.h*px}" aria-hidden="true" shape-rendering="crispEdges">${r}</svg>`;
+  }
+  function renderGuess(i){
+    const box=$('guess'),rb=result&&i!==null?result.birds[i]:null;
+    if(!rb||rb.shared){box.hidden=true;box.innerHTML='';return;}
+    const k=rb.candidates.length,name=kindName(marsh.birds[i]);
+    const title=k===1?`What the lookout can tell: a ${M.KINDS[rb.candidates[0]].name}, for certain`:rb.partsIn.length?`What the lookout can tell from its ${joinList(rb.partsIn)}`:'What the lookout can tell: nothing yet';
+    box.hidden=false;
+    box.innerHTML=`<p class="guess-title">${title}</p><ul class="guess-list">`+rb.candidates.map(c=>`<li><span class="guess-icon">${sprite(c)}</span><span class="guess-name">${M.KINDS[c].name}</span><span class="guess-p">${k===1?'certain':`1 in ${k}`}</span><span class="guess-bar" aria-hidden="true"><i style="width:${(100/k).toFixed(1)}%"></i></span></li>`).join('')+`</ul>`;
+    box.setAttribute('aria-label',`${title}. `+rb.candidates.map(c=>`${M.KINDS[c].name}, ${k===1?'certain':`1 in ${k}`}`).join('; ')+'.');
+  }
+  function renderBirdList(){
+    const box=$('bird-list');box.hidden=false;box.innerHTML='<p class="chips-hint">Select a bird to trace its view on the photo and in the tower.</p>';
+    result.birds.forEach((rb,i)=>{
+      const st=STATUS[rb.status];
+      const b=document.createElement('button');b.type='button';b.className='bird-chip';b.dataset.i=i;b.setAttribute('aria-pressed',String(i===selected));
+      b.innerHTML=`<svg viewBox="0 0 18 18" aria-hidden="true" class="${st.mark}">${ICON[st.mark]}</svg><span>${birdLabel(i)}</span><span class="sr-only">: ${st.say}</span>`;
+      b.addEventListener('click',()=>select(i,true));
+      box.appendChild(b);
+    });
+  }
+  function select(i,say){
+    selected=i;drawResult();drawTower(F,true);
+    document.querySelectorAll('.bird-chip').forEach(c=>c.setAttribute('aria-pressed',String(Number(c.dataset.i)===i)));
+    $('feedback-text').textContent=birdReason(i);renderGuess(i);
+    if(say)announce(`${birdLabel(i)}. ${birdReason(i)}`);
+  }
 
-  render();
+  /* ---------- The scan ---------- */
+  function verdict(){
+    if(result.missed.length||result.groups.length)return 'lose';
+    if(result.guessed.length)return 'guess';
+    return result.tower.glances<=marsh.par?'win':'over';
+  }
+  function clearOutcome(){
+    timers.forEach(clearTimeout);timers=[];running=false;result=null;feats=null;selected=null;clearOverlay();
+    $('photo-wrap').classList.remove('outcome-win','outcome-over','outcome-guess','outcome-lose');
+    const o=$('outcome-label');o.textContent='';o.className='corner corner-right';
+    $('feedback-title').textContent='';$('feedback-text').textContent='';$('bird-list').hidden=true;renderGuess(null);
+  }
+  function scan(){
+    if(running)return;
+    clearOutcome();
+    result=M.judge(marsh.birds,F,H);feats=M.features(marsh.birds,F,H);
+    // Show the moment that decides the scan: a missed bird, else a shared lookout, else a guessed outline,
+    // else the bird whose outline needed the widest view.
+    const first=s=>result.birds.findIndex(b=>b.status===s);
+    selected=[first('missed'),first('shared'),first('guessed')].find(k=>k>=0);
+    if(selected===undefined)selected=result.birds.reduce((a,rb,i,arr)=>rb.needView>arr[a].needView?i:a,0);
+    if(instant){finish();return;}
+    running=true;renderControls();
+    const s=result.birds[selected];let box=null;
+    feats.forEach((f,k)=>{
+      timers.push(setTimeout(()=>{
+        drawTower(f.floor,true);drawFinds(f.floor);
+        if(!box)box=drawView(s.lx,s.ly,1,$('ph-views'),true);
+        const r=(f.view-1)/2;box.setAttribute('x',(s.lx-r)*PX);box.setAttribute('y',(s.ly-r)*PX);box.setAttribute('width',f.view*PX);box.setAttribute('height',f.view*PX);
+        $('feedback-title').textContent='';$('feedback-text').textContent=floorLine(f);
+      },k*FLOOR_MS));
+    });
+    timers.push(setTimeout(()=>{running=false;timers=[];finish();},feats.length*FLOOR_MS+400));
+  }
+  function finish(){
+    const v=verdict(),t=result.tower;
+    if(result.pass&&!parKnown)parKnown=true;
+    renderControls();drawTower(F,true);drawResult();renderBirdList();
+    $('photo-wrap').classList.add('outcome-'+v);
+    const o=$('outcome-label');o.className='corner corner-right '+(v==='guess'?'over':v);
+    const nm=result.missed.length,ns=result.sharedCount,ng=result.guessed.length;
+    const fails=[nm?`${nm} ${plural(nm,'bird','birds')} missed`:'',ns?`${ns} birds share squares`:''].filter(Boolean).join(', ');
+    o.textContent=v==='win'?'Every bird outlined, at par':v==='over'?`Every bird outlined, ${num(t.glances-marsh.par)} over par`:v==='guess'?`${ng} ${plural(ng,'outline','outlines')} guessed`:fails;
+    const par=$('st-par');par.className=v==='win'?'win':v==='over'?'over':'';
+    $('feedback-title').textContent=v==='win'?`Every bird is outlined, for ${num(t.glances)} glances. That is par.`:v==='over'?`Every bird is outlined, for ${num(t.glances)} glances. Par is ${num(marsh.par)}: a cheaper tower also works.`:v==='guess'?`Every bird is counted, but ${ng} ${plural(ng,'outline is a guess','outlines are guesses')}.`:cap(fails)+'.';
+    $('feedback-text').textContent=birdReason(selected);renderGuess(selected);
+    if(!ranOnce){ranOnce=true;$('takeaway').hidden=false;}
+    announce(`${$('feedback-title').textContent} ${$('feedback-text').textContent}`);
+  }
+
+  /* ---------- Wiring ---------- */
+  function setLevers(f,h,msg){
+    clearOutcome();F=f;H=Math.min(h,f,M.MAX_HALVINGS);renderControls();drawTower(0,false);drawSquares();
+    const t=M.tower(F,H);
+    announce(`${msg} ${F} ${plural(F,'floor','floors')}, ${H} halving. Top floor ${t.size} by ${t.size} squares, each ${t.spacing} ${plural(t.spacing,'pixel','pixels')} wide. Battery ${num(t.glances)} glances.`);
+  }
+  $('floors-up').addEventListener('click',()=>{if(!running&&F<M.MAX_FLOORS)setLevers(F+1,H,'Added a floor.');});
+  $('floors-down').addEventListener('click',()=>{if(!running&&F>1)setLevers(F-1,H,H>=F?'Removed a floor and its halving.':'Removed a floor.');});
+  $('halvings-up').addEventListener('click',()=>{if(!running&&H<Math.min(F,M.MAX_HALVINGS))setLevers(F,H+1,'One more floor halves.');});
+  $('halvings-down').addEventListener('click',()=>{if(!running&&H>0)setLevers(F,H-1,'One floor fewer halves.');});
+  $('scan').addEventListener('click',scan);
+  function setMarsh(i,resetLevers){
+    clearOutcome();index=i;marsh=M.marsh(seed,index);parKnown=false;
+    if(resetLevers){F=1;H=0;}
+    $('st-marsh').textContent=index+1;$('st-birds').textContent=marsh.birds.length;
+    drawPhoto();drawStackPhoto();drawSquares();drawTower(0,false);renderControls();
+    announce(`Marsh ${index+1}. ${marsh.birds.length} birds.`);
+  }
+  $('new-marsh').addEventListener('click',()=>{if(!running)setMarsh(index+1,false);});
+  $('reset').addEventListener('click',()=>setMarsh(0,true));
+  setMarsh(0,true);
+
+  /* ---------- Course: the original widget's free play ----------
+     One convolution layer on a 16 x 16 input, with the original's controls: kernel K (3 or 5), stride S (1 or 2),
+     padding P (0 or 1) and how many times the layer is stacked (1 to 5). The feature map uses a fixed averaging kernel,
+     as the original did. Selecting an output cell outlines the input patch it reads; the chips show the receptive
+     field after each stacked layer. */
+  function freePlay(){
+    const N=16,CELL=288/N,FP={K:3,S:1,P:1,depth:1,sel:{i:0,j:0},revealed:Infinity,anim:null};
+    // The input: a heron on a plain ground, as values 0 to 1 for the averaging kernel.
+    const heron=M.KINDS.heron,img=Array.from({length:N},()=>Array(N).fill(0)),colour=Array.from({length:N},()=>Array(N).fill(null));
+    heron.art.forEach((row,dy)=>[...row].forEach((ch,dx)=>{if(ch!=='.'){img[3+dy][5+dx]=1;colour[3+dy][5+dx]=M.COLOURS[ch];}}));
+    const outSize=()=>Math.floor((N-FP.K+2*FP.P)/FP.S)+1;
+    function value(oi,oj){let s=0;for(let a=0;a<FP.K;a++)for(let b=0;b<FP.K;b++){const r=oi*FP.S-FP.P+a,c=oj*FP.S-FP.P+b;if(r>=0&&r<N&&c>=0&&c<N)s+=img[r][c];}return s/(FP.K*FP.K);}
+    function growth(){const out=[];let rf=1,jump=1;for(let l=1;l<=5;l++){rf+=(FP.K-1)*jump;jump*=FP.S;out.push(rf);}return out;}
+    function seg(id,values,key){
+      const host=$(id);host.innerHTML='';
+      values.forEach(v=>{const b=document.createElement('button');b.type='button';b.textContent=v;b.dataset.v=v;b.setAttribute('aria-pressed',String(FP[key]===v));
+        b.addEventListener('click',()=>{stop();FP[key]=v;FP.revealed=Infinity;host.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(Number(x.dataset.v)===v)));draw();});host.appendChild(b);});
+    }
+    function draw(){
+      const Mo=outSize(),cell=288/Mo;
+      FP.sel={i:Math.min(FP.sel.i,Mo-1),j:Math.min(FP.sel.j,Mo-1)};
+      const gin=clear('f-in-px');
+      for(let r=0;r<N;r++)for(let c=0;c<N;c++)el('rect',{x:c*CELL,y:r*CELL,width:CELL,height:CELL,class:'f-px',fill:colour[r][c]||'#F3F9F6'},gin);
+      const r0=FP.sel.i*FP.S-FP.P,c0=FP.sel.j*FP.S-FP.P;
+      el('rect',{class:'f-patch',x:c0*CELL,y:r0*CELL,width:FP.K*CELL,height:FP.K*CELL},clear('f-in-patch'));
+      const gout=clear('f-out-px');
+      for(let i=0;i<Mo;i++)for(let j=0;j<Mo;j++){
+        if(i*Mo+j>=FP.revealed)continue;
+        const g=Math.round(245-200*value(i,j));
+        el('rect',{x:j*cell,y:i*cell,width:cell,height:cell,class:'f-px',fill:`rgb(${g},${g},${Math.min(255,g+4)})`},gout);
+      }
+      let d='';for(let k=1;k<Mo;k++)d+=`M${k*cell} 0V288M0 ${k*cell}H288`;
+      el('path',{class:'f-lines',d},gout);
+      el('rect',{class:'f-sel',x:FP.sel.j*cell,y:FP.sel.i*cell,width:cell,height:cell},clear('f-out-sel'));
+      $('fd-out').textContent=FP.depth;$('fd-down').disabled=FP.depth<=1;$('fd-up').disabled=FP.depth>=5;
+      $('f-readout').innerHTML=`Output size = ⌊(W − K + 2P) / S⌋ + 1 = ⌊(16 − ${FP.K} + ${2*FP.P}) / ${FP.S}⌋ + 1 = <b>${Mo}</b> per side, from a 16 × 16 input.<br>The selected output cell reads a <b>${FP.K} × ${FP.K}</b> patch of the input: rows ${r0+1} to ${r0+FP.K}, columns ${c0+1} to ${c0+FP.K}${r0<0||c0<0||r0+FP.K>N||c0+FP.K>N?', counting padding outside the input':''}. That is its receptive field for one layer.<br>Stacking this layer ${FP.depth} ${plural(FP.depth,'time','times')} grows the receptive field:`;
+      const sizes=growth();
+      $('f-growth').innerHTML=sizes.slice(0,FP.depth).map((v,l)=>`<span class="chip">layer ${l+1}: <b>${v} × ${v}</b></span>`).join('');
+      $('f-summary').textContent=`Output grid ${Mo} by ${Mo}. Selected output row ${FP.sel.i+1}, column ${FP.sel.j+1} reads input rows ${r0+1} to ${r0+FP.K} and columns ${c0+1} to ${c0+FP.K}. Receptive field after ${FP.depth} ${plural(FP.depth,'layer','layers')}: ${sizes[FP.depth-1]} by ${sizes[FP.depth-1]}.`;
+    }
+    function stop(){if(FP.anim){clearTimeout(FP.anim);FP.anim=null;}$('f-slide').querySelector('span').textContent='Slide the kernel';}
+    $('f-out').addEventListener('click',e=>{
+      const Mo=outSize(),rect=$('f-out').getBoundingClientRect(),cell=288/Mo;
+      if(!rect.width)return;
+      const x=(e.clientX-rect.left)*288/rect.width,y=(e.clientY-rect.top)*288/rect.height;
+      stop();FP.revealed=Infinity;FP.sel={i:Math.max(0,Math.min(Mo-1,Math.floor(y/cell))),j:Math.max(0,Math.min(Mo-1,Math.floor(x/cell)))};draw();
+    });
+    $('f-out').addEventListener('keydown',e=>{
+      const moves={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]};if(!moves[e.key])return;e.preventDefault();
+      stop();FP.revealed=Infinity;const Mo=outSize(),m=moves[e.key];FP.sel={i:Math.max(0,Math.min(Mo-1,FP.sel.i+m[0])),j:Math.max(0,Math.min(Mo-1,FP.sel.j+m[1]))};draw();
+    });
+    $('fd-up').addEventListener('click',()=>{if(FP.depth<5){stop();FP.depth++;FP.revealed=Infinity;draw();}});
+    $('fd-down').addEventListener('click',()=>{if(FP.depth>1){stop();FP.depth--;FP.revealed=Infinity;draw();}});
+    // Slide the kernel: rebuild the feature map cell by cell, about 3.5 seconds whatever its size.
+    $('f-slide').addEventListener('click',()=>{
+      if(FP.anim){stop();return;}
+      const Mo=outSize(),total=Mo*Mo;
+      if(instant){FP.revealed=Infinity;FP.sel={i:Mo-1,j:Mo-1};draw();return;}
+      $('f-slide').querySelector('span').textContent='Pause';
+      const per=Math.max(10,Math.round(3500/total));let k=0;
+      const step=()=>{FP.sel={i:Math.floor(k/Mo),j:k%Mo};FP.revealed=k+1;draw();k++;if(k>=total){FP.anim=null;stop();return;}FP.anim=setTimeout(step,per);};
+      step();
+    });
+    $('f-reset').addEventListener('click',()=>{stop();Object.assign(FP,{K:3,S:1,P:1,depth:1,sel:{i:0,j:0},revealed:Infinity});setup();});
+    function setup(){seg('f-k',[3,5],'K');seg('f-s',[1,2],'S');seg('f-p',[0,1],'P');draw();}
+    setup();
+  }
+  if(COURSE){
+    // Course pages embed free play in its own frame (?view=free), directly above the graded checks; the game frame
+    // leaves it out. Each frame sizes itself where the course page allows it (same origin).
+    document.body.classList.add(params.get('view')==='free'?'free-only':'game-only');
+    freePlay();
+    const fit=()=>{try{const f=window.frameElement,mn=document.querySelector('main');if(f&&mn){const h=Math.ceil(mn.getBoundingClientRect().bottom+window.scrollY+8);if(Math.abs(f.offsetHeight-h)>4)f.style.height=h+'px';}}catch(e){}};
+    if(typeof ResizeObserver!=='undefined')new ResizeObserver(fit).observe(document.body);
+    if(typeof addEventListener==='function')addEventListener('load',fit);
+  }
 })();
 </script>
-</body>
-</html>
+</body></html>

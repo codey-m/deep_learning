@@ -26,7 +26,7 @@ the lesson.
 | Widget | Where | What it shows |
 | --- | --- | --- |
 | [Find the beak](https://codey-m.github.io/deep_learning/widgets/widget-find-the-beak.html) | Unit 1 overview | A small window slides across a picture of a bird to find its beak, using either a separate window for every spot or one window reused everywhere |
-| [Convolution and the receptive field](https://codey-m.github.io/deep_learning/widgets/widget-conv.html) | Unit 1, Lec. 1: Convolutional Networks for Grids |  |
+| [Lookout Tower](https://codey-m.github.io/deep_learning/widgets/widget-conv.html) | Unit 1, Lec. 1: Convolutional Networks for Grids | Lookout Tower: convolution and the receptive field |
 | [How far can a link reach?](https://codey-m.github.io/deep_learning/widgets/widget-how-far-a-link-reaches.html) | Unit 2 overview | The link between two words in a sentence as the gap between them grows |
 | [Scaled dot-product attention](https://codey-m.github.io/deep_learning/widgets/widget-attention.html) | Unit 2, Lec. 2: Transformers for Sets/Sequences |  |
 
