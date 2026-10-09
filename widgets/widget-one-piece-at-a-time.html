@@ -133,6 +133,17 @@ button.wchip.inloop{background:#FBE3E8;border-color:#E3A3B0}
 button.wchip.sel{outline:3px solid var(--g-line);outline-offset:1px}
 button.wchip.changed{border:2px dashed var(--g-darks)}
 button.wchip.new{animation:land .28s ease-out both}
+
+/* The explainer is a drop-down. Arcade: closed under the game from the start, whatever the round, so the page always
+   carries it. Course: no summary row; it stays hidden until play and then opens, as before. */
+details.explainer>summary{display:flex;align-items:center;gap:12px;min-height:44px;padding:16px 24px;cursor:pointer;list-style:none;font-size:17px;font-weight:600;line-height:1.3}
+details.explainer>summary::-webkit-details-marker{display:none}
+details.explainer>summary::before{content:"";flex:none;width:7px;height:7px;margin:0 3px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg)}
+details.explainer[open]>summary::before{transform:rotate(45deg)}
+body:not(.course) details.explainer{padding:0}
+body:not(.course) details.explainer[hidden]{display:block!important}
+body:not(.course) .explainer-body{padding:4px 24px 24px}
+body.course details.explainer>summary{display:none}
 </style></head>
 <body class="gameformat">
 <header class="gamebar"><a class="back" href="index.html" aria-label="Back to the arcade"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a><h1 id="title">Next Note</h1></header>
@@ -184,7 +195,7 @@ button.wchip.new{animation:land .28s ease-out both}
       <p><strong>The riff</strong> is the loop the writer falls into, shaded in the tune. A dashed jump is an <strong>odd jump</strong>, a leap the learned tunes made less than 1 time in 10. Odd notes are hatched on the line.</p>
     </aside>
   </div>
-  <section class="explainer arcade-only" id="explainer" hidden aria-labelledby="explainer-title">
+  <details class="explainer arcade-only" id="explainer"><summary>The idea behind the game</summary><div class="explainer-body">
     <h2 id="explainer-title">One note at a time</h2>
     <p>The tune writer is a next-note model. For each note it holds the chance of every note that could come next, and it writes a tune by picking one note, then the next given that one, and so on. Nothing plans the tune as a whole.</p>
     <p>Randomness reshapes the line before each pick, and the luck stays where it is. Turned right down, the favourite takes almost the whole line, so nearly any luck lands on it, and the favourites lead from C to E to G and back to C: the riff. Turned up, the rare leaps get wider, and sooner or later the luck lands on one. For Robin and Wren, randomness alone rarely avoids both, and in the rounds this game picks it never does.</p>
@@ -193,7 +204,7 @@ button.wchip.new{animation:land .28s ease-out both}
     <p>Language models write text the same way, one token at a time. Their randomness dial is called temperature, and picking from the likeliest k is called top-k sampling. Nucleus sampling, a refinement, sets the shortlist afresh at each step from how the chances are spread.</p>
     <p class="explainer-link">Explore in Deep Learning (6.7960.5x): generating one piece at a time, temperature and top-k sampling.</p>
     <p class="explainer-note">The tune writer is written for this game. Its table of chances is made up, not learned from real music, and no language model runs. Each pick depends only on the note before it, where a language model looks back over much more. Each note's luck is a fixed random number for the round, so changing a dial changes the line but not the luck. Rounds are chosen so that Robin passes only with a shortlist of three and Wren only with two, at every randomness from 1.4 and 1.2 up. For Lark, shortlists of one and two never pass and keeping every note passes from 1.4 up. About 1 round in 5 qualifies for Robin, 1 in 3 for Wren and more than half for Lark.</p>
-  </section>
+  </div></details>
   
 </main>
 <noscript><p>This interactive activity requires JavaScript.</p></noscript>
@@ -351,6 +362,8 @@ button.wchip.new{animation:land .28s ease-out both}
   // randomness dial alone, and no arcade picker, shortlist, sound or explainer. The arcade never sees it.
   const params=new URLSearchParams(location.search);
   const COURSE=document.documentElement.dataset.mode==='course'||params.get('mode')==='course';
+  // Course: the explainer stays hidden until play and then opens, as before. Arcade: a closed drop-down under the game from the start.
+  if(COURSE){const ex=document.getElementById('explainer');ex.open=true;ex.hidden=true;}
   const embed=COURSE||params.get('embed')==='1';
   if(embed)document.body.classList.add('embedded');
   if(COURSE){

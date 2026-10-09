@@ -90,6 +90,17 @@ body:not(.course) .course-only{display:none}
 body.course .arcade-only,body.course .explainer-link{display:none}
 body.course main{padding:12px 12px 16px}
 .ledger{margin:8px 0 0;font-size:14px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}.ledger b{color:var(--body);font-weight:600}
+
+/* The explainer is a drop-down. Arcade: closed under the game from the start, whatever the round, so the page always
+   carries it. Course: no summary row; it stays hidden until play and then opens, as before. */
+details.explainer>summary{display:flex;align-items:center;gap:12px;min-height:44px;padding:16px 24px;cursor:pointer;list-style:none;font-size:17px;font-weight:600;line-height:1.3}
+details.explainer>summary::-webkit-details-marker{display:none}
+details.explainer>summary::before{content:"";flex:none;width:7px;height:7px;margin:0 3px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg)}
+details.explainer[open]>summary::before{transform:rotate(45deg)}
+body:not(.course) details.explainer{padding:0}
+body:not(.course) details.explainer[hidden]{display:block!important}
+body:not(.course) .explainer-body{padding:4px 24px 24px}
+body.course details.explainer>summary{display:none}
 </style></head>
 <body class="gameformat">
 <header class="gamebar"><a class="back" href="index.html" aria-label="Back to the arcade"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a><h1 id="title">Echo Dancer</h1></header>
@@ -130,7 +141,7 @@ body.course main{padding:12px 12px 16px}
       <p><strong>The strip</strong> under the dancers shows the motion matched at each moment. Drag along it, or use ← and →, to hold a moment. Pause stops the dancers.</p>
     </aside>
   </div>
-  <section class="explainer" id="takeaway" hidden aria-labelledby="takeaway-title">
+  <details class="explainer" id="takeaway"><summary>The idea behind the game</summary><div class="explainer-body">
     <h2 id="takeaway-title">The best pair covers different movement</h2>
     <p id="takeaway-text" hidden></p>
     <p id="takeaway-lost" hidden></p>
@@ -141,7 +152,7 @@ body.course main{padding:12px 12px 16px}
     <p class="course-only">The motion the echo misses is the part of each pose at right angles to the tracks on the link. Put a single track on the link and read the ledger, then try three different pairs and add up the two numbers each time. What does the ledger tell you about the pair that captures the most?</p>
     <p class="explainer-link">Explore in Deep Learning: how principal component analysis keeps useful variation while reducing dimensions.</p>
     <p class="explainer-note">The routine is synthesized for this puzzle from eight movement patterns; no motion capture or trained model is involved. Each frame has ten joint angles. Motion is how far the joints move from the routine’s average pose, with each joint weighted by how much of the body it moves: a degree of torso lean counts four times as much as a degree at the elbow. Each track is a fixed pattern of joint movement. For every frame, the link sends the two numbers that bring the echo as close as possible to the original (least squares). Motion kept is the share of the original’s variation that the echo reproduces. The principal components are computed from the routine’s 240 frames on your device. Every pair that meets the brief counts.</p>
-  </section>
+  </div></details>
   
 </main>
 <div class="drag-ghost" id="drag-ghost" hidden aria-hidden="true"></div>
@@ -329,6 +340,8 @@ body.course main{padding:12px 12px 16px}
   // Course pages run the course version: wire_course.py sets data-mode="course" (?mode=course previews it). It adds the
   // lecture's terms and a ledger, total variance = variance captured + reconstruction error. The arcade never sees it.
   const COURSE=document.documentElement.dataset.mode==='course'||new URLSearchParams(location.search).get('mode')==='course';
+  // Course: the explainer stays hidden until play and then opens, as before. Arcade: a closed drop-down under the game from the start.
+  if(COURSE){const ex=document.getElementById('takeaway');ex.open=true;ex.hidden=true;}
   const M=globalThis.EchoDance,$=id=>document.getElementById(id);
   const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const reduced=()=>globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches??false;

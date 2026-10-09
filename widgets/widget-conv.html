@@ -151,6 +151,17 @@ body.free-only .gamewrap{grid-template-columns:1fr}body.free-only main{padding:1
 .free-actions{display:flex;gap:10px;flex-wrap:wrap}.free-actions button{display:inline-flex;align-items:center;gap:8px}.free-actions svg{width:20px;height:20px}
 .free-note{font-size:13px;color:var(--muted);margin:12px 0 0}
 @media(max-width:560px){.free-stage{grid-template-columns:1fr}.freeplay{padding:16px 12px}}
+
+/* The explainer is a drop-down. Arcade: closed under the game from the start, whatever the round, so the page always
+   carries it. Course: no summary row; it stays hidden until play and then opens, as before. */
+details.explainer>summary{display:flex;align-items:center;gap:12px;min-height:44px;padding:16px 24px;cursor:pointer;list-style:none;font-size:17px;font-weight:600;line-height:1.3}
+details.explainer>summary::-webkit-details-marker{display:none}
+details.explainer>summary::before{content:"";flex:none;width:7px;height:7px;margin:0 3px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg)}
+details.explainer[open]>summary::before{transform:rotate(45deg)}
+body:not(.course) details.explainer{padding:0}
+body:not(.course) details.explainer[hidden]{display:block!important}
+body:not(.course) .explainer-body{padding:4px 24px 24px}
+body.course details.explainer>summary{display:none}
 </style></head>
 <body class="gameformat">
 <header class="gamebar"><a class="back" href="index.html" aria-label="Back to the arcade"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a><h1 id="title">Lookout Tower</h1></header>
@@ -228,14 +239,14 @@ body.free-only .gamewrap{grid-template-columns:1fr}body.free-only main{padding:1
       <p><strong>Scan the marsh</strong> to watch what each floor finds. <strong>New marsh</strong> brings new birds.</p>
     </aside>
   </div>
-  <section class="explainer" id="takeaway" hidden aria-labelledby="takeaway-title">
+  <details class="explainer" id="takeaway"><summary>The idea behind the game</summary><div class="explainer-body">
     <h2 id="takeaway-title">Bigger features need wider views</h2>
     <p>Every floor looks for things across the whole photo. A first-floor lookout sees 3 × 3 pixels, enough for an edge or a bill. A second-floor lookout combines 3 × 3 first-floor lookouts, so it covers 5 × 5 pixels, enough for a head or a leg. Each floor adds a ring to the view and finds bigger things than the floor below, until whole birds fit. After a halving floor the rings are twice as wide and the floors above run a quarter as many lookouts, which is how a tower sees whole birds cheaply.</p>
     <p>A lookout can only use what is inside its view. One telltale part is enough to tell what bird it is, but an outline needs all of it, and a part that several birds share tells nothing. Halving has a price too: top-floor squares get wider, so two birds standing close can land in one square, and a lookout off a bird's middle needs a wider view.</p>
     <p class="arcade-only">The tower is a stack of convolution layers. Each floor is a layer with a 3 × 3 kernel, the things a floor finds are its features, a halving floor is a layer with stride 2, and a lookout's view is its receptive field. These are the ideas of Deep Learning (6.7960.3x) Unit 1, Convolutional Networks for Grids.</p>
     <p class="course-only">In convolution terms, each floor is a convolutional layer with a 3 × 3 kernel and padding 1, and its grid of lookouts is a feature map. A halving floor has stride 2, so its feature map is half as wide each way. A lookout's view is its receptive field: each layer widens it by (K − 1) times the product of the strides below that layer, which is why stride-2 layers make it grow faster. The parts each floor finds are its features. The top floor's squares are the cells of the last feature map, and making the cell that holds an object's centre report it is how grid detectors such as YOLO assign objects.</p>
     <p class="explainer-note">The game assumes a floor finds any part that fits inside one of its lookouts' views. A part is telltale when its pixels, marsh included, appear nowhere in any other bird's picture. When the parts in view fit several kinds, each is counted as equally likely, which is what Bayes' rule gives when every kind starts with the same odds. A real network learns which features to look for and can miss them, and pixels near the middle of its view count far more than those at the edge, so real towers need views comfortably larger than the object. No network can use pixels outside its view. Reports work like a simple grid detector, one bird per top-floor lookout; newer detectors report several objects per lookout and read small objects from lower floors. Glances count the multiplications for one channel: 9 for every lookout on every floor. Real networks usually add channels when they halve, which spends much of the saving. Every floor pads the floor below by one pixel, so a floor without halving keeps its size. Par is the cheapest tower that outlines every bird, checked over every tower of up to 6 floors. The windows are always 3 wide because no stack with 5-wide windows, or with halving on later floors, beat that par in the marshes checked.</p>
-  </section>
+  </div></details>
   
   <p id="announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
 </main>
@@ -422,6 +433,8 @@ body.free-only .gamewrap{grid-template-columns:1fr}body.free-only main{padding:1
   const M=globalThis.LookoutTower,$=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg';
   const params=new URLSearchParams(location.search);
   const COURSE=document.documentElement.dataset.mode==='course'||params.get('mode')==='course';
+  // Course: the explainer stays hidden until play and then opens, as before. Arcade: a closed drop-down under the game from the start.
+  if(COURSE){const ex=document.getElementById('takeaway');ex.open=true;ex.hidden=true;}
   const embed=COURSE||params.get('embed')==='1';
   document.body.classList.toggle('course',COURSE);document.body.classList.toggle('embedded',embed);
   const instant=params.get('instant')==='1'||(typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);

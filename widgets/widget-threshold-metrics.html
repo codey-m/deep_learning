@@ -184,6 +184,17 @@ body.course main{padding:12px 12px 16px}
 .confusion caption{text-align:left;font-size:13px;color:var(--muted);padding-bottom:6px}
 .confusion th,.confusion td{border:1px solid var(--frame);padding:6px 12px;text-align:left}
 .confusion thead th,.confusion tbody th{font-weight:600}
+
+/* The explainer is a drop-down. Arcade: closed under the game from the start, whatever the round, so the page always
+   carries it. Course: no summary row; it stays hidden until play and then opens, as before. */
+details.explainer>summary{display:flex;align-items:center;gap:12px;min-height:44px;padding:16px 24px;cursor:pointer;list-style:none;font-size:17px;font-weight:600;line-height:1.3}
+details.explainer>summary::-webkit-details-marker{display:none}
+details.explainer>summary::before{content:"";flex:none;width:7px;height:7px;margin:0 3px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg)}
+details.explainer[open]>summary::before{transform:rotate(45deg)}
+body:not(.course) details.explainer{padding:0}
+body:not(.course) details.explainer[hidden]{display:block!important}
+body:not(.course) .explainer-body{padding:4px 24px 24px}
+body.course details.explainer>summary{display:none}
 </style></head>
 <body>
 <header class="gamebar"><a class="back" href="index.html" aria-label="Back to the arcade"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a><h1 id="title">Photo Finish</h1></header>
@@ -238,7 +249,7 @@ body.course main{padding:12px 12px 16px}
       <p><strong>Balanced sample</strong> keeps one shot per stack. Switch to it to compare the AI’s accuracy, precision and recall at the same gates.</p>
     </aside>
   </div>
-  <section class="explainer" id="explainer" hidden aria-labelledby="explainer-title">
+  <details class="explainer" id="explainer"><summary>The idea behind the game</summary><div class="explainer-body">
     <h2 id="explainer-title">Why high accuracy can still miss moments</h2>
     <p>The AI gives every shot a score, and the contact sheet ranks the roll from lower to higher score. A decision threshold turns that score into a decision. The keep gate is the AI’s threshold: at or above it the AI predicts usable, and below it the AI predicts unusable. The metrics in the game describe the AI alone at that cutoff, before any editor checks.</p>
     <p>On the full roll, usable shots are the rare class: 6 of 120, or 5%. A rule that rejects everything still scores 95% accuracy and delivers an empty album. On the balanced sample, which keeps one shot per stack, the same rule scores 50%. The extra easy rejects lift accuracy without finding a single moment, so accuracy can look high while moments are missing.</p>
@@ -246,7 +257,7 @@ body.course main{padding:12px 12px 16px}
     <p>The check gate adds a person to the decision. Shots between the gates go to an editor, who keeps only the usable ones. The challenge assesses where you target that limited review: all six usable shots must reach the album, no spoiled shots may pass, and the checks must fit the budget. Editor checks change the album but leave the AI’s scores and metrics as they were. You improve the outcome by choosing where a person intervenes.</p>
     <p class="explainer-link">Explore in Deep Learning: precision, recall and choosing a decision rule for the cost of mistakes.</p>
     <p class="explainer-note">The AI scores and photo labels are authored for this puzzle, and the concert photos are generated. Scores are simulated and are not probabilities, and no model runs on your device. Usable means the subject is visible and sharp enough. On the full roll, four low-score stacks each stand for 28 spoiled shots that share the pictured defect and score. Editors work from left to right, a stack uses one check per shot, and extra shots wait in the queue. Any pair of gates that meets the goal counts. These are grouped examples, not 120 distinct photographs or a measured model benchmark.</p>
-  </section>
+  </div></details>
   
 </main>
 <noscript><p>This interactive activity requires JavaScript.</p></noscript>
@@ -319,6 +330,8 @@ body.course main{padding:12px 12px 16px}
   'use strict';
   // Course pages run the course version: wire_course.py sets data-mode="course" (?mode=course previews it). The arcade never sees it.
   const COURSE=document.documentElement.dataset.mode==='course'||new URLSearchParams(location.search).get('mode')==='course';
+  // Course: the explainer stays hidden until play and then opens, as before. Arcade: a closed drop-down under the game from the start.
+  if(COURSE){const ex=document.getElementById('explainer');ex.open=true;ex.hidden=true;}
   const M=globalThis.PhotoFinish,$=id=>document.getElementById(id);
   const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const positions=id=>`${id%4*100/3}% ${Math.floor(id/4)*50}%`;

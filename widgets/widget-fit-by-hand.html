@@ -141,6 +141,15 @@ body.gameformat .plot{background:#fff}body.gameformat .plot text{fill:#40464C}
 body:not(.course) .course-only{display:none}
 body.course .arcade-only,body.course .explainer-link{display:none}
 body.gameformat.course main{padding:12px 12px 16px}
+/* The explainer is a drop-down. Arcade: closed under the game from the start, whatever the round, so the page always
+   carries it. Course: built by app.js as a plain section that opens after play, as before. */
+details.explainer>summary{display:flex;align-items:center;gap:12px;min-height:44px;padding:16px 24px;cursor:pointer;list-style:none;font-size:17px;font-weight:600;line-height:1.3}
+details.explainer>summary::-webkit-details-marker{display:none}
+details.explainer>summary::before{content:"";flex:none;width:7px;height:7px;margin:0 3px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg)}
+details.explainer[open]>summary::before{transform:rotate(45deg)}
+body.gameformat:not(.course) details.explainer{padding:0}
+body:not(.course) details.explainer[hidden]{display:block!important}
+body:not(.course) .explainer-body{padding:4px 24px 24px}
 </style>
 </head>
 <body data-game="shapes">
@@ -155,6 +164,14 @@ body.gameformat.course main{padding:12px 12px 16px}
 <section id="result" class="result" hidden aria-labelledby="result-title"><h2 id="result-title" tabindex="-1"></h2><p class="result-value" id="result-value"></p><p id="result-text"></p><p id="result-lesson"></p><p id="course-connection" class="course-connection"></p><div class="actions"><button type="button" id="continue" class="primary" hidden>Continue</button><button type="button" id="solution">Show a working answer</button></div></section>
 <div class="replay"><p id="replay-note"></p><div class="actions"><button type="button" id="new">Try another example</button><button type="button" id="retry" class="quiet">Start this example over</button></div></div>
 <details><summary>A closer look at the idea</summary><p id="scoring"></p></details>
+<details class="explainer" id="explainer"><summary>The idea behind the game</summary><div class="explainer-body">
+<h2 id="explainer-title">How the network sorts</h2>
+<p>Each item is placed by its size and its weight. The divider is a function y = f(x): an output bias plus the pieces you add. A Line adds m·x. A ReLU unit adds k·ReLU(x − h), a bend at h. A sigmoid unit adds k·σ(w(x − h)), a smooth step at h.</p>
+<p>Training adjusts every weight to lower the training error, a logistic loss on how far each item sits on the wrong side, and stops early once every item is clearly on its side. You choose the architecture and training chooses the parameters. Every network in the course is built with that same split.</p>
+<p>When training stops short of 12, there are two possible reasons: the pieces cannot make the shape the batch needs, or training started badly. New starting weights tells them apart. A straight line tops out at 10 of 12 on these batches. A V needs a bend, and a step needs a sigmoid or two bends.</p>
+<p class="explainer-link">Explore in Deep Learning: why the shape of a model limits what it can learn, and how a ReLU adds a bend.</p>
+<p class="explainer-note">This is a toy dataset, not a model of real recycling materials.</p>
+</div></details>
 <div hidden><p id="about"></p><span id="original"></span></div>
 <p id="announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
 <noscript><p>These interactive pilots need JavaScript enabled. The full design review remains readable without it.</p></noscript>
@@ -525,13 +542,14 @@ body.gameformat.course main{padding:12px 12px 16px}
     mountControls();draw();say($('brief').textContent);
   }
   // Animation runs on elapsed time; without requestAnimationFrame (tests) or with reduced motion it is skipped.
+  // Chrome stamps a frame with its start time, which can precede t0 when the click handler runs long, so k is clamped at 0.
   let anim=null,valleyCount=1,batchCount=1,requestCount=1;
   const motionOK=()=>typeof requestAnimationFrame==='function'&&!(globalThis.matchMedia&&globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches);
   function stopAnim(){if(anim!==null){cancelAnimationFrame(anim);anim=null;}if(state){state.morph=null;state.play=null;if(state.training){state.training=null;if($('train'))$('train').disabled=false;}}}
   function play(ms,frame,done){
     stopAnim();
     if(!motionOK()){frame(1);done&&done();return;}
-    const t0=performance.now(),tick=now=>{const k=Math.min(1,(now-t0)/ms);frame(k);if(k<1)anim=requestAnimationFrame(tick);else{anim=null;done&&done();}};
+    const t0=performance.now(),tick=now=>{const k=Math.max(0,Math.min(1,(now-t0)/ms));frame(k);if(k<1)anim=requestAnimationFrame(tick);else{anim=null;done&&done();}};
     anim=requestAnimationFrame(tick);
   }
   function changed(){stopAnim();state.play=null;state.pending=false;state.done=false;state.checked=false;$('result').hidden=true;$('solution').disabled=false;$('solution').textContent='Show a working answer';if(GAME==='optimizer'){if(scenario.kind==='bowl'&&state.p.stretch!==scenario.stretch){stretch=state.p.stretch;scenario=M.create(GAME,seed,'course',{stretch});}state.lastRun=null;state.p.rate=M.rateFor(scenario,state.p.strength);$('plot').classList.remove('outcome-win','outcome-lose','outcome-over');}if(GAME==='shapes'){state.trained=null;syncShape();}if(GAME==='nlp'){if(state.claimResult==='right')state.pending=true;else state.claimResult=null;}draw();}
@@ -1032,6 +1050,11 @@ body.gameformat.course main{padding:12px 12px 16px}
     $('retry').classList.remove('quiet');wrap.querySelector('.foot-buttons').append($('new'));wrap.querySelector('.foot-right').append($('retry'));
     for(const el of [document.querySelector('body>header'),$('topic'),$('lead'),document.querySelector('.mission'),document.querySelector('.workspace'),document.querySelector('.replay'),$('scoring').closest('details')])if(el)el.hidden=true;
     if(o.onNew)$('new').addEventListener('click',o.onNew);
+    // Arcade: the explainer is already in the page (build.py writes it from src/explainers/) as a closed drop-down; it moves
+    // under the game. Course: it is built from o.explainer, hidden until play, as before.
+    const drop=$('explainer');
+    if(drop&&!COURSE&&!o.explainer){wrap.after(drop);return;}
+    if(drop)drop.remove();
     const ex=document.createElement('section');ex.id='explainer';ex.className='explainer';ex.hidden=true;ex.setAttribute('aria-labelledby','explainer-title');
     ex.innerHTML=`<h2 id="explainer-title">${o.explainerTitle}</h2>${o.explainer}`;wrap.after(ex);
   }
@@ -1051,13 +1074,7 @@ body.gameformat.course main{padding:12px 12px 16px}
     prompt:'Set how the robot moves, then run it down to the charger at the lowest point.',
     howto:["<strong>Move strength</strong> sets how big each step downhill is.", "<strong>Carry-over</strong> keeps part of the last move going into the next one, like momentum.", "Press <strong>Run the robot</strong> and watch where it stops. It docks when it stays at the charger for five moves in a row.", "<strong>Par</strong> is how many moves a well-tuned robot needs in this valley. Dock within par to win.", "Some valleys have a dip on the way down; others are long or narrow. Each new valley needs its own settings."],
     footLabel:'New terrain',footTag:'every valley needs its own settings',newText:'New valley',newIcon:ICONS.terrain,
-    onNew:()=>{valleyCount++;$('st-valley').textContent=valleyCount;},
-    explainerTitle:'How the robot moves',explainer:`<p>The ground is the loss function, and the charger sits at its lowest point. On every move the robot looks only at the slope under it and steps downhill by an amount set by move strength, then adds a share of its previous move set by carry-over. That is gradient descent with momentum.</p>
-      <p>A dip on the way down is a local minimum. The ground there is flat, so a robot with no carry-over stops as if it had arrived, and carry-over lets it coast up and over the rise. Carry-over can also hurt: with too much, the robot swings back and forth past the charger and cannot settle.</p>
-      <p>The run stops once the robot has stayed within 0.10 of the charger for five moves in a row, or has come to rest anywhere else.</p>
-      <p>Every valley is different. Some have a dip on the way down, some a sharp, narrow basin around the charger, and some a long, gentle approach. The same learning rate that races down a gentle valley flies off in a sharp one, which is why learning rate and momentum are tuned for each problem. Par asks for that tuning: reaching the charger is not enough, you need to get there efficiently.</p>
-      <p class="explainer-link">${esc(CONNECTIONS.optimizer)}</p>
-      <p class="explainer-note">Move strength 1 to 20 sets the learning rate from 0.02 to 0.40, the same scale in every valley. Par is 1.4 times the fewest moves any pair of settings needs (twice, on the first valley). Carry-over is the momentum coefficient. The 3D view exaggerates height for clarity; the robot moves on the true loss. This is a simplified homing simulation, not a physical robot model.</p>`});
+    onNew:()=>{valleyCount++;$('st-valley').textContent=valleyCount;}});
   if(GAME==='shapes'&&COURSE)applyGameFormat({status:[['Batch','st-batch','1'],['Status','st-status','Building'],['Sorted','st-sorted','0 / 12'],['Pieces','st-pieces','0 / 3']],
     prompt:'Build a divider from up to three pieces, set its numbers by hand, then let training set them.',
     howto:['<strong>Pieces</strong> build the divider: a Straight piece, a Bend or a Step. Drag one onto the network, or press it.',
@@ -1079,13 +1096,7 @@ body.gameformat.course main{padding:12px 12px 16px}
       '<strong>New starting weights</strong> retries training from a different start. Training can stall even with the right pieces.',
       '<strong>Fewest pieces</strong> wins. Some batches need two pieces, some only one.'],
     footLabel:'New batch',footTag:'some batches need a bend, some a step',newText:'New batch',newIcon:ICONS.batch,
-    onNew:()=>{batchCount++;$('st-batch').textContent=batchCount;},
-    explainerTitle:'How the network sorts',
-    explainer:`<p>Each item is placed by its size and its weight. The divider is a function y = f(x): an output bias plus the pieces you add. A Line adds m·x. A ReLU unit adds k·ReLU(x − h), a bend at h. A sigmoid unit adds k·σ(w(x − h)), a smooth step at h.</p>
-      <p>Training adjusts every weight to lower the training error, a logistic loss on how far each item sits on the wrong side, and stops early once every item is clearly on its side. You choose the architecture and training chooses the parameters. Every network in the course is built with that same split.</p>
-      <p>When training stops short of 12, there are two possible reasons: the pieces cannot make the shape the batch needs, or training started badly. New starting weights tells them apart. A straight line tops out at 10 of 12 on these batches. A V needs a bend, and a step needs a sigmoid or two bends.</p>
-      <p class="explainer-link">${esc(CONNECTIONS.shapes)}</p>
-      <p class="explainer-note">This is a toy dataset, not a model of real recycling materials.</p>`});
+    onNew:()=>{batchCount++;$('st-batch').textContent=batchCount;}});
   if(GAME==='nlp')applyGameFormat({status:[['Request','st-request','1'],['Status','st-status','Sorting'],['Sorted','st-sorted','0 / 4'],['Features','st-features','Word points']],
     prompt:'Give words points so the filter sorts four film reviews the way the club asks.',
     howto:['<strong>Word points</strong> are added to every review that contains the word. A total above zero selects the review; below zero leaves it out.',
