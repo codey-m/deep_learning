@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>6.7960x — Glossary</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Georgia, 'Times New Roman', serif; background: #FAFAF8; color: #1A1A1A; min-height: 100vh; }
+    #app { max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    #header { margin-bottom: 1.75rem; }
+    #header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 2px; }
+    #header p { font-size: 13px; color: #595959; font-family: 'Courier New', monospace; letter-spacing: 0.04em; }
+    #search-wrap { position: relative; margin-bottom: 0.75rem; }
+    #search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #aaa; pointer-events: none; }
+    #gs { width: 100%; padding: 10px 12px 10px 36px; font-size: 15px; font-family: inherit; border: 1px solid #DDD; border-radius: 6px; background: #FFF; color: #1A1A1A; outline: none; transition: border-color 0.15s; }
+    #gs:focus { border-color: #595959; }
+    #gs::placeholder { color: #6E6E6E; }
+    #uf { display: flex; flex-wrap: wrap; border-bottom: 1px solid #EEE; margin-bottom: 0.5rem; }
+    .ub { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 14px 6px; font-size: 12px; font-family: 'Courier New', monospace; letter-spacing: 0.05em; cursor: pointer; color: #595959; transition: color 0.12s; }
+    .ub.on { color: #1A1A1A; border-bottom-color: #1A1A1A; font-weight: 600; }
+    .ub:hover { color: #1A1A1A; }
+    #gc { font-size: 11px; color: #6E6E6E; font-family: 'Courier New', monospace; letter-spacing: 0.04em; margin-bottom: 0.25rem; }
+    .lh { font-size: 11px; color: #767676; padding: 16px 0 5px; border-bottom: 1px solid #EEE; font-family: 'Courier New', monospace; letter-spacing: 0.1em; }
+    .tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; padding: 16px 0; border-bottom: 1px solid #F0F0F0; }
+    .tn { font-size: 18px; font-weight: 600; margin-bottom: 3px; color: #1A1A1A; }
+    .no { font-family: 'Courier New', monospace; font-size: 12px; background: #F4F4F2; color: #666; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+    .td { font-size: 14px; color: #555; line-height: 1.7; }
+    .ut { font-family: 'Courier New', monospace; font-size: 10px; background: #F4F4F2; color: #6E6E6E; padding: 3px 8px; border-radius: 4px; white-space: nowrap; align-self: start; margin-top: 4px; display: flex; align-items: center; gap: 5px; letter-spacing: 0.04em; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    mark { background: #FFF3CC; color: #7A5C00; border-radius: 2px; padding: 0 1px; }
+    #empty { color: #6E6E6E; font-size: 14px; padding: 3rem 0; text-align: center; font-family: 'Courier New', monospace; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <h1>6.7960x — Glossary</h1>
+    <p>MODULE 3 &nbsp;·&nbsp; NEURAL NETWORK ARCHITECTURES</p>
+  </div>
+  <div id="search-wrap">
+    <svg id="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input id="gs" type="search" placeholder="Search terms, definitions, notation…" aria-label="Search glossary" />
+  </div>
+  <div id="uf" role="tablist" aria-label="Filter by unit"></div>
+  <p id="gc" aria-live="polite"></p>
+  <div id="gl" role="list"></div>
+</div>
+
+<script>
+// ─── Module configuration ───────────────────────────────────────────────────
+// Update MODULE.name and MODULE.subtitle per module.
+// Units should reflect the conceptual groupings covered in this module only.
+const MODULE = {
+  name: "Module 3",
+  subtitle: "Neural network architectures",
+  course: "6.7960x",
+};
+
+// Unit dot colors — add/remove units here to match what this module covers.
+// Values are mid-ramp accent colors; they work on both light backgrounds.
+const UNIT_COLORS = {
+  "Convolutional networks": "#BA7517",
+  "Transformers": "#378ADD",
+  "Graph neural networks": "#1D9E75",
+  "Sequence models": "#7F77DD",
+};
+
+// ─── Term data ───────────────
+const T = [
+
+  // Convolutional networks
+  {
+    term: "Convolution",
+    notation: null,
+    unit: "Convolutional networks",
+    def: "A layer that slides one small kernel across its input and applies it at every position, so the same detector is used everywhere.",
+  },
+  {
+    term: "Kernel",
+    notation: "K",
+    unit: "Convolutional networks",
+    def: "The small grid of weights a convolution slides across its input, also called a filter. Its size sets how much of the input one output value reads.",
+  },
+  {
+    term: "Stride",
+    notation: "S",
+    unit: "Convolutional networks",
+    def: "How far the kernel moves between the positions it reads. A stride above one samples the input on a coarser grid and shrinks the output.",
+  },
+  {
+    term: "Padding",
+    notation: "P",
+    unit: "Convolutional networks",
+    def: "Extra border values placed around the input so positions near the edge can still sit at the middle of a kernel window.",
+  },
+  {
+    term: "Convolution output size",
+    notation: "floor((W - K + 2P) / S) + 1",
+    unit: "Convolutional networks",
+    def: "The side length of the feature map a convolution produces from a W-wide input. The interactive in Lecture 1 shows this count change as you set the kernel, stride and padding.",
+  },
+  {
+    term: "Feature map",
+    notation: null,
+    unit: "Convolutional networks",
+    def: "The grid of values one kernel produces across an input. A layer with several kernels produces one feature map each, stacked as channels.",
+  },
+  {
+    term: "Channel",
+    notation: null,
+    unit: "Convolutional networks",
+    def: "One slice of a feature map. An RGB image enters with three channels, and each convolutional layer chooses how many it emits.",
+  },
+  {
+    term: "Receptive field",
+    notation: null,
+    unit: "Convolutional networks",
+    def: "The region of the original input that one unit can see. Stacking stride-1 layers with k-wide kernels widens it by k - 1 per layer, so depth buys context.",
+  },
+  {
+    term: "Pooling",
+    notation: null,
+    unit: "Convolutional networks",
+    def: "A fixed reduction, usually the maximum, taken over small windows of a feature map. It lowers resolution and adds a little tolerance to small shifts.",
+  },
+  {
+    term: "Weight sharing",
+    notation: null,
+    unit: "Convolutional networks",
+    def: "Using the same kernel weights at every position, so a pattern learned in one place is detected in all the others.",
+  },
+  {
+    term: "Translation equivariance",
+    notation: "F(Tx) = T F(x)",
+    unit: "Convolutional networks",
+    def: "A shifted input produces the same output, shifted the same way. Stride-1 convolution and pointwise nonlinearities both have this property.",
+  },
+  {
+    term: "Translation invariance",
+    notation: "F(Tx) = F(x)",
+    unit: "Convolutional networks",
+    def: "A shifted input produces an unchanged output. Pooling with a stride moves a network toward this, but sampling on a fixed grid means it does not hold exactly.",
+  },
+  {
+    term: "Locally connected layer",
+    notation: null,
+    unit: "Convolutional networks",
+    def: "A layer where each output reads a small patch of the input, as a convolution does, but learns separate weights at every position.",
+  },
+  {
+    term: "Inductive bias",
+    notation: null,
+    unit: "Convolutional networks",
+    def: "The assumption an architecture builds in before it sees any data. Convolution assumes nearby inputs belong together and that a pattern means the same thing wherever it appears.",
+  },
+
+  // Transformers
+  {
+    term: "Token",
+    notation: null,
+    unit: "Transformers",
+    def: "A vector of values treated as one bundle of information. Transformer layers read and write whole tokens rather than single activations.",
+  },
+  {
+    term: "Attention",
+    notation: null,
+    unit: "Transformers",
+    def: "A layer that forms each output as a weighted combination of value vectors, where the weights come from comparing a query against keys.",
+  },
+  {
+    term: "Query, key, value",
+    notation: "Q, K, V",
+    unit: "Transformers",
+    def: "The three roles a token takes in attention. Queries and keys are compared to produce the weights; values are what those weights combine.",
+  },
+  {
+    term: "Scaled dot-product attention",
+    notation: "softmax(QK^T / sqrt(d_k)) V",
+    unit: "Transformers",
+    def: "Attention whose scores are dot products between queries and keys, divided by the square root of the key dimension before the softmax.",
+  },
+  {
+    term: "Softmax",
+    notation: null,
+    unit: "Transformers",
+    def: "A function that turns a row of scores into weights that are not negative and sum to one, so the output is a weighted average of the values.",
+  },
+  {
+    term: "Self-attention",
+    notation: null,
+    unit: "Transformers",
+    def: "Attention where the queries, keys and values all come from the same set of tokens, letting every token read every other one.",
+  },
+  {
+    term: "Causal mask",
+    notation: null,
+    unit: "Transformers",
+    def: "A restriction that stops a position attending to later ones, so the token at step t reads only itself and what came before it.",
+  },
+  {
+    term: "Positional encoding",
+    notation: null,
+    unit: "Transformers",
+    def: "Order information added to tokens, needed because attention on its own treats its input as a set rather than a sequence.",
+  },
+  {
+    term: "Permutation equivariance",
+    notation: "F(PX) = P F(X)",
+    unit: "Transformers",
+    def: "Reordering the input tokens reorders the outputs the same way. An encoder without positional information has this property, which is why order has to be supplied separately.",
+  },
+  {
+    term: "Patch token",
+    notation: null,
+    unit: "Transformers",
+    def: "An image patch flattened and embedded as a single token, which is how a vision transformer turns a picture into a sequence.",
+  },
+  {
+    term: "Class token",
+    notation: null,
+    unit: "Transformers",
+    def: "An extra learned token carried alongside the patch tokens, whose final embedding is read out as the representation of the whole image.",
+  },
+  {
+    term: "Attention entry count",
+    notation: "T^2",
+    unit: "Transformers",
+    def: "The number of query-key pairs one attention layer forms over T tokens. It grows with the square of the token count, which is why patch size drives the cost.",
+  },
+
+  // Graph neural networks
+  {
+    term: "Graph",
+    notation: "G = (V, E)",
+    unit: "Graph neural networks",
+    def: "Data given as a set of nodes and the edges between them, with no canonical order for the nodes.",
+  },
+  {
+    term: "Adjacency matrix",
+    notation: "A",
+    unit: "Graph neural networks",
+    def: "A table recording which nodes are connected. Relabeling the nodes permutes its rows and columns without changing the graph it describes.",
+  },
+  {
+    term: "Message passing",
+    notation: null,
+    unit: "Graph neural networks",
+    def: "A round in which every node collects information from its neighbors, combines it, and updates its own features.",
+  },
+  {
+    term: "Aggregation",
+    notation: null,
+    unit: "Graph neural networks",
+    def: "The step that combines neighbor features into one value. It has to return the same result whatever order the neighbors are listed in, which is why sum and mean are used.",
+  },
+  {
+    term: "Permutation invariance",
+    notation: null,
+    unit: "Graph neural networks",
+    def: "Relabeling the nodes leaves the output unchanged. Pooling node embeddings into a single graph vector is where a graph network becomes invariant rather than equivariant.",
+  },
+  {
+    term: "Readout",
+    notation: null,
+    unit: "Graph neural networks",
+    def: "The pooling step that turns per-node embeddings into one vector standing for the whole graph.",
+  },
+  {
+    term: "Hop",
+    notation: null,
+    unit: "Graph neural networks",
+    def: "One edge of distance. After r rounds of message passing, a node's features can depend on nodes up to r hops away.",
+  },
+
+  // Sequence models
+  {
+    term: "Recurrent network",
+    notation: "h_t = f(h_(t-1), x_t)",
+    unit: "Sequence models",
+    def: "A model that reads a sequence one step at a time, carrying a hidden state forward from each step to the next.",
+  },
+  {
+    term: "Hidden state",
+    notation: "h_t",
+    unit: "Sequence models",
+    def: "The running summary a recurrent model keeps. Its fixed size is what limits how much of a long input it can hold.",
+  },
+  {
+    term: "Unrolling",
+    notation: null,
+    unit: "Sequence models",
+    def: "Writing a recurrence out step by step, which makes the repeated multiplications along the sequence visible.",
+  },
+  {
+    term: "Vanishing gradient",
+    notation: null,
+    unit: "Sequence models",
+    def: "The shrinking of a gradient as it is multiplied back through many steps, until the earliest inputs no longer affect the update.",
+  },
+  {
+    term: "Exploding gradient",
+    notation: null,
+    unit: "Sequence models",
+    def: "The growth of a gradient through the same repeated multiplication, which makes updates unstable.",
+  },
+  {
+    term: "Gating",
+    notation: "c_t = f_t c_(t-1) + i_t c~_t",
+    unit: "Sequence models",
+    def: "Learned multipliers that decide how much of the previous cell state to keep and how much new content to write, which lets information survive many steps.",
+  },
+  {
+    term: "Gradient clipping",
+    notation: null,
+    unit: "Sequence models",
+    def: "Capping the size of an update so that one large gradient cannot destabilize training while its cause is diagnosed.",
+  },
+];
+// ─────────────────────────────────────────────────────────────────────────────
+
+const UNITS = ["All", ...Object.keys(UNIT_COLORS)];
+
+let q = "", u = "All";
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function hi(text, query) {
+  const e = esc(text);
+  if (!query.trim()) return e;
+  const re = new RegExp(
+    "(" + query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")",
+    "gi"
+  );
+  return e.replace(re, "<mark>$1</mark>");
+}
+
+function render() {
+  const ql = q.toLowerCase();
+  const f = T.filter(t => {
+    const mu = u === "All" || t.unit === u;
+    const mq = !ql
+      || t.term.toLowerCase().includes(ql)
+      || t.def.toLowerCase().includes(ql)
+      || (t.notation && t.notation.toLowerCase().includes(ql));
+    return mu && mq;
+  }).sort((a, b) => a.term.localeCompare(b.term));
+
+  const countEl = document.getElementById("gc");
+  countEl.textContent = T.length === 0
+    ? "No terms loaded yet."
+    : `${f.length} term${f.length !== 1 ? "s" : ""}${q ? ` matching "${q}"` : ""}`;
+
+  const grps = {};
+  f.forEach(t => {
+    const l = t.term[0].toUpperCase();
+    if (!grps[l]) grps[l] = [];
+    grps[l].push(t);
+  });
+
+  const gl = document.getElementById("gl");
+  if (!f.length) {
+    gl.innerHTML = `<p id="empty">No terms found.</p>`;
+    return;
+  }
+
+  gl.innerHTML = Object.entries(grps)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([letter, terms]) => `
+      <div class="lh" aria-hidden="true">${letter}</div>
+      ${terms.map(t => `
+        <div class="tr" role="listitem">
+          <div>
+            <p class="tn">${hi(t.term, q)}</p>
+            ${t.notation ? `<span class="no">${esc(t.notation)}</span>` : ""}
+            <p class="td">${hi(t.def, q)}</p>
+          </div>
+          <span class="ut" aria-label="${esc(t.unit)}">
+            <span class="dot" style="background:${UNIT_COLORS[t.unit] || '#CCC'}"></span>
+            ${esc(t.unit)}
+          </span>
+        </div>
+      `).join("")}
+    `).join("");
+}
+
+// Render unit filter buttons
+const ufEl = document.getElementById("uf");
+ufEl.innerHTML = UNITS.map(un =>
+  `<button class="ub${u === un ? " on" : ""}" data-unit="${esc(un)}" role="tab" aria-selected="${u === un}">${esc(un)}</button>`
+).join("");
+
+ufEl.addEventListener("click", e => {
+  const b = e.target.closest(".ub");
+  if (!b) return;
+  u = b.dataset.unit;
+  document.querySelectorAll(".ub").forEach(x => {
+    x.classList.toggle("on", x.dataset.unit === u);
+    x.setAttribute("aria-selected", x.dataset.unit === u);
+  });
+  render();
+});
+
+document.getElementById("gs").addEventListener("input", e => {
+  q = e.target.value;
+  render();
+});
+
+render();
+</script>
+</body>
+</html>

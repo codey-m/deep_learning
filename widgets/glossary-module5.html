@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>6.7960x — Glossary</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Georgia, 'Times New Roman', serif; background: #FAFAF8; color: #1A1A1A; min-height: 100vh; }
+    #app { max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    #header { margin-bottom: 1.75rem; }
+    #header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 2px; }
+    #header p { font-size: 13px; color: #595959; font-family: 'Courier New', monospace; letter-spacing: 0.04em; }
+    #search-wrap { position: relative; margin-bottom: 0.75rem; }
+    #search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #aaa; pointer-events: none; }
+    #gs { width: 100%; padding: 10px 12px 10px 36px; font-size: 15px; font-family: inherit; border: 1px solid #DDD; border-radius: 6px; background: #FFF; color: #1A1A1A; outline: none; transition: border-color 0.15s; }
+    #gs:focus { border-color: #595959; }
+    #gs::placeholder { color: #6E6E6E; }
+    #uf { display: flex; flex-wrap: wrap; border-bottom: 1px solid #EEE; margin-bottom: 0.5rem; }
+    .ub { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 14px 6px; font-size: 12px; font-family: 'Courier New', monospace; letter-spacing: 0.05em; cursor: pointer; color: #595959; transition: color 0.12s; }
+    .ub.on { color: #1A1A1A; border-bottom-color: #1A1A1A; font-weight: 600; }
+    .ub:hover { color: #1A1A1A; }
+    #gc { font-size: 11px; color: #6E6E6E; font-family: 'Courier New', monospace; letter-spacing: 0.04em; margin-bottom: 0.25rem; }
+    .lh { font-size: 11px; color: #767676; padding: 16px 0 5px; border-bottom: 1px solid #EEE; font-family: 'Courier New', monospace; letter-spacing: 0.1em; }
+    .tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; padding: 16px 0; border-bottom: 1px solid #F0F0F0; }
+    .tn { font-size: 18px; font-weight: 600; margin-bottom: 3px; color: #1A1A1A; }
+    .no { font-family: 'Courier New', monospace; font-size: 12px; background: #F4F4F2; color: #666; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+    .td { font-size: 14px; color: #555; line-height: 1.7; }
+    .ut { font-family: 'Courier New', monospace; font-size: 10px; background: #F4F4F2; color: #6E6E6E; padding: 3px 8px; border-radius: 4px; white-space: nowrap; align-self: start; margin-top: 4px; display: flex; align-items: center; gap: 5px; letter-spacing: 0.04em; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    mark { background: #FFF3CC; color: #7A5C00; border-radius: 2px; padding: 0 1px; }
+    #empty { color: #6E6E6E; font-size: 14px; padding: 3rem 0; text-align: center; font-family: 'Courier New', monospace; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <h1>6.7960x — Glossary</h1>
+    <p>MODULE 5 &nbsp;·&nbsp; GENERATIVE MODELS</p>
+  </div>
+  <div id="search-wrap">
+    <svg id="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input id="gs" type="search" placeholder="Search terms, definitions, notation…" aria-label="Search glossary" />
+  </div>
+  <div id="uf" role="tablist" aria-label="Filter by unit"></div>
+  <p id="gc" aria-live="polite"></p>
+  <div id="gl" role="list"></div>
+</div>
+
+<script>
+// ─── Module configuration ───────────────────────────────────────────────────
+// Update MODULE.name and MODULE.subtitle per module.
+// Units should reflect the conceptual groupings covered in this module only.
+const MODULE = {
+  name: "Module 5",
+  subtitle: "Generative models",
+  course: "6.7960x",
+};
+
+// Unit dot colors — add/remove units here to match what this module covers.
+// Values are mid-ramp accent colors; they work on both light backgrounds.
+const UNIT_COLORS = {
+  "Foundations": "#BA7517",
+  "VAEs and GANs": "#378ADD",
+  "Diffusion and flows": "#1D9E75",
+  "Autoregressive models": "#7F77DD",
+  "Large language models": "#888780",
+};
+
+// ─── Term data ───────────────
+const T = [
+
+  // Foundations
+  {
+    term: "Generative model",
+    notation: null,
+    unit: "Foundations",
+    def: "A model of the distribution the data came from, which can be sampled to produce new examples rather than only scoring given ones.",
+  },
+  {
+    term: "Maximum likelihood",
+    notation: null,
+    unit: "Foundations",
+    def: "Fitting by making the observed data as probable as the model can, the standard way these distributions are trained.",
+  },
+  {
+    term: "KL divergence",
+    notation: null,
+    unit: "Foundations",
+    def: "A measure of how far one distribution sits from another. Minimizing it against the data distribution is what maximum likelihood is doing.",
+  },
+  {
+    term: "Latent variable",
+    notation: null,
+    unit: "Foundations",
+    def: "An unobserved variable the model samples first and then turns into data, which is how a simple starting distribution becomes a complicated one.",
+  },
+  {
+    term: "Memorization",
+    notation: null,
+    unit: "Foundations",
+    def: "A generative model reproducing its training examples rather than generalizing past them, which good sample quality alone does not rule out.",
+  },
+
+  // VAEs and GANs
+  {
+    term: "Variational autoencoder",
+    notation: "VAE",
+    unit: "VAEs and GANs",
+    def: "A latent-variable model trained through an encoder that proposes latents and a decoder that rebuilds the input from them.",
+  },
+  {
+    term: "ELBO",
+    notation: null,
+    unit: "VAEs and GANs",
+    def: "The evidence lower bound, the quantity a VAE maximizes. It splits into a reconstruction term and a KL term pulling the encoder toward the prior, and it is a lower bound on the likelihood rather than the likelihood itself.",
+  },
+  {
+    term: "Beta weighting",
+    notation: null,
+    unit: "VAEs and GANs",
+    def: "Scaling the KL term against reconstruction. Losses computed at different settings of it are not directly comparable, so a comparison has to fix it or report both terms.",
+  },
+  {
+    term: "Prior",
+    notation: null,
+    unit: "VAEs and GANs",
+    def: "The distribution latents are drawn from when sampling, usually a simple Gaussian the encoder is pulled toward.",
+  },
+  {
+    term: "Generative adversarial network",
+    notation: "GAN",
+    unit: "VAEs and GANs",
+    def: "A generator trained against a discriminator that tries to tell generated data from real, so the training signal is another network's judgment.",
+  },
+  {
+    term: "Mode coverage",
+    notation: null,
+    unit: "VAEs and GANs",
+    def: "Whether generated samples span the variety present in the data. It is a separate question from whether any single sample looks realistic, and one diagnostic cannot stand in for the other.",
+  },
+
+  // Diffusion and flows
+  {
+    term: "Forward process",
+    notation: "x_t = sqrt(abar) x_0 + sqrt(1 - abar) eps",
+    unit: "Diffusion and flows",
+    def: "The fixed procedure that adds noise to data over time. The two weights trade off against each other, so a later state keeps less of the original signal.",
+  },
+  {
+    term: "Denoising",
+    notation: null,
+    unit: "Diffusion and flows",
+    def: "Training a network to recover the clean data behind a noised input. In this course the target is the clean image itself.",
+  },
+  {
+    term: "Noise level",
+    notation: null,
+    unit: "Diffusion and flows",
+    def: "How far along the forward process a sample sits. A sampler visits a sequence of these levels, and it can only use levels the model was trained on.",
+  },
+  {
+    term: "Reverse sampling",
+    notation: null,
+    unit: "Diffusion and flows",
+    def: "Generating by starting from noise and stepping back down the noise levels. More steps usually means better samples at higher cost.",
+  },
+  {
+    term: "Score function",
+    notation: null,
+    unit: "Diffusion and flows",
+    def: "The gradient of the log density, which points toward more probable data and is what the denoiser implicitly estimates.",
+  },
+  {
+    term: "Flow matching",
+    notation: null,
+    unit: "Diffusion and flows",
+    def: "Connecting two distributions by interpolating between paired samples and regressing the difference between the endpoints. This course teaches it in place of normalizing flows.",
+  },
+  {
+    term: "Interpolant",
+    notation: null,
+    unit: "Diffusion and flows",
+    def: "The point built between a pair of endpoints at a chosen time. Because the pair is fixed, the regression target is the endpoint difference and needs no extra noise.",
+  },
+
+  // Autoregressive models
+  {
+    term: "Autoregressive model",
+    notation: null,
+    unit: "Autoregressive models",
+    def: "A model that generates one element at a time, each conditioned on what came before, factorizing the joint distribution by the chain rule of probability.",
+  },
+  {
+    term: "Teacher forcing",
+    notation: null,
+    unit: "Autoregressive models",
+    def: "Training each step on the true prefix rather than the model's own output, which is fast but unlike the conditions at generation time.",
+  },
+  {
+    term: "Negative log-likelihood",
+    notation: "NLL",
+    unit: "Autoregressive models",
+    def: "The training loss for these models, averaged over the tokens that are actually supervised.",
+  },
+  {
+    term: "Temperature",
+    notation: null,
+    unit: "Autoregressive models",
+    def: "A scaling on the scores before sampling. Lower makes generation more predictable, higher makes it more varied.",
+  },
+  {
+    term: "Top-k and nucleus sampling",
+    notation: null,
+    unit: "Autoregressive models",
+    def: "Restricting each draw to the most probable tokens, either a fixed count or the smallest set carrying enough probability.",
+  },
+  {
+    term: "Tokenizer",
+    notation: null,
+    unit: "Autoregressive models",
+    def: "The rule that splits text into the discrete units a model predicts. It fixes what a single generation step can be.",
+  },
+
+  // Large language models
+  {
+    term: "Scaling law",
+    notation: null,
+    unit: "Large language models",
+    def: "A fitted relationship predicting loss from model size and training data. It guides how a fixed compute budget is split, and it is an extrapolation from pilot runs rather than a guarantee.",
+  },
+  {
+    term: "Compute budget",
+    notation: "C = N D",
+    unit: "Large language models",
+    def: "The cost of a training run in this course's toy planning model, the product of model size and training tokens.",
+  },
+  {
+    term: "Data mixture",
+    notation: null,
+    unit: "Large language models",
+    def: "The proportions in which sources are combined for pretraining. The lecture describes rebalancing a corpus by subsampling some categories and upsampling others.",
+  },
+  {
+    term: "Deduplication",
+    notation: null,
+    unit: "Large language models",
+    def: "Removing repeated copies from a corpus. The lecture puts it first in the pipeline, because content that appears again and again biases the model toward it.",
+  },
+  {
+    term: "Instruction tuning",
+    notation: null,
+    unit: "Large language models",
+    def: "Fine-tuning on demonstrations of following instructions, with the loss taken on the assistant's target tokens rather than the whole conversation.",
+  },
+  {
+    term: "Inference-time scaling",
+    notation: null,
+    unit: "Large language models",
+    def: "Spending more computation per request instead of on training. Whether that is the better buy depends on how many requests the deployment serves.",
+  },
+  {
+    term: "Multimodal projector",
+    notation: null,
+    unit: "Large language models",
+    def: "The small mapping that turns another modality's features into tokens a language model can read, which is what its dimensions have to match.",
+  },
+];
+// ─────────────────────────────────────────────────────────────────────────────
+
+const UNITS = ["All", ...Object.keys(UNIT_COLORS)];
+
+let q = "", u = "All";
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function hi(text, query) {
+  const e = esc(text);
+  if (!query.trim()) return e;
+  const re = new RegExp(
+    "(" + query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")",
+    "gi"
+  );
+  return e.replace(re, "<mark>$1</mark>");
+}
+
+function render() {
+  const ql = q.toLowerCase();
+  const f = T.filter(t => {
+    const mu = u === "All" || t.unit === u;
+    const mq = !ql
+      || t.term.toLowerCase().includes(ql)
+      || t.def.toLowerCase().includes(ql)
+      || (t.notation && t.notation.toLowerCase().includes(ql));
+    return mu && mq;
+  }).sort((a, b) => a.term.localeCompare(b.term));
+
+  const countEl = document.getElementById("gc");
+  countEl.textContent = T.length === 0
+    ? "No terms loaded yet."
+    : `${f.length} term${f.length !== 1 ? "s" : ""}${q ? ` matching "${q}"` : ""}`;
+
+  const grps = {};
+  f.forEach(t => {
+    const l = t.term[0].toUpperCase();
+    if (!grps[l]) grps[l] = [];
+    grps[l].push(t);
+  });
+
+  const gl = document.getElementById("gl");
+  if (!f.length) {
+    gl.innerHTML = `<p id="empty">No terms found.</p>`;
+    return;
+  }
+
+  gl.innerHTML = Object.entries(grps)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([letter, terms]) => `
+      <div class="lh" aria-hidden="true">${letter}</div>
+      ${terms.map(t => `
+        <div class="tr" role="listitem">
+          <div>
+            <p class="tn">${hi(t.term, q)}</p>
+            ${t.notation ? `<span class="no">${esc(t.notation)}</span>` : ""}
+            <p class="td">${hi(t.def, q)}</p>
+          </div>
+          <span class="ut" aria-label="${esc(t.unit)}">
+            <span class="dot" style="background:${UNIT_COLORS[t.unit] || '#CCC'}"></span>
+            ${esc(t.unit)}
+          </span>
+        </div>
+      `).join("")}
+    `).join("");
+}
+
+// Render unit filter buttons
+const ufEl = document.getElementById("uf");
+ufEl.innerHTML = UNITS.map(un =>
+  `<button class="ub${u === un ? " on" : ""}" data-unit="${esc(un)}" role="tab" aria-selected="${u === un}">${esc(un)}</button>`
+).join("");
+
+ufEl.addEventListener("click", e => {
+  const b = e.target.closest(".ub");
+  if (!b) return;
+  u = b.dataset.unit;
+  document.querySelectorAll(".ub").forEach(x => {
+    x.classList.toggle("on", x.dataset.unit === u);
+    x.setAttribute("aria-selected", x.dataset.unit === u);
+  });
+  render();
+});
+
+document.getElementById("gs").addEventListener("input", e => {
+  q = e.target.value;
+  render();
+});
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>6.7960x — Glossary</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Georgia, 'Times New Roman', serif; background: #FAFAF8; color: #1A1A1A; min-height: 100vh; }
+    #app { max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    #header { margin-bottom: 1.75rem; }
+    #header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 2px; }
+    #header p { font-size: 13px; color: #595959; font-family: 'Courier New', monospace; letter-spacing: 0.04em; }
+    #search-wrap { position: relative; margin-bottom: 0.75rem; }
+    #search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #aaa; pointer-events: none; }
+    #gs { width: 100%; padding: 10px 12px 10px 36px; font-size: 15px; font-family: inherit; border: 1px solid #DDD; border-radius: 6px; background: #FFF; color: #1A1A1A; outline: none; transition: border-color 0.15s; }
+    #gs:focus { border-color: #595959; }
+    #gs::placeholder { color: #6E6E6E; }
+    #uf { display: flex; flex-wrap: wrap; border-bottom: 1px solid #EEE; margin-bottom: 0.5rem; }
+    .ub { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 14px 6px; font-size: 12px; font-family: 'Courier New', monospace; letter-spacing: 0.05em; cursor: pointer; color: #595959; transition: color 0.12s; }
+    .ub.on { color: #1A1A1A; border-bottom-color: #1A1A1A; font-weight: 600; }
+    .ub:hover { color: #1A1A1A; }
+    #gc { font-size: 11px; color: #6E6E6E; font-family: 'Courier New', monospace; letter-spacing: 0.04em; margin-bottom: 0.25rem; }
+    .lh { font-size: 11px; color: #767676; padding: 16px 0 5px; border-bottom: 1px solid #EEE; font-family: 'Courier New', monospace; letter-spacing: 0.1em; }
+    .tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; padding: 16px 0; border-bottom: 1px solid #F0F0F0; }
+    .tn { font-size: 18px; font-weight: 600; margin-bottom: 3px; color: #1A1A1A; }
+    .no { font-family: 'Courier New', monospace; font-size: 12px; background: #F4F4F2; color: #666; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+    .td { font-size: 14px; color: #555; line-height: 1.7; }
+    .ut { font-family: 'Courier New', monospace; font-size: 10px; background: #F4F4F2; color: #6E6E6E; padding: 3px 8px; border-radius: 4px; white-space: nowrap; align-self: start; margin-top: 4px; display: flex; align-items: center; gap: 5px; letter-spacing: 0.04em; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    mark { background: #FFF3CC; color: #7A5C00; border-radius: 2px; padding: 0 1px; }
+    #empty { color: #6E6E6E; font-size: 14px; padding: 3rem 0; text-align: center; font-family: 'Courier New', monospace; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <h1>6.7960x — Glossary</h1>
+    <p>MODULE 1 &nbsp;·&nbsp; NEURAL NETWORK FOUNDATIONS</p>
+  </div>
+  <div id="search-wrap">
+    <svg id="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input id="gs" type="search" placeholder="Search terms, definitions, notation…" aria-label="Search glossary" />
+  </div>
+  <div id="uf" role="tablist" aria-label="Filter by unit"></div>
+  <p id="gc" aria-live="polite"></p>
+  <div id="gl" role="list"></div>
+</div>
+
+<script>
+// ─── Module configuration ───────────────────────────────────────────────────
+// Update MODULE.name and MODULE.subtitle per module.
+// Units should reflect the conceptual groupings covered in this module only.
+const MODULE = {
+  name: "Module 1",
+  subtitle: "Neural network foundations",
+  course: "6.7960x",
+};
+
+// Unit dot colors — add/remove units here to match what this module covers.
+// Values are mid-ramp accent colors; they work on both light backgrounds.
+const UNIT_COLORS = {
+  "Building blocks": "#BA7517",
+  "The learning problem": "#378ADD",
+  "Approximation and generalization": "#1D9E75",
+};
+
+// ─── Term data ───────────────
+const T = [
+
+  // Building blocks
+  {
+    term: "Linear layer",
+    notation: "y = Wx + b",
+    unit: "Building blocks",
+    def: "A layer where each output coordinate is the dot product of one row of the weight matrix with the input, plus that row's bias. Also called an affine layer.",
+  },
+  {
+    term: "Weight",
+    notation: "W",
+    unit: "Building blocks",
+    def: "A learned coefficient connecting an input to an output. The weights and biases together are what training adjusts.",
+  },
+  {
+    term: "Bias",
+    notation: "b",
+    unit: "Building blocks",
+    def: "A learned offset added to an output coordinate, which lets a unit shift its response rather than passing through the origin.",
+  },
+  {
+    term: "Activation function",
+    notation: null,
+    unit: "Building blocks",
+    def: "A function applied to each coordinate separately after a linear layer. Without one, stacking layers collapses back to a single affine map.",
+  },
+  {
+    term: "ReLU",
+    notation: "max(0, z)",
+    unit: "Building blocks",
+    def: "The activation that passes positive values through unchanged and sends everything else to zero. It is what makes a stacked network more than one affine map.",
+  },
+  {
+    term: "Multilayer perceptron",
+    notation: "MLP",
+    unit: "Building blocks",
+    def: "Linear layers stacked with a pointwise nonlinearity between them, the simplest architecture built from these blocks.",
+  },
+  {
+    term: "Hidden layer",
+    notation: null,
+    unit: "Building blocks",
+    def: "A layer whose outputs are consumed by the next layer rather than read as the prediction. Its size is the width of the network at that point.",
+  },
+  {
+    term: "Activations",
+    notation: null,
+    unit: "Building blocks",
+    def: "The values flowing through the network for a given input, as opposed to the parameters, which stay fixed while that input is processed.",
+  },
+  {
+    term: "Tensor",
+    notation: null,
+    unit: "Building blocks",
+    def: "The multidimensional array that carries data through a network, with axes for the batch, the features and, for images, space and channels.",
+  },
+  {
+    term: "Batch",
+    notation: null,
+    unit: "Building blocks",
+    def: "A group of inputs pushed through the network together, because the hardware runs them in parallel. The same weights apply to every input in the batch.",
+  },
+  {
+    term: "Forward pass",
+    notation: null,
+    unit: "Building blocks",
+    def: "Computing outputs from inputs by running the layers in order. Its cost scales with the batch size, while the parameter count does not.",
+  },
+  {
+    term: "Softmax",
+    notation: null,
+    unit: "Building blocks",
+    def: "A function that turns a vector of scores into class probabilities that are not negative and sum to one.",
+  },
+  {
+    term: "Cross-entropy",
+    notation: null,
+    unit: "Building blocks",
+    def: "The standard classification loss, comparing the predicted class distribution against the correct class.",
+  },
+  {
+    term: "Decision boundary",
+    notation: null,
+    unit: "Building blocks",
+    def: "The surface where a classifier switches its prediction. A single affine map can only place a flat one, which is why the nonlinearity matters.",
+  },
+
+  // The learning problem
+  {
+    term: "Hypothesis space",
+    notation: null,
+    unit: "The learning problem",
+    def: "The family of functions an architecture can express as its weights and biases vary. Fitting the model picks one member of that family. Assessments sometimes call it the hypothesis class.",
+  },
+  {
+    term: "Loss function",
+    notation: null,
+    unit: "The learning problem",
+    def: "The measure of how wrong one prediction is. Squared error suits a real-valued target; cross-entropy suits a class.",
+  },
+  {
+    term: "Empirical risk",
+    notation: null,
+    unit: "The learning problem",
+    def: "The average loss over the sample you hold. It moves when the sample changes even though the model has not, which is exactly why it is an estimate rather than the thing itself.",
+  },
+  {
+    term: "Population risk",
+    notation: null,
+    unit: "The learning problem",
+    def: "The expected loss over the distribution the data came from. It is the quantity you care about, and empirical risk is what you can measure instead.",
+  },
+  {
+    term: "Least squares",
+    notation: null,
+    unit: "The learning problem",
+    def: "Fitting by minimizing squared error, the first concrete instance of framing learning as an optimization problem.",
+  },
+  {
+    term: "Optimizer",
+    notation: null,
+    unit: "The learning problem",
+    def: "The procedure that searches the hypothesis space for parameters. Changing it changes how the search moves, not the task, the data or the family of functions available.",
+  },
+
+  // Approximation and generalization
+  {
+    term: "Capacity",
+    notation: null,
+    unit: "Approximation and generalization",
+    def: "How large a family of functions a model can express. A class that contains another has at least as much of it.",
+  },
+  {
+    term: "Universal approximation",
+    notation: null,
+    unit: "Approximation and generalization",
+    def: "The result that enough width lets a one-hidden-layer network approximate a continuous target on a bounded domain as closely as you like. It says what exists in the class, not what training will find.",
+  },
+  {
+    term: "Piecewise-linear function",
+    notation: null,
+    unit: "Approximation and generalization",
+    def: "A function built from straight segments. A ReLU network computes one, which is why its shape can be counted rather than guessed at.",
+  },
+  {
+    term: "Kink",
+    notation: null,
+    unit: "Approximation and generalization",
+    def: "A point where the slope of a piecewise-linear function changes. Each hidden ReLU unit contributes at most one, so width bounds how much the fit can bend.",
+  },
+  {
+    term: "Depth and width",
+    notation: null,
+    unit: "Approximation and generalization",
+    def: "The number of layers and the size of each. Under a fixed parameter budget, composing layers can create far more linear pieces than widening a single one.",
+  },
+  {
+    term: "Overfitting",
+    notation: null,
+    unit: "Approximation and generalization",
+    def: "Fitting the training sample much better than fresh data, seen as a large gap between training and held-out error.",
+  },
+  {
+    term: "Underfitting",
+    notation: null,
+    unit: "Approximation and generalization",
+    def: "Failing to fit even the training data, seen as high training and held-out error together.",
+  },
+  {
+    term: "Generalization gap",
+    notation: null,
+    unit: "Approximation and generalization",
+    def: "The difference between held-out and training error, the quantity that separates the two failures above.",
+  },
+  {
+    term: "Validation set",
+    notation: null,
+    unit: "Approximation and generalization",
+    def: "Held-out data used to choose between models or settings, kept separate from the final test set so that the test set stays an honest estimate.",
+  },
+  {
+    term: "Cross-validation",
+    notation: null,
+    unit: "Approximation and generalization",
+    def: "Splitting the training data into folds and, for each candidate setting, averaging performance over the held-out fold. It buys a selection decision without spending the test set.",
+  },
+  {
+    term: "Fold",
+    notation: null,
+    unit: "Approximation and generalization",
+    def: "One block of a cross-validation split, held out for scoring while the rest is fitted on.",
+  },
+  {
+    term: "Regularization",
+    notation: null,
+    unit: "Approximation and generalization",
+    def: "Anything added to bias the fit toward simpler solutions, accepting worse training loss in exchange for better held-out performance.",
+  },
+  {
+    term: "L2 regularization",
+    notation: "J = average loss + lambda * ||w||^2",
+    unit: "Approximation and generalization",
+    def: "A penalty on the squared size of the weights, also called weight decay. Raising lambda shrinks the weights, raising bias and lowering variance.",
+  },
+  {
+    term: "Dropout",
+    notation: null,
+    unit: "Approximation and generalization",
+    def: "A regularizer that randomly drops units during training so the network cannot lean on any single one.",
+  },
+  {
+    term: "Double descent",
+    notation: null,
+    unit: "Approximation and generalization",
+    def: "Test error falling, then rising around the point where the model just fits the data, then falling again as capacity grows well past it.",
+  },
+  {
+    term: "Memorization",
+    notation: null,
+    unit: "Approximation and generalization",
+    def: "Fitting the individual training points, including their noise. In the very-high-capacity regime the fit is smooth overall with narrow spikes at the data, which is why it can memorize and still predict.",
+  },
+];
+// ─────────────────────────────────────────────────────────────────────────────
+
+const UNITS = ["All", ...Object.keys(UNIT_COLORS)];
+
+let q = "", u = "All";
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function hi(text, query) {
+  const e = esc(text);
+  if (!query.trim()) return e;
+  const re = new RegExp(
+    "(" + query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")",
+    "gi"
+  );
+  return e.replace(re, "<mark>$1</mark>");
+}
+
+function render() {
+  const ql = q.toLowerCase();
+  const f = T.filter(t => {
+    const mu = u === "All" || t.unit === u;
+    const mq = !ql
+      || t.term.toLowerCase().includes(ql)
+      || t.def.toLowerCase().includes(ql)
+      || (t.notation && t.notation.toLowerCase().includes(ql));
+    return mu && mq;
+  }).sort((a, b) => a.term.localeCompare(b.term));
+
+  const countEl = document.getElementById("gc");
+  countEl.textContent = T.length === 0
+    ? "No terms loaded yet."
+    : `${f.length} term${f.length !== 1 ? "s" : ""}${q ? ` matching "${q}"` : ""}`;
+
+  const grps = {};
+  f.forEach(t => {
+    const l = t.term[0].toUpperCase();
+    if (!grps[l]) grps[l] = [];
+    grps[l].push(t);
+  });
+
+  const gl = document.getElementById("gl");
+  if (!f.length) {
+    gl.innerHTML = `<p id="empty">No terms found.</p>`;
+    return;
+  }
+
+  gl.innerHTML = Object.entries(grps)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([letter, terms]) => `
+      <div class="lh" aria-hidden="true">${letter}</div>
+      ${terms.map(t => `
+        <div class="tr" role="listitem">
+          <div>
+            <p class="tn">${hi(t.term, q)}</p>
+            ${t.notation ? `<span class="no">${esc(t.notation)}</span>` : ""}
+            <p class="td">${hi(t.def, q)}</p>
+          </div>
+          <span class="ut" aria-label="${esc(t.unit)}">
+            <span class="dot" style="background:${UNIT_COLORS[t.unit] || '#CCC'}"></span>
+            ${esc(t.unit)}
+          </span>
+        </div>
+      `).join("")}
+    `).join("");
+}
+
+// Render unit filter buttons
+const ufEl = document.getElementById("uf");
+ufEl.innerHTML = UNITS.map(un =>
+  `<button class="ub${u === un ? " on" : ""}" data-unit="${esc(un)}" role="tab" aria-selected="${u === un}">${esc(un)}</button>`
+).join("");
+
+ufEl.addEventListener("click", e => {
+  const b = e.target.closest(".ub");
+  if (!b) return;
+  u = b.dataset.unit;
+  document.querySelectorAll(".ub").forEach(x => {
+    x.classList.toggle("on", x.dataset.unit === u);
+    x.setAttribute("aria-selected", x.dataset.unit === u);
+  });
+  render();
+});
+
+document.getElementById("gs").addEventListener("input", e => {
+  q = e.target.value;
+  render();
+});
+
+render();
+</script>
+</body>
+</html>

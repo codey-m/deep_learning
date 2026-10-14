@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>6.7960x — Glossary</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Georgia, 'Times New Roman', serif; background: #FAFAF8; color: #1A1A1A; min-height: 100vh; }
+    #app { max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    #header { margin-bottom: 1.75rem; }
+    #header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 2px; }
+    #header p { font-size: 13px; color: #595959; font-family: 'Courier New', monospace; letter-spacing: 0.04em; }
+    #search-wrap { position: relative; margin-bottom: 0.75rem; }
+    #search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #aaa; pointer-events: none; }
+    #gs { width: 100%; padding: 10px 12px 10px 36px; font-size: 15px; font-family: inherit; border: 1px solid #DDD; border-radius: 6px; background: #FFF; color: #1A1A1A; outline: none; transition: border-color 0.15s; }
+    #gs:focus { border-color: #595959; }
+    #gs::placeholder { color: #6E6E6E; }
+    #uf { display: flex; flex-wrap: wrap; border-bottom: 1px solid #EEE; margin-bottom: 0.5rem; }
+    .ub { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 14px 6px; font-size: 12px; font-family: 'Courier New', monospace; letter-spacing: 0.05em; cursor: pointer; color: #595959; transition: color 0.12s; }
+    .ub.on { color: #1A1A1A; border-bottom-color: #1A1A1A; font-weight: 600; }
+    .ub:hover { color: #1A1A1A; }
+    #gc { font-size: 11px; color: #6E6E6E; font-family: 'Courier New', monospace; letter-spacing: 0.04em; margin-bottom: 0.25rem; }
+    .lh { font-size: 11px; color: #767676; padding: 16px 0 5px; border-bottom: 1px solid #EEE; font-family: 'Courier New', monospace; letter-spacing: 0.1em; }
+    .tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; padding: 16px 0; border-bottom: 1px solid #F0F0F0; }
+    .tn { font-size: 18px; font-weight: 600; margin-bottom: 3px; color: #1A1A1A; }
+    .no { font-family: 'Courier New', monospace; font-size: 12px; background: #F4F4F2; color: #666; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+    .td { font-size: 14px; color: #555; line-height: 1.7; }
+    .ut { font-family: 'Courier New', monospace; font-size: 10px; background: #F4F4F2; color: #6E6E6E; padding: 3px 8px; border-radius: 4px; white-space: nowrap; align-self: start; margin-top: 4px; display: flex; align-items: center; gap: 5px; letter-spacing: 0.04em; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    mark { background: #FFF3CC; color: #7A5C00; border-radius: 2px; padding: 0 1px; }
+    #empty { color: #6E6E6E; font-size: 14px; padding: 3rem 0; text-align: center; font-family: 'Courier New', monospace; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <h1>6.7960x — Glossary</h1>
+    <p>MODULE 2 &nbsp;·&nbsp; TRAINING, INFERENCE AND EVALUATION</p>
+  </div>
+  <div id="search-wrap">
+    <svg id="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input id="gs" type="search" placeholder="Search terms, definitions, notation…" aria-label="Search glossary" />
+  </div>
+  <div id="uf" role="tablist" aria-label="Filter by unit"></div>
+  <p id="gc" aria-live="polite"></p>
+  <div id="gl" role="list"></div>
+</div>
+
+<script>
+// ─── Module configuration ───────────────────────────────────────────────────
+// Update MODULE.name and MODULE.subtitle per module.
+// Units should reflect the conceptual groupings covered in this module only.
+const MODULE = {
+  name: "Module 2",
+  subtitle: "Training, inference and evaluation",
+  course: "6.7960x",
+};
+
+// Unit dot colors — add/remove units here to match what this module covers.
+// Values are mid-ramp accent colors; they work on both light backgrounds.
+const UNIT_COLORS = {
+  "Optimization": "#BA7517",
+  "Training deep networks": "#378ADD",
+  "Transfer and pretraining": "#1D9E75",
+  "Inference and deployment": "#7F77DD",
+  "Evaluation and robustness": "#888780",
+};
+
+// ─── Term data ───────────────
+const T = [
+
+  // Optimization
+  {
+    term: "Gradient descent",
+    notation: null,
+    unit: "Optimization",
+    def: "Repeatedly stepping the parameters in the direction that lowers the loss fastest, using the gradient computed on the data.",
+  },
+  {
+    term: "Stochastic gradient descent",
+    notation: "SGD",
+    unit: "Optimization",
+    def: "Gradient descent that estimates each step from a small sample of the training set rather than all of it, which is far cheaper per update.",
+  },
+  {
+    term: "Minibatch",
+    notation: null,
+    unit: "Optimization",
+    def: "The small random subset of the training set used for one update. Two minibatches drawn at the same parameters give different gradients, and that variation is the noise in stochastic training.",
+  },
+  {
+    term: "Learning rate",
+    notation: "eta",
+    unit: "Optimization",
+    def: "How far each update moves along the gradient. Too large and the loss oscillates or climbs; too small and progress is slow but steady.",
+  },
+  {
+    term: "Momentum",
+    notation: null,
+    unit: "Optimization",
+    def: "Carrying a running velocity across updates, like a heavy ball rolling downhill, so consistent directions build up while directions that keep reversing cancel out.",
+  },
+  {
+    term: "Exponential moving average",
+    notation: "EMA",
+    unit: "Optimization",
+    def: "A running average that weights recent values most. Kept over the weights themselves, it gives a smoother copy of the model to evaluate.",
+  },
+  {
+    term: "Gradient clipping",
+    notation: null,
+    unit: "Optimization",
+    def: "Capping the size of an update so that one very large gradient cannot destabilize training.",
+  },
+  {
+    term: "Computation graph",
+    notation: null,
+    unit: "Optimization",
+    def: "The record of which operations produced which values in the forward pass. Backpropagation walks it in reverse to assign gradients.",
+  },
+  {
+    term: "Backpropagation",
+    notation: null,
+    unit: "Optimization",
+    def: "Applying the chain rule backwards through the computation graph, so each layer turns the gradient arriving from above into gradients for its inputs and its parameters.",
+  },
+  {
+    term: "Chain rule",
+    notation: null,
+    unit: "Optimization",
+    def: "The rule that multiplies local derivatives along a path. It is why a first-layer weight's gradient contains factors from every later layer.",
+  },
+
+  // Training deep networks
+  {
+    term: "Weight initialization",
+    notation: null,
+    unit: "Training deep networks",
+    def: "The starting values of the weights. Chosen so the variance of the signal neither dies out nor blows up as it crosses many layers.",
+  },
+  {
+    term: "ReLU-aware initialization",
+    notation: "Var(w) = 2 / fan-in",
+    unit: "Training deep networks",
+    def: "The initialization rule for layers feeding a ReLU, often called He initialization. Because the ReLU zeros roughly half of its inputs, the weight variance carries a factor of two that the linear-case rule does not.",
+  },
+  {
+    term: "Fan-in",
+    notation: null,
+    unit: "Training deep networks",
+    def: "The number of input neurons feeding one unit, which is what the initialization rule scales against.",
+  },
+  {
+    term: "Normalization layer",
+    notation: null,
+    unit: "Training deep networks",
+    def: "A layer that recenters and rescales activations partway through a network, so deeper layers keep receiving well-scaled inputs.",
+  },
+  {
+    term: "Batch normalization",
+    notation: null,
+    unit: "Training deep networks",
+    def: "Normalization that takes its statistics across the examples in a batch, then applies a learned scale and shift.",
+  },
+  {
+    term: "Running statistics",
+    notation: null,
+    unit: "Training deep networks",
+    def: "The mean and variance a normalization layer accumulates during training and uses at inference, when the batch it sees may be a single request. Freezing parameters does not freeze them; the module has to be in evaluation mode.",
+  },
+  {
+    term: "Residual connection",
+    notation: "y = x + F(x)",
+    unit: "Training deep networks",
+    def: "An addition that carries the input around a block. The identity path keeps a route for the gradient even when the block's own derivative is small.",
+  },
+  {
+    term: "Degradation problem",
+    notation: null,
+    unit: "Training deep networks",
+    def: "The observation that stacking more layers onto a plain deep network can make even its training accuracy worse, which residual connections were introduced to address.",
+  },
+
+  // Transfer and pretraining
+  {
+    term: "Pretraining",
+    notation: null,
+    unit: "Transfer and pretraining",
+    def: "Training on broad source data to learn a useful starting point, rather than to solve the task you finally care about.",
+  },
+  {
+    term: "Foundation model",
+    notation: null,
+    unit: "Transfer and pretraining",
+    def: "A model pretrained broadly enough to be adapted to many downstream tasks instead of built for one.",
+  },
+  {
+    term: "Fine-tuning",
+    notation: null,
+    unit: "Transfer and pretraining",
+    def: "Initializing from pretrained weights and continuing to train on a target task. In practice the weights move only a little, because the pretrained representation is the asset being reused.",
+  },
+  {
+    term: "Supervised fine-tuning",
+    notation: "SFT",
+    unit: "Transfer and pretraining",
+    def: "Fine-tuning on collected demonstrations of the behavior you want, which is where the supervision for a specific task re-enters.",
+  },
+  {
+    term: "Frozen backbone",
+    notation: null,
+    unit: "Transfer and pretraining",
+    def: "Holding the pretrained encoder's weights fixed and training only a small model on top of the representation it produces.",
+  },
+  {
+    term: "Encoder",
+    notation: null,
+    unit: "Transfer and pretraining",
+    def: "The pretrained part of the network that maps an input to a representation, as distinct from the task head placed on top of it.",
+  },
+  {
+    term: "Zero-shot",
+    notation: null,
+    unit: "Transfer and pretraining",
+    def: "Getting a capability out of a generative model by asking for it in the prompt, with no additional training on that task.",
+  },
+  {
+    term: "In-context learning",
+    notation: null,
+    unit: "Transfer and pretraining",
+    def: "A model adapting its behavior from examples supplied inside the prompt rather than from weight updates.",
+  },
+  {
+    term: "Meta-learning",
+    notation: null,
+    unit: "Transfer and pretraining",
+    def: "Learning across a distribution of related tasks, so that a new related task can be picked up quickly from a few examples.",
+  },
+  {
+    term: "Reward function",
+    notation: "r(x, y)",
+    unit: "Transfer and pretraining",
+    def: "A score given to a model's own response rather than a correct answer supplied per example. Reinforcement learning maximizes its expected value, and the score itself is often learned from human preferences.",
+  },
+
+  // Inference and deployment
+  {
+    term: "Inference",
+    notation: null,
+    unit: "Inference and deployment",
+    def: "Running a trained model to make predictions. It needs the forward pass only, so it is normally far cheaper per example than training.",
+  },
+  {
+    term: "Latency",
+    notation: null,
+    unit: "Inference and deployment",
+    def: "How long a single request takes on the deployed hardware. It depends on the device, the compiler, the batch size and the input shape, so it has to be measured rather than inferred from parameter counts.",
+  },
+  {
+    term: "Knowledge distillation",
+    notation: null,
+    unit: "Inference and deployment",
+    def: "Training a small student model to match a larger teacher's outputs, so the compact model inherits behavior the labels alone would not convey.",
+  },
+  {
+    term: "Pruning",
+    notation: null,
+    unit: "Inference and deployment",
+    def: "Removing weights from a trained network to shrink it, in contrast to training a separate smaller model.",
+  },
+  {
+    term: "Quantization",
+    notation: null,
+    unit: "Inference and deployment",
+    def: "Storing weights at lower numerical precision, which cuts memory and can speed up supported hardware at some cost in accuracy.",
+  },
+
+  // Evaluation and robustness
+  {
+    term: "IID evaluation",
+    notation: null,
+    unit: "Evaluation and robustness",
+    def: "Testing on data drawn from the same distribution as the training data, for example a random held-out split of the same pool.",
+  },
+  {
+    term: "Out-of-distribution",
+    notation: "OOD",
+    unit: "Evaluation and robustness",
+    def: "Testing on data whose distribution differs from the training data, such as a new site, sensor or population.",
+  },
+  {
+    term: "Distribution shift",
+    notation: null,
+    unit: "Evaluation and robustness",
+    def: "A change between the data a model was trained on and the data it meets in deployment. Good IID results say little about how a model holds up under it.",
+  },
+  {
+    term: "Ablation",
+    notation: null,
+    unit: "Evaluation and robustness",
+    def: "A comparison that removes or changes one component while holding everything else fixed, so a difference can be attributed to that component.",
+  },
+  {
+    term: "Class imbalance",
+    notation: null,
+    unit: "Evaluation and robustness",
+    def: "When one class dominates the data. Accuracy then flatters a model that always predicts the majority, so it stops separating a model that learned the task from one that did not.",
+  },
+  {
+    term: "Precision",
+    notation: "TP / (TP + FP)",
+    unit: "Evaluation and robustness",
+    def: "Of the cases a detector flagged, the fraction that were right. It falls when a lower threshold flags more of everything.",
+  },
+  {
+    term: "Recall",
+    notation: "TP / (TP + FN)",
+    unit: "Evaluation and robustness",
+    def: "Of the cases that should have been flagged, the fraction the detector caught. Lowering the decision threshold raises it, usually at the cost of precision.",
+  },
+  {
+    term: "Decision threshold",
+    notation: null,
+    unit: "Evaluation and robustness",
+    def: "The confidence level above which a model reports a positive. Moving it trades recall against precision without retraining anything.",
+  },
+  {
+    term: "Calibration",
+    notation: null,
+    unit: "Evaluation and robustness",
+    def: "Whether the confidence a model reports matches how often it is right. A model can stay accurate while its confidences drift under a shift.",
+  },
+  {
+    term: "Benchmark saturation",
+    notation: null,
+    unit: "Evaluation and robustness",
+    def: "A public benchmark ceasing to separate models, partly because a test set that has sat on the open web can end up inside a pretraining corpus.",
+  },
+];
+// ─────────────────────────────────────────────────────────────────────────────
+
+const UNITS = ["All", ...Object.keys(UNIT_COLORS)];
+
+let q = "", u = "All";
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function hi(text, query) {
+  const e = esc(text);
+  if (!query.trim()) return e;
+  const re = new RegExp(
+    "(" + query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")",
+    "gi"
+  );
+  return e.replace(re, "<mark>$1</mark>");
+}
+
+function render() {
+  const ql = q.toLowerCase();
+  const f = T.filter(t => {
+    const mu = u === "All" || t.unit === u;
+    const mq = !ql
+      || t.term.toLowerCase().includes(ql)
+      || t.def.toLowerCase().includes(ql)
+      || (t.notation && t.notation.toLowerCase().includes(ql));
+    return mu && mq;
+  }).sort((a, b) => a.term.localeCompare(b.term));
+
+  const countEl = document.getElementById("gc");
+  countEl.textContent = T.length === 0
+    ? "No terms loaded yet."
+    : `${f.length} term${f.length !== 1 ? "s" : ""}${q ? ` matching "${q}"` : ""}`;
+
+  const grps = {};
+  f.forEach(t => {
+    const l = t.term[0].toUpperCase();
+    if (!grps[l]) grps[l] = [];
+    grps[l].push(t);
+  });
+
+  const gl = document.getElementById("gl");
+  if (!f.length) {
+    gl.innerHTML = `<p id="empty">No terms found.</p>`;
+    return;
+  }
+
+  gl.innerHTML = Object.entries(grps)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([letter, terms]) => `
+      <div class="lh" aria-hidden="true">${letter}</div>
+      ${terms.map(t => `
+        <div class="tr" role="listitem">
+          <div>
+            <p class="tn">${hi(t.term, q)}</p>
+            ${t.notation ? `<span class="no">${esc(t.notation)}</span>` : ""}
+            <p class="td">${hi(t.def, q)}</p>
+          </div>
+          <span class="ut" aria-label="${esc(t.unit)}">
+            <span class="dot" style="background:${UNIT_COLORS[t.unit] || '#CCC'}"></span>
+            ${esc(t.unit)}
+          </span>
+        </div>
+      `).join("")}
+    `).join("");
+}
+
+// Render unit filter buttons
+const ufEl = document.getElementById("uf");
+ufEl.innerHTML = UNITS.map(un =>
+  `<button class="ub${u === un ? " on" : ""}" data-unit="${esc(un)}" role="tab" aria-selected="${u === un}">${esc(un)}</button>`
+).join("");
+
+ufEl.addEventListener("click", e => {
+  const b = e.target.closest(".ub");
+  if (!b) return;
+  u = b.dataset.unit;
+  document.querySelectorAll(".ub").forEach(x => {
+    x.classList.toggle("on", x.dataset.unit === u);
+    x.setAttribute("aria-selected", x.dataset.unit === u);
+  });
+  render();
+});
+
+document.getElementById("gs").addEventListener("input", e => {
+  q = e.target.value;
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
