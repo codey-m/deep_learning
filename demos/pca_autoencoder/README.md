@@ -2,6 +2,10 @@
 
 An illustrative recitation demonstration for TAs, using eight selected dog, cat, apple, and orange photos. There are no student coding tasks. The main notebook has one collapsed launch cell and formulas for PCA projection, reconstruction, and the outer-product formulation.
 
+## Open in your browser
+
+[Open the live PCA vs. Autoencoder demo](https://codey-m.github.io/deep_learning/demos/pca_autoencoder/pca_autoencoder_demo.html). It runs directly in your browser, with no notebook runtime, installation, or download needed.
+
 ## Open in Colab
 
 1. [Download the lightweight demo ZIP](https://raw.githubusercontent.com/codey-m/deep_learning/main/demos/pca_autoencoder/PCA_Autoencoder_Demo.zip).
