@@ -1,0 +1,32 @@
+{
+  "fit_images": 2048,
+  "calibration_images": 128,
+  "demo_images": 8,
+  "source": "Open Images V6 validation, disjoint source IDs for fit/calibration/demo",
+  "fit_selection": "Largest eligible non-depiction/non-group/non-truncated bounding box, area >=0.15, normalized aspect ratio 0.6 to 1.7; sort unique source IDs by SHA256 of pca-demo-2026-11-04:ID. Exclude all 8 demo source IDs. First 2048 fit, next 128 calibration.",
+  "training_note": "PCA was fitted for this demo. TAESD uses its author's pretrained weights; its original training images may overlap public datasets. This is a qualitative comparison of these fitted models.",
+  "taesd_repository": "https://github.com/madebyollin/taesd",
+  "taesd_commit": "fdbae2df989db95761f482efb8977e1182fb68d2",
+  "weights": {
+    "taesd_encoder.pth": "15bc6128f0ac51c673d3427216082ebfa62402ffc89763af74edfe259b32d49d",
+    "taesd_decoder.pth": "02873377c3f4659cd9f9adb2f718dcb434ba4c7bba3af3ee7bb95cbdabe2d3cf"
+  },
+  "pca_explained_variance": {
+    "64": 0.7457128763198853,
+    "128": 0.8090980648994446,
+    "256": 0.868130087852478,
+    "512": 0.9233899116516113,
+    "1024": 0.9710349440574646
+  },
+  "pca_shared_decoder_bytes": {
+    "64": 12779520,
+    "128": 25362432,
+    "256": 50528256,
+    "512": 100859904,
+    "1024": 201523200
+  },
+  "taesd_shared_decoder_bytes": 4890124,
+  "quantizer": "Uniform affine quantization per coordinate. Ranges are calibration minima/maxima from 128 separate images, stored as two 1024-value float32 arrays per method. Integer values are actually bit-packed. Reported per-image payload excludes these 8192 shared range bytes and shared decoder/basis.",
+  "metric": "MSE on RGB values scaled to [0,1], after decoded output is clipped to [0,1] and before PNG rounding. RMSE is shown on the 0 to 255 scale.",
+  "build_seconds": 1.9796017091721296
+}
