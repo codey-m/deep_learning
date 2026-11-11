@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Message Passing · Python practice</title>
+<link rel="stylesheet" href="style.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<main>
+  <header><p class="eyebrow">DEEP LEARNING / CODE PRACTICE</p><h1>Message passing</h1>
+    <p class="intro">A graph network updates each node from its neighbors. Write one update rule, then watch what changes across the graph.</p>
+  </header>
+  <nav class="stages" aria-label="Aggregation rule">
+    <button data-stage="sum" aria-pressed="true"><span>01</span> Neighbor sum</button>
+    <button data-stage="mean" aria-pressed="false"><span>02</span> Neighbor mean</button>
+    <button data-stage="self" aria-pressed="false"><span>03</span> Sum + self</button>
+  </nav>
+  <section class="brief" aria-labelledby="task-title"><h2 id="task-title">Add the neighbors’ features.</h2>
+    <p id="task-description">Return one new value per node. Read every value from the original graph, so all five nodes update together. A node with no neighbors returns 0.</p>
+  </section>
+  <div class="workspace">
+    <section class="code-panel" aria-labelledby="editor-title">
+      <div class="panel-heading"><h2 id="editor-title">Your update rule</h2><span class="tag">PYTHON</span></div>
+      <label class="sr-only" for="code">Python function message_pass</label>
+      <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-describedby="editor-help"></textarea>
+      <p id="editor-help" class="small">features: five numbers · neighbors: node index → list of neighbor indices. Return five numbers in node order. Leave both inputs unchanged.</p>
+      <div class="run-controls"><button id="run" class="primary">Run Python</button><button id="stop" disabled>Stop</button><button id="suite">Test other graphs</button></div>
+      <p id="runtime" class="runtime" role="status">Python loads on the first run.</p>
+      <button id="retry" class="text-button" hidden>Retry loading Python</button>
+      <details><summary>Inputs for this graph</summary><pre id="input-code"></pre></details>
+      <details><summary>Hint</summary><p id="hint"></p></details>
+      <div class="secondary"><button id="reset" class="text-button">Reset this rule</button><button id="download" class="text-button">Download Python</button></div>
+    </section>
+    <section class="graph-panel" aria-labelledby="graph-title">
+      <div class="panel-heading"><h2 id="graph-title">Five connected nodes</h2><button id="new-case" class="text-button">Change graph ↗</button></div>
+      <svg id="graph" viewBox="0 0 440 300" role="group" aria-label="Graph of five nodes. Select a node to inspect its neighbors."></svg>
+      <div class="graph-toolbar"><span id="run-label" class="small">Original graph</span><button id="reference">Run reference</button></div>
+      <p id="reference-help" class="small">Run reference shows the correct update on this graph without using or changing your code.</p>
+      <div class="inspector"><div><label for="feature">Node <span id="selected-name">C</span> · original feature</label><input id="feature" type="number" min="-100" max="100" step="1" value="3"></div>
+      <label class="edge-toggle"><input id="extra-edge" type="checkbox"> Add link A—E</label></div>
+      <p id="neighbor-description" class="small"></p>
+      <div class="play-controls"><button id="replay" disabled>Replay update</button><button id="step" disabled>Step one node</button></div>
+      <p class="small">Links carry the original features. After a run, each node shows its new value; “was” keeps its original value in view.</p>
+      <div id="result-panel" class="graph-result" hidden>
+    <p id="verdict" role="status"></p>
+    <div id="error-box" hidden><pre id="error" tabindex="0" role="region" aria-label="Python error"></pre></div>
+    <details id="test-details" hidden><summary id="test-summary">Other graphs</summary><div id="test-results"></div><p class="small">These formative checks use four disclosed cases: the original graph, unequal degrees, an isolated node, and changed features. Passing them is evidence, not a proof for every graph.</p></details>
+    <details id="stdout-details" hidden><summary>Printed output</summary><pre id="stdout" tabindex="0" role="region" aria-label="Python printed output"></pre></details>
+      </div>
+    </section>
+  </div>
+  <footer><p id="transfer">Change a feature or add the A—E link. Compare which nodes change and which stay the same.</p><p class="small">One synchronous aggregation step, not a full trained graph neural network. Your work stays in this page; use Download Python to keep it. Refreshing starts over.</p></footer>
+</main>
+</body>
+</html>
