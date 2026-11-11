@@ -37,6 +37,7 @@ function textareaEditor({textarea,gutter,onChange,onRun}){
  };
 }
 
+const NATIVE_VALUE=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value');
 const THEME={
  '&':{height:'100%',fontSize:'14px',backgroundColor:'#f6f8fa',color:'#13344b'},
  '.cm-scroller':{fontFamily:'ui-monospace,SFMono-Regular,Consolas,monospace',lineHeight:'1.6'},
@@ -60,7 +61,8 @@ function mountCodeMirror(cm,{textarea,gutter,host,onChange,onRun}){
  const {defaultKeymap,history,historyKeymap,indentWithTab}=cm.commands;
  const {indentOnInput,bracketMatching,syntaxHighlighting,defaultHighlightStyle,indentUnit}=cm.language;
  const {autocompletion,closeBrackets,closeBracketsKeymap,completionKeymap}=cm.autocomplete;
- const attrs={'aria-label':textarea.getAttribute('aria-label')||'Python code'};
+ const labelText=textarea.getAttribute('aria-label')||[...(textarea.labels||[])].map(l=>l.textContent.trim()).filter(Boolean).join(' ')||'Python code';
+ const attrs={'aria-label':labelText};
  if(textarea.getAttribute('aria-describedby'))attrs['aria-describedby']=textarea.getAttribute('aria-describedby');
  const view=new EditorView({
   parent:host,
@@ -71,10 +73,22 @@ function mountCodeMirror(cm,{textarea,gutter,host,onChange,onRun}){
    Prec.highest(keymap.of([{key:'Mod-Enter',run:()=>{onRun();return true;}}])),
    keymap.of([...closeBracketsKeymap,...defaultKeymap,...historyKeymap,...completionKeymap,indentWithTab]),
    EditorView.contentAttributes.of(attrs),EditorView.theme(THEME),
-   EditorView.updateListener.of(update=>{if(update.docChanged&&update.transactions.some(t=>t.isUserEvent('input')||t.isUserEvent('delete')||t.isUserEvent('undo')||t.isUserEvent('redo')||t.isUserEvent('move')))onChange();}),
+   EditorView.updateListener.of(update=>{
+    if(!update.docChanged)return;
+    NATIVE_VALUE.set.call(textarea,update.state.doc.toString());
+    if(update.transactions.some(t=>t.isUserEvent('input')||t.isUserEvent('delete')||t.isUserEvent('undo')||t.isUserEvent('redo')||t.isUserEvent('move'))){
+     onChange();textarea.dispatchEvent(new Event('input',{bubbles:true}));
+    }
+   }),
   ]}),
  });
  textarea.hidden=true;if(gutter)gutter.hidden=true;host.hidden=false;
+ // Compatibility: code that reads or writes textarea.value (app logic, test harnesses) now reads and
+ // writes CodeMirror. Programmatic writes do not count as learner edits.
+ Object.defineProperty(textarea,'value',{configurable:true,
+  get:()=>view.state.doc.toString(),
+  set:text=>{text=String(text);NATIVE_VALUE.set.call(textarea,text);if(text!==view.state.doc.toString())view.dispatch({changes:{from:0,to:view.state.doc.length,insert:text}});}});
+ for(const label of textarea.labels||[])label.addEventListener('click',event=>{event.preventDefault();view.focus();});
  return {
   kind:'codemirror',view,
   getValue:()=>view.state.doc.toString(),
@@ -85,8 +99,11 @@ function mountCodeMirror(cm,{textarea,gutter,host,onChange,onRun}){
 
 // Returns an editor object immediately-usable (textarea) and upgrades it in place when CodeMirror mounts.
 // `ready` resolves to 'codemirror' or 'textarea' (with the reason in `fallbackReason`).
-export function createEditor({textarea,gutter=null,onChange=()=>{},onRun=()=>{},timeoutMs=10000,enhance=true}){
- const editor={},plain=textareaEditor({textarea,gutter,onChange,onRun});
+// manage=false: the page already handles the textarea (Tab, line numbers, Command/Ctrl+Enter, input events);
+// createEditor then only upgrades it, and Command/Ctrl+Enter in CodeMirror is forwarded to the textarea's own handler.
+export function createEditor({textarea,gutter=null,onChange=()=>{},onRun=null,timeoutMs=10000,enhance=true,manage=true}){
+ onRun=onRun||(()=>textarea.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',metaKey:true,ctrlKey:true,bubbles:true,cancelable:true})));
+ const editor={},plain=manage?textareaEditor({textarea,gutter,onChange,onRun}):{kind:'textarea',getValue:()=>textarea.value,setValue(text,{user=false}={}){textarea.value=text;if(user)textarea.dispatchEvent(new Event('input',{bubbles:true}));},focus:()=>textarea.focus(),detach(){}};
  const use=impl=>{for(const k of ['kind','getValue','setValue','focus'])editor[k]=impl[k];editor.view=impl.view||null;};
  use(plain);
  editor.ready=(async()=>{

@@ -1,4 +1,5 @@
 import {CASES,STAGES,starter,neighborsFor,copyCase,format,indentSelection} from './model.mjs';
+import {createEditor} from './editor.mjs';
 import {PythonExecutor} from './execution.mjs';
 const $=id=>document.getElementById(id), name=i=>String.fromCharCode(65+i);
 const positions=[[74,74],[337,74],[205,160],[332,252],[75,252]];
@@ -215,3 +216,5 @@ $('extra-edge').onchange=()=>{graph.edges=graph.edges.filter(([a,b])=>!(a===0&&b
 $('replay').onclick=playUpdate;$('step').onclick=stepNode;
 window.addEventListener('pagehide',()=>{stopPlayback();studentExecutor.dispose('Page closed.');referenceExecutor.dispose('Page closed.');});
 $('hint').textContent=STAGES.sum.hint;lines();draw();
+// Shared CodeMirror editor (../_shared/editor.mjs). The textarea keeps working as before; its value now proxies the editor.
+window.pythonEditor=createEditor({textarea:$('code'),gutter:$('line-numbers'),manage:false,enhance:!new URLSearchParams(location.search).has('plain_editor')});
