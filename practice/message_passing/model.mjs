@@ -23,3 +23,10 @@ export function format(value){
  const n=Number(value),m=Math.abs(n);
  return m>=10000||(m>0&&m<0.001)?n.toExponential(3):n.toLocaleString('en-US',{maximumSignificantDigits:6});
 }
+// Shared editor convention (identical to bootstrap/dist/model.mjs): Tab inserts four spaces or indents selected lines.
+export function indentSelection(text,start,end){
+ const lineStart=text.lastIndexOf('\n',start-1)+1;
+ if(start===end)return {text:text.slice(0,start)+'    '+text.slice(end),start:start+4,end:start+4};
+ const block=text.slice(lineStart,end),replacement=block.split('\n').map(line=>'    '+line).join('\n');
+ return {text:text.slice(0,lineStart)+replacement+text.slice(end),start:start+4,end:end+replacement.length-block.length};
+}

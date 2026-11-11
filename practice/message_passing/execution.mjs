@@ -37,7 +37,9 @@ export class PythonExecutor {
   }catch(error){this.fail(String(error.message||error));}
   return promise;
  }
- async run(request){
+ get isLoading(){return Boolean(this.loading)&&!this.pending;}
+ // isCurrent lets a caller abandon a run that was superseded while Python loaded, without discarding the runtime.
+ async run(request,{isCurrent=()=>true}={}){
   if(this.role==='reference'&&request.mode!=='reference')throw new Error('The reference worker only accepts reference runs.');
   if(this.pending)throw new Error('A run is already in progress.');
   const started=performance.now(),warm=this.ready;
@@ -45,6 +47,7 @@ export class PythonExecutor {
   const executeStarted=performance.now(),loadMs=executeStarted-started;
   // Cancelled loads reject; this covers an externally replaced ready worker.
   if(!this.ready)throw new Error('The session was stopped.');
+  if(!isCurrent()){const error=new Error('Superseded before execution.');error.superseded=true;throw error;}
   const id=++this.sequence;
   this.status('running',request.mode==='reference'?'Running reference…':'Running your function…');
   return new Promise((resolve,reject)=>{

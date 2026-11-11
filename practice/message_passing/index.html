@@ -25,8 +25,9 @@
     <section class="code-panel" aria-labelledby="editor-title">
       <div class="panel-heading"><h2 id="editor-title">Your update rule</h2><span class="tag">PYTHON</span></div>
       <label class="sr-only" for="code">Python function message_pass</label>
-      <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-describedby="editor-help"></textarea>
+      <div class="editor-shell"><pre id="line-numbers" aria-hidden="true">1</pre><textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-describedby="editor-help editor-keys"></textarea></div>
       <p id="editor-help" class="small">features: five numbers · neighbors: node index → list of neighbor indices. Return five numbers in node order. Leave both inputs unchanged.</p>
+      <p id="editor-keys" class="small">Command/Ctrl + Enter runs. Tab indents; Escape then Tab leaves the editor.</p>
       <div class="run-controls"><button id="run" class="primary">Run Python</button><button id="stop" disabled>Stop</button><button id="suite">Test other graphs</button></div>
       <p id="runtime" class="runtime" role="status">Python loads on the first run.</p>
       <button id="retry" class="text-button" hidden>Retry loading Python</button>
@@ -36,14 +37,15 @@
     </section>
     <section class="graph-panel" aria-labelledby="graph-title">
       <div class="panel-heading"><h2 id="graph-title">Five connected nodes</h2><button id="new-case" class="text-button">Change graph ↗</button></div>
-      <svg id="graph" viewBox="0 0 440 300" role="group" aria-label="Graph of five nodes. Select a node to inspect its neighbors."></svg>
+      <svg id="graph" viewBox="0 0 440 320" role="group" aria-label="Graph of five nodes. Select a node to inspect its neighbors."></svg>
       <div class="graph-toolbar"><span id="run-label" class="small">Original graph</span><button id="reference">Run reference</button></div>
       <p id="reference-help" class="small">Run reference shows the correct update on this graph without using or changing your code.</p>
       <div class="inspector"><div><label for="feature">Node <span id="selected-name">C</span> · original feature</label><input id="feature" type="number" min="-100" max="100" step="1" value="3"></div>
       <label class="edge-toggle"><input id="extra-edge" type="checkbox"> Add link A—E</label></div>
       <p id="neighbor-description" class="small"></p>
       <div class="play-controls"><button id="replay" disabled>Replay update</button><button id="step" disabled>Step one node</button></div>
-      <p class="small">Links carry the original features. After a run, each node shows its new value; “was” keeps its original value in view.</p>
+      <p id="play-status" class="small" role="status"></p>
+      <p class="small">Every message carries an original feature, and all five nodes update together. After a run, each node shows its new value; “was” keeps its original value in view.</p>
       <div id="result-panel" class="graph-result" hidden>
     <p id="verdict" role="status"></p>
     <div id="error-box" hidden><pre id="error" tabindex="0" role="region" aria-label="Python error"></pre></div>

@@ -78,6 +78,19 @@ def validate_case(case):
         raise ValueError('Too many graph edges.')
 
 
+def student_location(exc, code):
+    """Name the learner's line for runtime errors; SyntaxError already reports its own line."""
+    if isinstance(exc, SyntaxError) or not isinstance(code, str):
+        return ''
+    frames = [f for f in traceback.extract_tb(exc.__traceback__) if f.filename == 'your_function.py']
+    if not frames:
+        return ''
+    number = frames[-1].lineno
+    lines = code.splitlines()
+    source = lines[number - 1].strip() if 0 < number <= len(lines) else ''
+    return f'Line {number}: {source[:200]}\n' if source else f'Line {number}\n'
+
+
 def evaluate_submission(code, case, stage):
     validate_case(case)
     if not isinstance(code, str) or len(code) > 16000:
@@ -113,6 +126,7 @@ def evaluate_submission(code, case, stage):
             result['passed'] = all(result['matches']) and not result['mutated']
     except BaseException as exc:
         error_text = ''.join(traceback.format_exception_only(type(exc), exc))
+        error_text = student_location(exc, code) + error_text
         result['error'] = error_text[:1800] + ('\n[Error shortened.]' if len(error_text) > 1800 else '')
     result['stdout'] = stdout.getvalue()
     return result
