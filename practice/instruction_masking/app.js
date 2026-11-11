@@ -1,10 +1,15 @@
-import {CASES,ROLE,STARTER,copyCase,format,indentSelection} from './model.mjs';
+import {CASES,ROLE,STARTER,copyCase,format} from './model.mjs';
+import {createEditor} from './editor.mjs';
 import {PythonExecutor} from './execution.mjs';
 const $=id=>document.getElementById(id);
 let caseIndex=0,conv=copyCase(CASES[0]),selected=null,version=0,last=null,busy=false,activeExecutor=null,shiftToken=0;
 const reducedMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 const restartReference=new URLSearchParams(location.search).has('restart_reference');
 $('code').value=STARTER;
+// Reference output depends only on the displayed conversation, so code edits keep it (and any reference run in progress).
+const referenceShown=()=>activeExecutor===referenceExecutor&&(busy||isReference());
+const editor=createEditor({textarea:$('code'),gutter:$('line-numbers'),onChange:()=>{if(!referenceShown())clearDisplay('Code changed. Run again to see its result.');},onRun:()=>run(),enhance:!new URLSearchParams(location.search).has('plain_editor')});
+window.pythonEditor=editor; // test hook for the browser harness
 
 function runtimeStatus(owner,{state,message}){
  if(activeExecutor!==owner)return;
@@ -141,7 +146,7 @@ function clearDisplay(message){
 }
 async function run(suite=false,mode='student'){
  if(busy)return;busy=true;const runVersion=version;
- const request={case:copyCase(conv),suite,mode};if(mode==='student')request.code=$('code').value;
+ const request={case:copyCase(conv),suite,mode};if(mode==='student')request.code=editor.getValue();
  activeExecutor=mode==='reference'?referenceExecutor:studentExecutor;
  if(mode==='reference'&&restartReference)referenceExecutor.dispose('Developer baseline: restart reference worker.');
  last=null;$('result-panel').hidden=true;$('run-label').textContent=mode==='reference'?'Running reference…':'Running your code…';$('replay').disabled=true;$('compare').disabled=true;draw();
@@ -150,29 +155,16 @@ async function run(suite=false,mode='student'){
  catch(error){if(version===runVersion&&!error.superseded){last=null;feedback(error.message,'fail');$('run-label').textContent='Run stopped';draw();}}
  finally{if(version===runVersion){busy=false;for(const id of ['run','suite','reference'])$(id).disabled=false;$('stop').disabled=true;}}
 }
-function lines(){const e=$('code');$('line-numbers').textContent=e.value.split('\n').map((_,i)=>i+1).join('\n');$('line-numbers').scrollTop=e.scrollTop;}
-// Reference output depends only on the displayed conversation, so code edits keep it (and any reference run in progress).
-const referenceShown=()=>activeExecutor===referenceExecutor&&(busy||isReference());
-$('code').oninput=()=>{lines();if(!referenceShown())clearDisplay('Code changed. Run again to see its result.');};
-$('code').onscroll=lines;
-let escapeTab=false;
-$('code').onkeydown=event=>{
- if(event.key==='Escape'){escapeTab=true;return;}
- if(event.key==='Tab'&&!event.shiftKey&&!escapeTab){event.preventDefault();const e=$('code'),c=indentSelection(e.value,e.selectionStart,e.selectionEnd);e.value=c.text;e.setSelectionRange(c.start,c.end);e.dispatchEvent(new Event('input'));}
- else if(event.key!=='Shift')escapeTab=false;
- if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();run();}
-};
-$('code').onblur=()=>{escapeTab=false;};
 $('run').onclick=()=>run();$('suite').onclick=()=>run(true);$('reference').onclick=()=>run(false,'reference');
 $('stop').onclick=()=>{const executor=activeExecutor;clearDisplay('Stopped. Your code is preserved. Run again when you are ready.');executor?.cancel();};
 $('retry').onclick=()=>activeExecutor?.load().catch(()=>{});
-$('reset').onclick=()=>{$('code').value=STARTER;lines();clearDisplay('Code reset. Complete both functions, then run.');};
+$('reset').onclick=()=>{editor.setValue(STARTER);clearDisplay('Code reset. Complete both functions, then run.');};
 $('new-case').onclick=()=>{caseIndex=(caseIndex+1)%CASES.length;conv=copyCase(CASES[caseIndex]);selected=null;$('conv-title').textContent=conv.name;clearDisplay('New conversation, same code. Run again to see the result.');};
 $('replay').onclick=()=>{if(last)draw(true);};
 $('compare').onchange=()=>{updateCompare();draw();};
 $('download').onclick=()=>{
- const text=`# Instruction masking\nroles = ${JSON.stringify(conv.roles)}\nlosses = ${JSON.stringify(conv.losses)}\n\n${$('code').value}\n\ntargets = losses[1:]\nmask = target_mask(roles)\nprint("mask:", mask)\nprint("supervised mean NLL:", supervised_mean_nll(targets, mask))\n`;
+ const text=`# Instruction masking\nroles = ${JSON.stringify(conv.roles)}\nlosses = ${JSON.stringify(conv.losses)}\n\n${editor.getValue()}\n\ntargets = losses[1:]\nmask = target_mask(roles)\nprint("mask:", mask)\nprint("supervised mean NLL:", supervised_mean_nll(targets, mask))\n`;
  const url=URL.createObjectURL(new Blob([text],{type:'text/x-python'})),a=document.createElement('a');a.href=url;a.download='instruction-masking.py';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 };
 window.addEventListener('pagehide',()=>{studentExecutor.dispose('Page closed.');referenceExecutor.dispose('Page closed.');});
-lines();draw();
+draw();

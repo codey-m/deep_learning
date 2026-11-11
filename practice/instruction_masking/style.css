@@ -49,3 +49,4 @@ footer p{font-size:15px}
 th .short{display:none}
 @media(max-width:560px){:root{--cell:22px;--gap:2px}th .long{display:none}th .short{display:inline}th{padding-right:2px}.cell .letter{font-size:12px}main{padding:18px 12px}h1{font-size:27px}.intro{font-size:15px}.panel{padding:10px}.cell{height:40px}.cell .loss{font-size:11px}th{font-size:11px}.legend{font-size:12px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+.cm-host{flex:1;min-width:0;height:100%}.cm-host .cm-editor{height:100%}
