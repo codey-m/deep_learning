@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Instruction masking · Python practice</title>
+<link rel="stylesheet" href="style.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<main>
+  <header><p class="eyebrow">DEEP LEARNING / CODE PRACTICE</p><h1>Which tokens instruction tuning supervises</h1>
+    <p class="intro">Each token in a conversation is predicted from the tokens before it. Write the mask that keeps only the assistant’s tokens in the loss, then average the loss under it.</p>
+  </header>
+  <section class="panel" aria-labelledby="editor-title">
+    <div class="panel-heading"><h2 id="editor-title">Your two functions</h2><span class="tag">PYTHON</span></div>
+    <div class="editor-shell"><pre id="line-numbers" aria-hidden="true">1</pre><textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Python functions target_mask and supervised_mean_nll" aria-describedby="editor-help editor-keys"></textarea></div>
+    <p id="editor-help" class="small"><code>roles</code>: one role per token. <code>target_mask</code> returns one 0/1 entry per target. <code>supervised_mean_nll(losses, mask)</code> receives the targets’ losses and a mask of the same length.</p>
+    <p id="editor-keys" class="small">Command/Ctrl + Enter runs. Tab indents; Escape then Tab leaves the editor.</p>
+    <div class="run-controls"><button id="run" class="primary">Run Python</button><button id="stop" disabled>Stop</button><button id="suite">Test other conversations</button><button id="reference">Run reference</button></div>
+    <p id="runtime" class="runtime" role="status">Python loads on the first run.</p>
+    <button id="retry" class="text-button" hidden>Retry loading Python</button>
+    <details><summary>Hint: which position predicts which token</summary><p>Position <code>i</code> predicts the token at position <code>i + 1</code>, so there are <code>len(roles) - 1</code> targets. Ask whose token each target is.</p></details>
+    <details><summary>Inputs for this conversation</summary><pre id="input-code"></pre></details>
+    <div class="secondary"><button id="reset" class="text-button">Reset code</button><button id="download" class="text-button">Download Python</button></div>
+  </section>
+  <section class="panel" aria-labelledby="conv-title">
+    <div class="panel-heading"><h2 id="conv-title">Two-turn conversation</h2><button id="new-case" class="text-button">Change conversation ↗</button></div>
+    <p class="legend small" aria-hidden="true"><span class="chip system">S</span> system <span class="chip user">U</span> user <span class="chip assistant">A</span> assistant · number = token loss</p>
+    <div class="grid-wrap"><table id="grid"><caption class="sr-only">Tokens, the token each position predicts, and the mask</caption><thead></thead><tbody></tbody></table></div>
+    <p id="run-label" class="small run-label">Before a run, only the tokens are shown.</p>
+    <p id="inspect" class="small inspect">Select a position number to inspect it.</p>
+    <div class="play-controls"><button id="replay" disabled>Replay the shift</button><label class="toggle"><input id="compare" type="checkbox" disabled> Compare a mask read from each token’s own role</label></div>
+    <div id="result-panel" hidden>
+      <p id="verdict" role="status"></p>
+      <div id="report"></div>
+      <div id="compare-note" class="small" hidden></div>
+      <div id="error-box" hidden><pre id="error" tabindex="0" role="region" aria-label="Python error"></pre></div>
+      <details id="test-details" hidden><summary id="test-summary">Other conversations</summary><div id="test-results"></div><p class="small">Four disclosed conversations. Passing them is evidence, not proof for every conversation.</p></details>
+      <details id="stdout-details" hidden><summary>Printed output</summary><pre id="stdout" tabindex="0" role="region" aria-label="Python printed output"></pre></details>
+    </div>
+  </section>
+  <footer><p id="transfer">After a run, turn on the comparison. Which turn boundary does each added or dropped target sit on, and would a falling training loss reveal the mistake?</p></footer>
+</main>
+</body>
+</html>

@@ -8,6 +8,8 @@ The labs combine implementation with controlled experiments. Short practices foc
 
 Use a notebook's **Colab** link below, then choose **File → Save a copy in Drive** to keep your own editable copy. Follow its setup cells and runtime instructions. The labs and final projects recommend a GPU runtime; the short practices use small CPU examples. Course pages contain the associated assessment and submission instructions.
 
+Some short practices also have a **Browser** link. It runs the same task with Python in your browser, with no account or setup, and shows what your functions return. Your code stays in that page; use **Download Python** to keep a copy.
+
 ## 6.7960.1x Deep Learning: Foundations
 
 | Activity | What you do | Run |
@@ -44,7 +46,7 @@ Use a notebook's **Colab** link below, then choose **File → Save a copy in Dri
 | Lab 5: [Generative Modeling](M5_generative_tuning.ipynb) | Implement a beta-VAE objective, forward diffusion, and a DDIM sampling step. Compare KL-weight settings and two diffusion sampling budgets. | [Colab](https://colab.research.google.com/github/codey-m/deep_learning/blob/main/M5_generative_tuning.ipynb) |
 | Practice: [Interpolate and regress a flow](practice/m5_flow_matching.ipynb) | Construct interpolated points and velocity targets for flow matching, then compare noise-to-data and related-data pairings. | [Colab](https://colab.research.google.com/github/codey-m/deep_learning/blob/main/practice/m5_flow_matching.ipynb) |
 | Practice: [Stable and masked autoregressive NLL](practice/m5_ar_nll.ipynb) | Compute sequence negative log-likelihood without multiplying tiny probabilities, then average a padded batch's loss over valid target tokens. | [Colab](https://colab.research.google.com/github/codey-m/deep_learning/blob/main/practice/m5_ar_nll.ipynb) |
-| Practice: [Which tokens instruction tuning supervises](practice/m5_instruction_masking.ipynb) | Build an assistant-target supervision mask, account for the next-token shift, and compare the losses produced by different masks. | [Colab](https://colab.research.google.com/github/codey-m/deep_learning/blob/main/practice/m5_instruction_masking.ipynb) |
+| Practice: [Which tokens instruction tuning supervises](practice/m5_instruction_masking.ipynb) | Build an assistant-target supervision mask, account for the next-token shift, and compare the losses produced by different masks. The browser activity lines your returned mask up under the token each position predicts and includes an independent reference run. | [Browser](https://codey-m.github.io/deep_learning/practice/instruction_masking/) · [Colab](https://colab.research.google.com/github/codey-m/deep_learning/blob/main/practice/m5_instruction_masking.ipynb) |
 
 ## Final project: choose one path
 
