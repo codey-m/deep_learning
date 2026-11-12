@@ -1,4 +1,4 @@
-:root{font-family:Arial,Helvetica,sans-serif;color:#202c32;background:#f5f4ef;--red:#a31f34;--blue:#174d75;--muted:#526169;--line:#d5dcda;--green:#236548;--cell:34px;--gap:4px}
+:root{font-family:Arial,Helvetica,sans-serif;color:#202c32;background:#f1f5f6;--red:#a31f34;--blue:#174d75;--muted:#526169;--line:#d5dcda;--green:#236548;--cell:34px;--gap:4px}
 *{box-sizing:border-box}body{margin:0}main{max-width:880px;margin:auto;padding:28px 24px 20px}
 h1{font-size:34px;letter-spacing:-1px;margin:7px 0 10px;font-weight:650;line-height:1.15}h2{font-size:18px;margin:0;font-weight:600}
 p{line-height:1.5;margin:8px 0 12px}.eyebrow{font-size:11px;letter-spacing:2px;color:var(--red);font-weight:bold;margin:0}
