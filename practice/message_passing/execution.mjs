@@ -1,8 +1,8 @@
 // Reusable browser execution lifecycle. No DOM access and no learner code transmission.
 export class PythonExecutor {
- constructor({onStatus=()=>{},onMetrics=()=>{},role='student',workerFactory=null,loadTimeout=45000,runTimeout=5000}={}) {
-  Object.assign(this,{onStatus,onMetrics,role,loadTimeout,runTimeout});
-  this.workerFactory=workerFactory||(()=>{const url=new URL('./worker.js',import.meta.url);url.searchParams.set('role',role);return new Worker(url,{type:'module'});});
+ constructor({onStatus=()=>{},onMetrics=()=>{},role='student',workerFactory=null,loadTimeout=45000,runTimeout=5000,packages=[]}={}) {
+  Object.assign(this,{onStatus,onMetrics,role,loadTimeout,runTimeout,packages});
+  this.workerFactory=workerFactory||(()=>{const url=new URL('./worker.js',import.meta.url);url.searchParams.set('role',role);if(packages.length)url.searchParams.set('packages',packages.join(','));return new Worker(url,{type:'module'});});
   this.workerStarts=0;
   this.worker=null;this.pending=null;this.ready=false;this.generation=0;this.sequence=0;
  }

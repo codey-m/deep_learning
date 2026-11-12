@@ -1,4 +1,4 @@
-import {CASES,STAGES,starter,neighborsFor,copyCase,format,indentSelection} from './model.mjs';
+import {CASES,STAGES,starter,neighborsFor,copyCase,format,indentSelection,applyRule,classify,inPlaceTerms,RULES} from './model.mjs';
 import {createEditor} from './editor.mjs';
 import {PythonExecutor} from './execution.mjs';
 const $=id=>document.getElementById(id), name=i=>String.fromCharCode(65+i);
@@ -11,6 +11,13 @@ let stage='sum',caseIndex=0,graph=copyCase(CASES[0]),selected=2,version=0,last=n
 // newLabels: nodes whose returned value is shown beside an unchanged original, during the before view.
 let view='before',newLabels=new Set(),active=new Set();
 const drafts={sum:starter('sum'),mean:starter('mean'),self:starter('self')};
+// Code-primary practice: one node by hand is a warm-up; the function passing every graph completes a rule.
+const done={sum:{hand:false,code:false},mean:{hand:false,code:false},self:{hand:false,code:false}},stageLabel={sum:'Neighbor sum',mean:'Neighbor mean',self:'Sum + self'};
+function progress(){const d=done[stage],m=x=>x?'done':'not yet';
+ $('progress').textContent=`${stageLabel[stage]}: one node by hand (warm-up), ${m(d.hand)}; your function on every graph, ${m(d.code)}. Your function completes this rule.`;
+ for(const b of document.querySelectorAll('[data-stage]')){b.dataset.label??=b.textContent;const ok=done[b.dataset.stage].code;b.lastChild.textContent=b.dataset.label.replace(/^\d+\s*/,' ')+(ok?' ✓':'');if(ok)b.setAttribute('aria-label',b.dataset.label+', completed');else b.removeAttribute('aria-label');}
+}
+const matched=()=>last&&!isReference()&&last.result.values&&!last.result.passed?classify(graph,stage,last.result.values):null;
 $('code').value=drafts.sum;
 function lines(){const editor=$('code');$('line-numbers').textContent=editor.value.split('\n').map((_,i)=>i+1).join('\n');$('line-numbers').scrollTop=editor.scrollTop;}
 let activeExecutor=null;
@@ -61,7 +68,7 @@ function draw(){
   if(showNew)group.append(el('text',{class:'node-sub new',y:52},`new ${format(output)}${differs?' · ≠':''}`));
   group.addEventListener('click',()=>selectNode(i));group.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();selectNode(i,true);}});svg.append(group);
  });
- $('selected-name').textContent=name(selected);$('feature').value=graph.features[selected];
+ $('selected-name').textContent=name(selected);$('hand-name').textContent=name(selected);$('feature').value=graph.features[selected];
  describeSelected(neighbors);
  $('input-code').textContent=`features = ${JSON.stringify(graph.features)}\nneighbors = {\n${Object.entries(neighbors).map(([i,ns])=>`    ${i}: ${JSON.stringify(ns)},  # ${name(Number(i))}`).join('\n')}\n}`;
 }
@@ -83,11 +90,15 @@ function describeSelected(neighbors){
   else{
    const msgs=neighbors[i].map(j=>format(graph.features[j]));if(stage==='self')msgs.push(`own ${format(graph.features[i])}`);
    text+=` Messages in: ${msgs.length?msgs.join(', '):'none'}. Your function returned ${format(output)}, which differs from this rule.`;
+   const rule=matched();
+   if(rule?.inPlace){const t=inPlaceTerms(graph,rule.kind,i),changed=t.neighbors.filter(n=>n.changed);
+    if(changed.length)text+=` Your ${format(output)} matches the in-place rule here: ${changed.map(n=>`${name(n.j)} had already been replaced by ${format(n.value)}`).join(' and ')} when ${name(i)} was computed.`;}
+   else if(rule)text+=` Your returned values match ${rule.describe}.`;
   }
  }
  $('neighbor-description').textContent=text;
 }
-function selectNode(i,restoreFocus=false){stopPlayback();active=new Set();selected=i;draw();if(restoreFocus)$('graph').querySelectorAll('.node')[i]?.focus();}
+function selectNode(i,restoreFocus=false){stopPlayback();active=new Set();selected=i;$('hand-value').value='';$('hand-feedback').textContent='';draw();if(restoreFocus)$('graph').querySelectorAll('.node')[i]?.focus();}
 // Packets carry the sender's original feature, labelled, along each link into each target.
 // For the self rule a packet also circles the node's self-loop.
 function makePackets(targets){
@@ -159,9 +170,10 @@ function showResult(result,request){
  else if(result.error)feedback('The function did not return five finite features. Read the error below.','fail');
  else if(result.mutated)feedback('The function changed its input data. This step needs every node to read the same original graph. Returned values are shown in the nodes.','fail');
  else if(result.passed)feedback('All five returned values match this rule on this graph. Test another graph to check what generalizes.','pass');
- else{const failed=result.matches.map((ok,i)=>ok?null:name(i)).filter(Boolean);feedback(`${failed.length} returned value${failed.length===1?' differs':'s differ'} from this rule: ${failed.join(', ')}. The nodes show what your function returned; dashed outlines mark differences.`,'fail');}
+ else{const failed=result.matches.map((ok,i)=>ok?null:name(i)).filter(Boolean),rule=classify(graph,stage,result.values);feedback(`${failed.length} returned value${failed.length===1?' differs':'s differ'} from this rule: ${failed.join(', ')}. The nodes show what your function returned; dashed outlines mark differences.${rule?` Your values match ${rule.describe}.`:''}`,'fail');}
  $('stdout-details').hidden=!result.stdout;$('stdout').textContent=result.stdout;
  $('test-details').hidden=!result.suite;
+ if(request.mode==='student'&&result.suite?.length&&result.suite.every(r=>r.passed)){done[stage].code=true;progress();}
  if(result.suite){
   const passed=result.suite.filter(r=>r.passed).length;$('test-summary').textContent=`Other graphs: ${passed} of ${result.suite.length} checks passed`;
   $('test-results').replaceChildren();
@@ -208,13 +220,20 @@ $('download').onclick=()=>{
 for(const button of document.querySelectorAll('[data-stage]'))button.onclick=()=>{
  if(stage===button.dataset.stage)return;drafts[stage]=$('code').value;stage=button.dataset.stage;$('code').value=drafts[stage];lines();
  for(const item of document.querySelectorAll('[data-stage]'))item.setAttribute('aria-pressed',String(item===button));
- $('task-title').textContent=STAGES[stage].title;$('task-description').textContent=STAGES[stage].description;$('hint').textContent=STAGES[stage].hint;$('transfer').textContent=STAGES[stage].transfer;invalidate('New rule selected. Run your function or the reference to see the update.');
+ $('task-title').textContent=STAGES[stage].title;$('task-description').textContent=STAGES[stage].description;$('formula').innerHTML=STAGES[stage].math;$('hand-value').value='';$('hand-feedback').textContent='';progress();$('hint').textContent=STAGES[stage].hint;$('transfer').textContent=STAGES[stage].transfer;invalidate('New rule selected. Run your function or the reference to see the update.');
 };
 $('feature').onchange=()=>{const value=$('feature').valueAsNumber;if(!Number.isFinite(value)||Math.abs(value)>100){$('feature').setCustomValidity('Enter a number between -100 and 100.');$('feature').reportValidity();return;}$('feature').setCustomValidity('');graph.features[selected]=value;invalidate('A feature changed. Run again to see the new result.');};
 $('new-case').onclick=()=>{caseIndex=(caseIndex+1)%CASES.length;graph=copyCase(CASES[caseIndex]);$('graph-title').textContent=graph.name;$('extra-edge').checked=graph.edges.some(([a,b])=>a===0&&b===4);invalidate('New graph, same code. Run again to see the result.');};
 $('extra-edge').onchange=()=>{graph.edges=graph.edges.filter(([a,b])=>!(a===0&&b===4));if($('extra-edge').checked)graph.edges.push([0,4]);invalidate('The A—E link changed. Run again to see its effect.');};
 $('replay').onclick=playUpdate;$('step').onclick=stepNode;
 window.addEventListener('pagehide',()=>{stopPlayback();studentExecutor.dispose('Page closed.');referenceExecutor.dispose('Page closed.');});
-$('hint').textContent=STAGES.sum.hint;lines();draw();
+$('hint').textContent=STAGES.sum.hint;$('formula').innerHTML=STAGES.sum.math;
+// Hand warm-up: one node's new value. A miss is named when exactly one other synchronous rule gives that value; the requested value is never shown.
+$('check-hand').onclick=()=>{const v=$('hand-value').valueAsNumber,i=selected;if(!Number.isFinite(v)){$('hand-feedback').textContent='Enter a number first.';return;}
+ const want=applyRule(graph,stage)[i];
+ if(Math.abs(v-want)<=.01){$('hand-feedback').textContent=`That matches this rule for ${name(i)}. Now write the function that does it for every node.`;done[stage].hand=true;progress();return;}
+ const others=RULES.filter(r=>!r.inPlace&&r.key!==stage&&r.key!=='identity').filter(r=>Math.abs(applyRule(graph,r.kind)[i]-v)<=.01);
+ $('hand-feedback').textContent=`That differs from this rule for ${name(i)}.`+(others.length===1?` It is ${name(i)}’s value under ${others[0].describe}.`:v===graph.features[i]?` It is ${name(i)}’s original feature.`:' The formula above says which values contribute.');};
+lines();draw();progress();
 // Shared CodeMirror editor (../_shared/editor.mjs). The textarea keeps working as before; its value now proxies the editor.
 window.pythonEditor=createEditor({textarea:$('code'),gutter:$('line-numbers'),manage:false,enhance:!new URLSearchParams(location.search).has('plain_editor')});

@@ -40,8 +40,13 @@
     <button data-stage="mean" aria-pressed="false"><span>02</span> Neighbor mean</button>
     <button data-stage="self" aria-pressed="false"><span>03</span> Sum + self</button>
   </nav>
+  <p id="progress" class="small" role="status"></p>
   <section class="brief" aria-labelledby="task-title"><h2 id="task-title">Add the neighbors’ features.</h2>
     <p id="task-description">Return one new value per node. Read every value from the original graph, so all five nodes update together. A node with no neighbors returns 0.</p>
+    <div id="formula" class="formula" role="group" aria-label="Update rule"></div>
+    <p class="small">h<sub>i</sub> is <code>features[i]</code> and N(i) is <code>neighbors[i]</code>. Every term on the right uses the original features, so all nodes update at once.</p>
+    <div class="hand"><label for="hand-value">Before you code, work out node <span id="hand-name">C</span>’s new value by hand. Select a node in the graph to change which one.</label><input id="hand-value" type="number" step="any" inputmode="decimal"><button id="check-hand">Check</button></div>
+    <p id="hand-feedback" class="small" role="status"></p>
   </section>
   <div class="workspace">
     <section class="code-panel" aria-labelledby="editor-title">

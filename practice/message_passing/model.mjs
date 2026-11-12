@@ -30,3 +30,33 @@ export function indentSelection(text,start,end){
  const block=text.slice(lineStart,end),replacement=block.split('\n').map(line=>'    '+line).join('\n');
  return {text:text.slice(0,lineStart)+replacement+text.slice(end),start:start+4,end:end+replacement.length-block.length};
 }
+// One vocabulary for the page and its diagnosis. Each named rule gives the five values it produces on the
+// displayed graph. "In place" variants overwrite as they go, so later nodes read neighbors already replaced:
+// the sequential-update bug this activity is about. Classification describes returned values, not a trace.
+const aggregate={sum:(vals)=>vals.reduce((a,b)=>a+b,0),mean:(vals)=>vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0,self:(vals,own)=>vals.reduce((a,b)=>a+b,own)};
+export function applyRule(graph,kind,inPlace=false){
+ const nb=neighborsFor(graph),h=graph.features.slice();
+ return graph.features.map((_,i)=>{const src=inPlace?h:graph.features,v=aggregate[kind](nb[i].map(j=>src[j]),src[i]);if(inPlace)h[i]=v;return v;});
+}
+const RULE_NAMES={sum:'the neighbor sum',mean:'the neighbor mean',self:'the neighbor sum plus the node’s own feature'};
+export const RULES=[
+ ...['sum','mean','self'].map(kind=>({key:kind,kind,inPlace:false,describe:RULE_NAMES[kind]})),
+ ...['sum','mean','self'].map(kind=>({key:`${kind}-in-place`,kind,inPlace:true,describe:`${RULE_NAMES[kind]}, computed in place: nodes update one at a time, so later nodes read neighbors that were already replaced`})),
+ {key:'identity',describe:'the original features, unchanged'},
+];
+const same=(a,b)=>a.length===b.length&&a.every((x,i)=>Math.abs(x-b[i])<=1e-9*(1+Math.abs(b[i])));
+export const ruleValues=(graph,rule)=>rule.key==='identity'?graph.features.slice():applyRule(graph,rule.kind,rule.inPlace);
+// First named rule matching every returned value, excluding the stage's own rule; synchronous rules are tried first.
+export function classify(graph,stage,values){return RULES.find(r=>r.key!==stage&&same(values,ruleValues(graph,r)))||null;}
+// For an in-place match, the values node i actually combined: neighbors earlier in node order had already changed.
+export function inPlaceTerms(graph,kind,i){
+ const nb=neighborsFor(graph),h=graph.features.slice();
+ for(let k=0;k<i;k++)h[k]=aggregate[kind](nb[k].map(j=>h[j]),h[k]);
+ return {neighbors:nb[i].map(j=>({j,value:h[j],changed:j<i&&h[j]!==graph.features[j]})),own:h[i]};
+}
+const mi=(base,sub)=>`<msub><mi>${base}</mi>${sub}</msub>`,iSub='<mi>i</mi>',jSub='<mi>j</mi>';
+const hPrime=`<msubsup><mi>h</mi><mi>i</mi><mo>′</mo></msubsup>`,sumN=`<munder><mo largeop="true" movablelimits="false">∑</mo><mrow><mi>j</mi><mo>∈</mo><mi>N</mi><mo>(</mo><mi>i</mi><mo>)</mo></mrow></munder>`;
+const math=(body,label)=>`<math display="block" displaystyle="true" aria-label="${label}"><mrow>${body}</mrow></math>`;
+STAGES.sum.math=math(`${hPrime}<mo>=</mo>${sumN}${mi('h',jSub)}`,'h i prime equals the sum over neighbors j of i of h j');
+STAGES.mean.math=math(`${hPrime}<mo>=</mo><mfrac><mn>1</mn><mrow><mo>|</mo><mi>N</mi><mo>(</mo><mi>i</mi><mo>)</mo><mo>|</mo></mrow></mfrac>${sumN}${mi('h',jSub)}`,'h i prime equals one over the number of neighbors of i, times the sum over neighbors j of i of h j');
+STAGES.self.math=math(`${hPrime}<mo>=</mo>${mi('h',iSub)}<mo>+</mo>${sumN}${mi('h',jSub)}`,'h i prime equals h i plus the sum over neighbors j of i of h j');
