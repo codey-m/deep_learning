@@ -1,0 +1,10 @@
+/* Page-specific styles: matrix notation and the shape figure. */
+.mat { display: inline-grid; gap: 4px 14px; padding: 4px 10px; border-left: 2px solid #33464c; border-right: 2px solid #33464c; border-radius: 6px; font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math, serif; font-size: 1.2rem; text-align: center; vertical-align: middle; }
+.mat span { padding: 0 2px; border-radius: 4px; }
+.mat span.hl { background: #fde8c8; outline: 2px solid #9a4a00; }
+.eq { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 10px 0; font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math, serif; font-size: 1.25rem; }
+.colvec { display: inline-flex; flex-direction: column; gap: 6px; padding: 6px 8px; border-left: 2px solid #33464c; border-right: 2px solid #33464c; border-radius: 6px; }
+.rowbtns { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.rowbtns button[aria-pressed="true"] { background: #fde8c8; border-color: #9a4a00; color: #5a2b00; }
+.shapefig { max-width: 420px; margin: 6px 0; }
+.shapefig svg { width: 100%; height: auto; display: block; }

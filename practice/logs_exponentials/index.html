@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refresher: logs and exponentials</title>
+<link rel="stylesheet" href="kit.css?v=1">
+</head>
+<body>
+<main>
+  <header>
+    <p class="kicker">Math refresher · ungraded · optional</p>
+    <h1>Logs and exponentials</h1>
+    <p>Later problem sets ask you to undo an exponential or simplify a log, for example to solve a loss for the value that reaches a target. This page checks one move: get the exponential on its own, then take the log of both sides.</p>
+    <p class="time">About 3 minutes if you remember it. About 10 if you use the reminder.</p>
+    <p id="progress" class="progress" role="status">Start with the task below. If you get it right, you are done.</p>
+  </header>
+
+  <noscript>
+    <section>
+      <h2>The method, without the interactive parts</h2>
+      <p>To solve for something in an exponent, undo everything around the exponential first, so that e<sup>u</sup> stands alone and equals a number c. Then take the natural log of both sides: u = ln c. The useful rules: ln(ab) = ln a + ln b, ln(a/b) = ln a − ln b, ln(a<sup>k</sup>) = k ln a, and ln(e<sup>u</sup>) = u. There is no rule for ln(a + b).</p>
+      <p>The practice on this page needs JavaScript.</p>
+    </section>
+  </noscript>
+
+  <section id="case-A" aria-labelledby="hA">
+    <h2 id="hA">Try this first</h2>
+    <p>Solve for <i>t</i>:</p>
+    <math display="block" aria-label="3 e to the minus 2 t, minus 1, equals 5">
+      <mn>3</mn><msup><mi>e</mi><mrow><mo>−</mo><mn>2</mn><mi>t</mi></mrow></msup><mo>−</mo><mn>1</mn><mo>=</mo><mn>5</mn>
+    </math>
+    <p>Enter an exact form such as <code>ln(5)/4</code>, or a decimal to three places.</p>
+    <div class="line" id="entry-A"><span><i>t</i> =</span><input class="blank" data-field="t" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="t equals"></div>
+    <div class="actions">
+      <button type="button" id="check-A" class="primary">Check</button>
+      <button type="button" id="remind-A" aria-expanded="false" aria-controls="recovery-A">I need a reminder</button>
+    </div>
+    <p id="feedback-A" class="feedback" role="status"></p>
+
+    <div id="recovery-A" class="recovery" hidden>
+      <h3>Reminder</h3>
+      <p>Use as much of this as you need. Nothing here is scored.</p>
+      <div class="panel">
+        <p><strong>The rules you need</strong></p>
+        <ul class="rules">
+          <li><span class="math">ln</span> and <span class="math"><i>e</i></span> undo each other: <span class="math">ln(<i>e</i><sup><i>u</i></sup>) = <i>u</i></span>, and <span class="math"><i>e</i><sup>ln <i>c</i></sup> = <i>c</i></span> for <span class="math"><i>c</i> &gt; 0</span>.</li>
+          <li><span class="math">ln(<i>ab</i>) = ln <i>a</i> + ln <i>b</i></span>, <span class="math">ln(<i>a</i>/<i>b</i>) = ln <i>a</i> − ln <i>b</i></span>, and <span class="math">ln(1/<i>a</i>) = −ln <i>a</i></span>.</li>
+          <li><span class="math">ln(<i>a</i><sup><i>k</i></sup>) = <i>k</i> ln <i>a</i></span>.</li>
+          <li><span class="math"><i>e</i><sup><i>a</i>+<i>b</i></sup> = <i>e</i><sup><i>a</i></sup><i>e</i><sup><i>b</i></sup></span> and <span class="math"><i>e</i><sup><i>a</i>−<i>b</i></sup> = <i>e</i><sup><i>a</i></sup>/<i>e</i><sup><i>b</i></sup></span>.</li>
+          <li><span class="math">ln</span> is increasing: a larger positive number has a larger log. There is no rule for <span class="math">ln(<i>a</i> + <i>b</i>)</span>.</li>
+        </ul>
+      </div>
+      <p><strong>Work it one step at a time.</strong> Each line does one thing to both sides.</p>
+      <div id="ladder-A">
+        <div class="line"><span>3<i>e</i><sup>−2<i>t</i></sup> − 1 = 5</span></div>
+        <div class="line"><span>3<i>e</i><sup>−2<i>t</i></sup> =</span><input class="blank" data-field="s0" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Line 2: 3 e to the minus 2 t equals"></div>
+        <div class="line"><span><i>e</i><sup>−2<i>t</i></sup> =</span><input class="blank" data-field="s1" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Line 3: e to the minus 2 t equals"></div>
+        <div class="line"><span>−2<i>t</i> =</span><input class="blank" data-field="s2" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Line 4: minus 2 t equals"></div>
+        <div class="line"><span><i>t</i> =</span><input class="blank" data-field="s3" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Line 5: t equals"></div>
+      </div>
+      <div class="actions"><button type="button" id="check-ladder">Check my steps</button></div>
+      <p id="feedback-ladder" class="feedback" role="status"></p>
+      <ol id="hints-A" class="hints"></ol>
+      <div class="actions"><button type="button" id="hint-A">Give me a hint</button></div>
+      <details id="explain-A">
+        <summary>Show the full worked explanation</summary>
+        <ol>
+          <li>Undo the − 1 by adding 1 to both sides: <span class="math">3<i>e</i><sup>−2<i>t</i></sup> = 6</span>.</li>
+          <li>Undo the 3 by dividing both sides by 3: <span class="math"><i>e</i><sup>−2<i>t</i></sup> = 2</span>. The exponential now stands alone.</li>
+          <li>Take ln of both sides. Since <span class="math">ln(<i>e</i><sup><i>u</i></sup>) = <i>u</i></span>, the left side becomes the exponent: <span class="math">−2<i>t</i> = ln 2</span>.</li>
+          <li>Divide by −2: <span class="math"><i>t</i> = −ln(2)/2 ≈ −0.347</span>.</li>
+        </ol>
+        <p>A quick check: <span class="math"><i>e</i><sup>−2<i>t</i></sup> = <i>e</i><sup>ln 2</sup> = 2</span>, and 3 × 2 − 1 = 5.</p>
+        <p>The order matters. Taking ln before the exponential stands alone would leave <span class="math">ln(3<i>e</i><sup>−2<i>t</i></sup> − 1)</span>, which no rule simplifies.</p>
+      </details>
+    </div>
+  </section>
+
+  <section id="case-C" aria-labelledby="hC" hidden>
+    <h2 id="hC">Now one on your own</h2>
+    <p>This case completes the refresher. It has no walkthrough; the rules are there if you ask for them.</p>
+    <p>Solve for <i>s</i>:</p>
+    <math display="block" aria-label="5 e to the 0.5 s, minus 3, equals 12">
+      <mn>5</mn><msup><mi>e</mi><mrow><mn>0.5</mn><mi>s</mi></mrow></msup><mo>−</mo><mn>3</mn><mo>=</mo><mn>12</mn>
+    </math>
+    <div class="line" id="entry-C"><span><i>s</i> =</span><input class="blank" data-field="s" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="s equals"></div>
+    <div class="actions">
+      <button type="button" id="check-C" class="primary">Check</button>
+      <button type="button" id="stuck-C">Show me the rules</button>
+    </div>
+    <p id="feedback-C" class="feedback" role="status"></p>
+    <div id="rules-C" class="panel" hidden>
+      <ul class="rules">
+        <li><span class="math">ln(<i>e</i><sup><i>u</i></sup>) = <i>u</i></span>: once the exponential stands alone, taking ln leaves its exponent.</li>
+        <li>Undo what surrounds the exponential first, in reverse order: the added number, then the multiplier.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="done" hidden aria-labelledby="hD">
+    <h2 id="hD">Done</h2>
+    <p id="done-text"></p>
+    <p>The method in one line: get the exponential on its own, then take the log of both sides.</p>
+  </section>
+
+  <section id="case-X" aria-labelledby="hX" hidden>
+    <h2 id="hX">More practice (optional)</h2>
+    <p>Three short cases that use the other rules. Each is checked on its own.</p>
+
+    <div class="item" id="item-X1">
+      <h3>A base other than <i>e</i></h3>
+      <p>Solve for <i>k</i>: <span class="math">10 · 2<sup>−<i>k</i></sup> = 0.3</span></p>
+      <div class="line"><span><i>k</i> =</span><input class="blank" data-field="k" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="k equals"></div>
+      <div class="actions"><button type="button" id="check-X1">Check</button></div>
+      <p id="feedback-X1" class="feedback" role="status"></p>
+    </div>
+
+    <div class="item" id="item-X2">
+      <h3>When the log is on the outside</h3>
+      <p>Solve for <i>w</i>: <span class="math">ln(2<i>w</i> + 1) = 3</span></p>
+      <div class="line"><span><i>w</i> =</span><input class="blank" data-field="w" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="w equals"></div>
+      <div class="actions"><button type="button" id="check-X2">Check</button></div>
+      <p id="feedback-X2" class="feedback" role="status"></p>
+    </div>
+
+    <div class="item" id="item-X3">
+      <h3>Comparing negative log-likelihoods</h3>
+      <p>Model A gives an image probability 0.02. Model B gives the same image probability 0.05. The negative log-likelihood of an image is <span class="math">−ln <i>p</i></span>.</p>
+      <fieldset id="nll-choice">
+        <legend>Which model has the lower NLL on this image?</legend>
+        <label><input type="radio" name="nll" value="A"> Model A</label>
+        <label><input type="radio" name="nll" value="B"> Model B</label>
+      </fieldset>
+      <div class="line"><span>NLL<sub>A</sub> − NLL<sub>B</sub> =</span><input class="blank" data-field="gap" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="NLL of A minus NLL of B equals"></div>
+      <div class="actions"><button type="button" id="check-X3">Check</button></div>
+      <p id="feedback-X3" class="feedback" role="status"></p>
+    </div>
+  </section>
+</main>
+<script src="kit.js?v=1"></script>
+<script src="model.js?v=1"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>

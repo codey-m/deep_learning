@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refresher: projection onto a direction</title>
+<link rel="stylesheet" href="kit.css?v=1">
+</head>
+<body>
+<main>
+  <header>
+    <p class="kicker">Math refresher · ungraded · optional</p>
+    <h1>Projection onto a direction</h1>
+    <p>Some representation-learning methods encode a point by its coordinate along a direction, then decode it by going back along that direction. This page checks that move in two dimensions, with one unit direction.</p>
+    <p class="time">About 3 minutes if you remember it. About 10 if you use the reminder.</p>
+    <p id="progress" class="progress" role="status">Start with the task below. If you get it right, you are done.</p>
+  </header>
+
+  <noscript>
+    <section>
+      <h2>The method, without the interactive parts</h2>
+      <p>For a unit direction v, the coordinate of a point x along v is the dot product z = v · x. The reconstruction from that one coordinate is x̂ = z v, a point on the line through v. The leftover x − x̂ is at a right angle to v, and its squared length is the reconstruction error.</p>
+      <p>The practice on this page needs JavaScript.</p>
+    </section>
+  </noscript>
+
+  <section id="case-A" aria-labelledby="hA">
+    <h2 id="hA">Try this first</h2>
+    <p>The point is <span class="math"><i>x</i> = (3, 1)</span>. The unit direction is <span class="math"><i>v</i> = (0.6, 0.8)</span>.</p>
+    <div class="figure" id="fig-A"></div>
+    <div class="panel" id="slider-A" hidden>
+      <label for="range-A">Move a point along the line: <span class="math"><i>c</i> = <output id="range-A-val">0.5</output></span></label>
+      <input type="range" id="range-A" min="-1" max="4" step="0.1" value="0.5">
+      <p id="range-A-read" class="readout"></p>
+      <p id="range-A-status" class="sr-only" role="status"></p>
+    </div>
+    <p>Encode <i>x</i> along <i>v</i>, decode it, and measure what is lost.</p>
+    <div id="entry-A">
+      <div class="line"><span><i>z</i> = <i>v</i> · <i>x</i> =</span><input class="blank" data-field="z" type="text" autocomplete="off" spellcheck="false" aria-label="z equals v dot x"></div>
+      <div class="line"><span><i>x̂</i> = <i>z v</i> = (</span><input class="blank" data-field="h1" type="text" autocomplete="off" spellcheck="false" aria-label="x hat, first coordinate"><span>,</span><input class="blank" data-field="h2" type="text" autocomplete="off" spellcheck="false" aria-label="x hat, second coordinate"><span>)</span></div>
+      <div class="line"><span>‖<i>x</i> − <i>x̂</i>‖² =</span><input class="blank" data-field="err" type="text" autocomplete="off" spellcheck="false" aria-label="Squared length of x minus x hat"></div>
+    </div>
+    <div class="actions">
+      <button type="button" id="check-A" class="primary">Check</button>
+      <button type="button" id="remind-A" aria-expanded="false" aria-controls="recovery-A">I need a reminder</button>
+    </div>
+    <p id="feedback-A" class="feedback" role="status"></p>
+
+    <div id="recovery-A" class="recovery" hidden>
+      <h3>Reminder</h3>
+      <p>Use as much of this as you need. Nothing here is scored.</p>
+      <p>The slider above the fields works on a practice point <span class="math"><i>p</i> = (1, 2)</span>, drawn as a hollow circle, so it shows the method without giving your answer. It moves a point <span class="math"><i>c v</i></span> along the line. Find where the distance to <i>p</i> is smallest, and look at the angle there.</p>
+      <ol id="hints-A" class="hints"></ol>
+      <div class="actions"><button type="button" id="hint-A">Give me a hint</button></div>
+      <details id="explain-A">
+        <summary>Show the full worked explanation</summary>
+        <ol>
+          <li>Because <i>v</i> has length 1, the coordinate of <i>x</i> along it is the dot product: <span class="math"><i>z</i> = 0.6·3 + 0.8·1 = 2.6</span>.</li>
+          <li>Decoding goes back along <i>v</i>: <span class="math"><i>x̂</i> = 2.6 · (0.6, 0.8) = (1.56, 2.08)</span>. Every reconstruction from one coordinate lies on the line through <i>v</i>.</li>
+          <li>The leftover is <span class="math"><i>x</i> − <i>x̂</i> = (3 − 1.56, 1 − 2.08) = (1.44, −1.08)</span>. Its squared length is <span class="math">1.44² + 1.08² = 3.24</span>.</li>
+          <li>A check: the leftover is at a right angle to <i>v</i>, since <span class="math">(1.44)(0.6) + (−1.08)(0.8) = 0</span>. That right angle is what makes <i>x̂</i> the closest point on the line to <i>x</i>.</li>
+        </ol>
+      </details>
+    </div>
+  </section>
+
+  <section id="case-C" aria-labelledby="hC" hidden>
+    <h2 id="hC">Now one on your own</h2>
+    <p>This case completes the refresher. It has no walkthrough; a slider with a practice point is there if you ask for it.</p>
+    <p>The point is <span class="math"><i>x</i> = (−1, 2)</span>. The unit direction is <span class="math"><i>v</i> = (0.8, −0.6)</span>.</p>
+    <div class="figure" id="fig-C"></div>
+    <div class="panel" id="slider-C" hidden>
+      <label for="range-C">Move a point along the line: <span class="math"><i>c</i> = <output id="range-C-val">0.5</output></span></label>
+      <input type="range" id="range-C" min="-3" max="3" step="0.1" value="0.5">
+      <p id="range-C-read" class="readout"></p>
+      <p id="range-C-status" class="sr-only" role="status"></p>
+    </div>
+    <div id="entry-C">
+      <div class="line"><span><i>z</i> = <i>v</i> · <i>x</i> =</span><input class="blank" data-field="z" type="text" autocomplete="off" spellcheck="false" aria-label="z equals v dot x"></div>
+      <div class="line"><span><i>x̂</i> = <i>z v</i> = (</span><input class="blank" data-field="h1" type="text" autocomplete="off" spellcheck="false" aria-label="x hat, first coordinate"><span>,</span><input class="blank" data-field="h2" type="text" autocomplete="off" spellcheck="false" aria-label="x hat, second coordinate"><span>)</span></div>
+      <div class="line"><span>‖<i>x</i> − <i>x̂</i>‖² =</span><input class="blank" data-field="err" type="text" autocomplete="off" spellcheck="false" aria-label="Squared length of x minus x hat"></div>
+    </div>
+    <div class="actions">
+      <button type="button" id="check-C" class="primary">Check</button>
+      <button type="button" id="stuck-C">Show me the slider</button>
+    </div>
+    <p id="feedback-C" class="feedback" role="status"></p>
+  </section>
+
+  <section id="done" hidden aria-labelledby="hD">
+    <h2 id="hD">Done</h2>
+    <p id="done-text"></p>
+    <p>The method in one line: for a unit direction <i>v</i>, encode with <span class="math"><i>z</i> = <i>v</i> · <i>x</i></span>, decode with <span class="math"><i>x̂</i> = <i>z v</i></span>, and the error is the squared length of what is left over.</p>
+  </section>
+
+  <section id="case-X" aria-labelledby="hX" hidden>
+    <h2 id="hX">More practice (optional)</h2>
+    <div class="item" id="item-X">
+      <h3>A direction that isn't unit length</h3>
+      <p>The point is <span class="math"><i>x</i> = (2, 5)</span>. A direction is given as <span class="math"><i>u</i> = (3, 4)</span>, which is not unit length.</p>
+      <div class="line"><span>‖<i>u</i>‖ =</span><input class="blank" data-field="n" type="text" autocomplete="off" aria-label="Length of u"></div>
+      <div class="line"><span>coordinate along the unit direction, <i>z</i> =</span><input class="blank" data-field="z" type="text" autocomplete="off" aria-label="Coordinate along the unit direction"></div>
+      <div class="line"><span>‖<i>x</i> − <i>x̂</i>‖² =</span><input class="blank" data-field="err" type="text" autocomplete="off" aria-label="Squared length of the leftover"></div>
+      <div class="actions"><button type="button" id="check-X">Check</button></div>
+      <p id="feedback-X" class="feedback" role="status"></p>
+    </div>
+  </section>
+</main>
+<script src="kit.js?v=1"></script>
+<script src="model.js?v=1"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>

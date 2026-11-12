@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refresher: vectors and matrices</title>
+<link rel="stylesheet" href="kit.css?v=1">
+<link rel="stylesheet" href="page.css?v=1">
+</head>
+<body>
+<main>
+  <header>
+    <p class="kicker">Math refresher · ungraded · optional</p>
+    <h1>Vectors and matrices</h1>
+    <p>A network layer multiplies a weight matrix by an input vector. This page checks two moves: computing a matrix times a vector, one row at a time, and reading the shape of a product before doing any arithmetic.</p>
+    <p class="time">About 3 minutes if you remember it. About 10 if you use the reminder.</p>
+    <p id="progress" class="progress" role="status">Start with the task below. If you get it right, you are done.</p>
+  </header>
+
+  <noscript>
+    <section>
+      <h2>The method, without the interactive parts</h2>
+      <p>Entry i of W x is the dot product of row i of W with x: multiply matching entries and add. A product of an m × n matrix and an n × p matrix is defined only when the inner sizes match, and the result is m × p.</p>
+      <p>The practice on this page needs JavaScript.</p>
+    </section>
+  </noscript>
+
+  <section id="case-A" aria-labelledby="hA">
+    <h2 id="hA">Try this first</h2>
+    <div class="eq" aria-label="W is the 2 by 3 matrix with rows 1, 0, minus 2 and 3, 1, 1. x is the column vector 2, minus 1, 1.">
+      <span><i>W</i> =</span><span class="mat" id="mat-A" aria-hidden="true"></span>
+      <span>&nbsp;&nbsp;<i>x</i> =</span><span class="mat" id="vec-A" aria-hidden="true"></span>
+    </div>
+    <p><strong>1.</strong> Compute <span class="math"><i>W x</i></span>.</p>
+    <div class="eq" id="entry-A1"><span><i>W x</i> =</span><span class="colvec"><input class="blank" data-field="e0" type="text" autocomplete="off" spellcheck="false" aria-label="W x, entry 1"><input class="blank" data-field="e1" type="text" autocomplete="off" spellcheck="false" aria-label="W x, entry 2"></span></div>
+    <p><strong>2.</strong> A matrix <i>A</i> has shape 4 × 2 and a matrix <i>B</i> has shape 2 × 5. What shape is <span class="math"><i>AB</i></span>?</p>
+    <div class="line" id="entry-A2"><span><i>AB</i> is</span><input class="blank" data-field="r" type="text" inputmode="numeric" autocomplete="off" aria-label="Shape of A B: rows"><span>×</span><input class="blank" data-field="c" type="text" inputmode="numeric" autocomplete="off" aria-label="Shape of A B: columns"></div>
+    <div class="actions">
+      <button type="button" id="check-A" class="primary">Check</button>
+      <button type="button" id="remind-A" aria-expanded="false" aria-controls="recovery-A">I need a reminder</button>
+    </div>
+    <p id="feedback-A" class="feedback" role="status"></p>
+
+    <div id="recovery-A" class="recovery" hidden>
+      <h3>Reminder</h3>
+      <p>Use as much of this as you need. Nothing here is scored.</p>
+      <p><strong>One entry at a time.</strong> Choose a row to see which numbers pair up.</p>
+      <div class="rowbtns" id="rows-A"></div>
+      <p id="row-read-A" class="readout" role="status"></p>
+      <p>Work row 1 here, then do row 2 the same way in the entry above.</p>
+      <div class="line" id="ladder-A">
+        <span>1 × 2 =</span><input class="blank" data-field="p0" type="text" autocomplete="off" aria-label="1 times 2 equals">
+        <span>0 × (−1) =</span><input class="blank" data-field="p1" type="text" autocomplete="off" aria-label="0 times minus 1 equals">
+        <span>(−2) × 1 =</span><input class="blank" data-field="p2" type="text" autocomplete="off" aria-label="minus 2 times 1 equals">
+        <span>sum =</span><input class="blank" data-field="p3" type="text" autocomplete="off" aria-label="Sum of the three products">
+      </div>
+      <div class="actions"><button type="button" id="check-ladder">Check row 1</button></div>
+      <p id="feedback-ladder" class="feedback" role="status"></p>
+      <p><strong>Shapes.</strong> The inner sizes must match. They drop out, and the result keeps the outer sizes.</p>
+      <div class="shapefig" id="shapefig-A"></div>
+      <p class="figdesc" id="shapefig-A-desc"></p>
+      <ol id="hints-A" class="hints"></ol>
+      <div class="actions"><button type="button" id="hint-A">Give me a hint</button></div>
+      <details id="explain-A">
+        <summary>Show the full worked explanation</summary>
+        <ol>
+          <li>Entry 1 of <i>W x</i> pairs row 1 of <i>W</i> with <i>x</i>: <span class="math">1·2 + 0·(−1) + (−2)·1 = 2 + 0 − 2 = 0</span>.</li>
+          <li>Entry 2 pairs row 2 with <i>x</i>: <span class="math">3·2 + 1·(−1) + 1·1 = 6 − 1 + 1 = 6</span>.</li>
+          <li>So <span class="math"><i>W x</i> = (0, 6)</span>: one entry per row of <i>W</i>. A 2 × 3 matrix turns a 3-vector into a 2-vector.</li>
+          <li>For the shapes: (4 × 2)(2 × 5). The inner sizes, 2 and 2, match, so the product is defined. The outer sizes give the result: 4 × 5.</li>
+        </ol>
+      </details>
+    </div>
+  </section>
+
+  <section id="case-C" aria-labelledby="hC" hidden>
+    <h2 id="hC">Now one on your own</h2>
+    <p>This case completes the refresher. It has no walkthrough; the row highlighting is there if you ask for it.</p>
+    <div class="eq" aria-label="W is the 3 by 2 matrix with rows 2, minus 1; 0, 3; and minus 1, 1. x is the column vector 4, 2.">
+      <span><i>W</i> =</span><span class="mat" id="mat-C" aria-hidden="true"></span>
+      <span>&nbsp;&nbsp;<i>x</i> =</span><span class="mat" id="vec-C" aria-hidden="true"></span>
+    </div>
+    <p><strong>1.</strong> Compute <span class="math"><i>W x</i></span>.</p>
+    <div class="eq" id="entry-C1"><span><i>W x</i> =</span><span class="colvec"><input class="blank" data-field="e0" type="text" autocomplete="off" aria-label="W x, entry 1"><input class="blank" data-field="e1" type="text" autocomplete="off" aria-label="W x, entry 2"><input class="blank" data-field="e2" type="text" autocomplete="off" aria-label="W x, entry 3"></span></div>
+    <fieldset id="defined-C"><legend>2. Which of these products is defined?</legend></fieldset>
+    <div class="line" id="entry-C2"><span>Its shape is</span><input class="blank" data-field="r" type="text" inputmode="numeric" autocomplete="off" aria-label="Shape of the defined product: rows"><span>×</span><input class="blank" data-field="c" type="text" inputmode="numeric" autocomplete="off" aria-label="Shape of the defined product: columns"></div>
+    <div class="actions">
+      <button type="button" id="check-C" class="primary">Check</button>
+      <button type="button" id="stuck-C">Highlight the rows</button>
+    </div>
+    <p id="feedback-C" class="feedback" role="status"></p>
+    <div id="support-C" class="panel" hidden>
+      <div class="rowbtns" id="rows-C"></div>
+      <p id="row-read-C" class="readout" role="status"></p>
+    </div>
+  </section>
+
+  <section id="done" hidden aria-labelledby="hD">
+    <h2 id="hD">Done</h2>
+    <p id="done-text"></p>
+    <p>The method in one line: each entry of <i>W x</i> is one row of <i>W</i> dotted with <i>x</i>, and (m × n)(n × p) gives m × p.</p>
+  </section>
+
+  <section id="case-X" aria-labelledby="hX" hidden>
+    <h2 id="hX">More practice (optional)</h2>
+    <div class="item" id="item-X1">
+      <h3>A squared norm</h3>
+      <p>For <span class="math"><i>w</i> = (2, −1, 3, 0)</span>, what is <span class="math">‖<i>w</i>‖² = <i>w</i> · <i>w</i></span>?</p>
+      <div class="line"><span>‖<i>w</i>‖² =</span><input class="blank" data-field="n" type="text" autocomplete="off" aria-label="Squared norm of w"></div>
+      <div class="actions"><button type="button" id="check-X1">Check</button></div>
+      <p id="feedback-X1" class="feedback" role="status"></p>
+    </div>
+    <div class="item" id="item-X2">
+      <h3>Transposes</h3>
+      <p>A batch <i>X</i> has shape 32 × 10: 32 rows, one per example. Give each shape.</p>
+      <div class="line"><span><i>X</i><sup>T</sup> is</span><input class="blank" data-field="a" type="text" inputmode="numeric" aria-label="Shape of X transpose: rows"><span>×</span><input class="blank" data-field="b" type="text" inputmode="numeric" aria-label="Shape of X transpose: columns"></div>
+      <div class="line"><span><i>X X</i><sup>T</sup> is</span><input class="blank" data-field="c" type="text" inputmode="numeric" aria-label="Shape of X times X transpose: rows"><span>×</span><input class="blank" data-field="d" type="text" inputmode="numeric" aria-label="Shape of X times X transpose: columns"></div>
+      <div class="line"><span><i>X</i><sup>T</sup><i>X</i> is</span><input class="blank" data-field="e" type="text" inputmode="numeric" aria-label="Shape of X transpose times X: rows"><span>×</span><input class="blank" data-field="f" type="text" inputmode="numeric" aria-label="Shape of X transpose times X: columns"></div>
+      <div class="actions"><button type="button" id="check-X2">Check</button></div>
+      <p id="feedback-X2" class="feedback" role="status"></p>
+    </div>
+  </section>
+</main>
+<script src="kit.js?v=1"></script>
+<script src="model.js?v=1"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>
