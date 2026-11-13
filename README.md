@@ -6,13 +6,7 @@ The labs combine implementation with controlled experiments. Short practices foc
 
 ## Optional reviews
 
-These ungraded activities offer reminders and practice that unfolds as you work. No programming is needed.
-
-Mathematics refreshers: [Logs and exponentials](https://codey-m.github.io/deep_learning/practice/logs_exponentials/), [vectors and matrices](https://codey-m.github.io/deep_learning/practice/vectors_matrices/), [projection onto a direction](https://codey-m.github.io/deep_learning/practice/projection/), and [gradients along paths](https://codey-m.github.io/deep_learning/practice/gradient_paths/).
-
-| Spiral review | What you practice |
-| --- | --- |
-| [Attention context](https://codey-m.github.io/deep_learning/practice/attention_context/) | Identify permitted sources, repair attention weights, and test which value changes affect an output. |
+Ungraded math refreshers and spiral reviews run in the browser, with reminders and practice that unfolds as you work. No programming is needed. See the [optional reviews catalog](practice/README.md).
 
 ## Open a notebook
 
