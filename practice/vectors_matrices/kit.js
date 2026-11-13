@@ -161,5 +161,135 @@
     });
   }
 
-  root.RefresherKit = { parse: parse, number: number, near: near, fmt: fmt, Flow: Flow, el: el, say: say, hints: hints, autosize: autosize, values: values, mark: mark };
+  // ---------------------------------------------------------------- generic items (calculus pages, 2026-11-13)
+  // Typed math is normalized first: θ → theta, superscript digits → ^n. Existing pages call parse() directly and are unaffected.
+  var SUP = { '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9' };
+  function normalize(src) {
+    return String(src === undefined ? '' : src).replace(/θ/g, 'theta').replace(/λ/g, 'lambda')
+      .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, function (m) { return '^' + m.split('').map(function (c) { return SUP[c]; }).join(''); });
+  }
+  // Two functions agree if they match at every sample point where the target is defined.
+  function agrees(fn, target, samples) {
+    var used = 0;
+    for (var i = 0; i < samples.length; i++) {
+      var t = target(samples[i]); if (!isFinite(t)) continue;
+      var v = fn(samples[i]); used++;
+      if (!isFinite(v) || Math.abs(v - t) > 1e-7 * Math.max(1, Math.abs(t))) return false;
+    }
+    return used > 0;
+  }
+  // item.kind: 'number' {answer, decimals, slips:[{value,msg}], consequence(v)}
+  //            'expr'   {vars, target(e), samples:[e], slips:[{fn(e),msg}]}
+  //            'choice' {answer, msgs:{key: msg}}
+  // Returns {ok:false, empty?, message} for unreadable input, else {ok:true, match, message, slip}.
+  function checkItem(item, raw) {
+    var miss = item.miss || 'Not yet. Compare your answer with the method in the reminder.';
+    if (item.kind === 'choice') {
+      if (!raw) return { ok: false, empty: true, message: 'Choose an answer.' };
+      if (raw === item.answer) return { ok: true, match: true };
+      return { ok: true, match: false, message: (item.msgs && item.msgs[raw]) || miss };
+    }
+    if (raw === undefined || /^\s*$/.test(raw)) return { ok: false, empty: true, message: 'Fill in this field.' };
+    var src = normalize(raw);
+    if (item.kind === 'number') {
+      var r = number(src);
+      if (!r.ok) return { ok: false, message: r.error };
+      if (near(r.value, item.answer, item.decimals)) return { ok: true, match: true, value: r.value };
+      var slip = (item.slips || []).filter(function (s) { return near(r.value, s.value, item.decimals); })[0];
+      var said = item.consequence ? item.consequence(r.value) : '';
+      return { ok: true, match: false, value: r.value, slip: slip, message: (said ? said + ' ' : '') + (slip ? slip.msg : (said ? '' : miss)) };
+    }
+    var p;
+    try { p = parse(src, { vars: item.vars }); } catch (err) { return { ok: false, message: err.message }; }
+    if (agrees(p.fn, item.target, item.samples)) return { ok: true, match: true };
+    var s2 = (item.slips || []).filter(function (s) { return agrees(p.fn, s.fn, item.samples); })[0];
+    var said2 = item.consequence ? item.consequence(p.fn) : '';
+    return { ok: true, match: false, slip: s2, message: (said2 ? said2 + ' ' : '') + (s2 ? s2.msg : (said2 ? '' : miss)) };
+  }
+  // Ladder: check lines in order and report the first that is wrong or unreadable.
+  function ladder(items, raws) {
+    for (var i = 0; i < items.length; i++) {
+      var r = checkItem(items[i], raws[i]);
+      if (!r.ok || !r.match) return { first: i, empty: !!r.empty, message: r.message || (items[i].msg) };
+    }
+    return { first: -1 };
+  }
+  // Solution so far: reveal the worked steps one at a time. onFirst runs when the first step is shown.
+  function solution(buttonId, listId, steps, onFirst) {
+    var n = 0, b = document.getElementById(buttonId), list = document.getElementById(listId);
+    b.textContent = 'Show the first step of the solution';
+    b.addEventListener('click', function () {
+      if (n === 0 && onFirst) onFirst();
+      if (n < steps.length) { var li = el('li'); li.innerHTML = steps[n++]; list.appendChild(li); }
+      if (n === steps.length) { b.disabled = true; b.textContent = 'That is the whole solution'; }
+      else b.textContent = 'Show the next step';
+    });
+  }
+  // Opened from a problem set's entry check after a miss: start with the reminder open.
+  function fromEntry() { return typeof location !== 'undefined' && /[?&]from=entry(&|$)/.test(location.search); }
+
+  // Wire a calculus page. Markup contract (ids): case-A, entry-A [data-field=a], check-A, remind-A, recovery-A,
+  // ladder-A [data-field=s0..sN, or radio name=sN], check-ladder, feedback-ladder, hint-A, hints-A, solution-A (button), steps-A (ol),
+  // case-C, entry-C [data-field=c], check-C, stuck-C, rules-C, feedback-C; optional extension items item-<id> with [data-field=v] or radio name=<id>.
+  // M: { A, C, ladder:[items], X:{id:item}, hints:[...], steps:[html...], fill: index of the ladder line that answers A (optional) }
+  function wire(M, hooks) {
+    hooks = hooks || {};
+    var $ = function (id) { return document.getElementById(id); }, flow = Flow({ expose: true });
+    function raw(scope, field) {
+      var box = $(scope), inp = box.querySelector('input[data-field="' + field + '"]');
+      if (inp) return inp.value;
+      var r = box.querySelector('input[name="' + field + '"]:checked'); return r ? r.value : null;
+    }
+    function report(fid, item, res) {
+      if (!res.ok) { say(fid, res.message, 'miss'); return false; }
+      if (res.match) { say(fid, item.good || 'Right.', 'good'); return true; }
+      say(fid, res.message, 'miss'); return false;
+    }
+    hints('hint-A', 'hints-A', M.hints);
+    solution('solution-A', 'steps-A', M.steps, function () { flow.explained(); });
+    document.querySelectorAll('.line').forEach(function (l) { autosize(l); });
+    function openA() { $('recovery-A').hidden = false; $('remind-A').setAttribute('aria-expanded', 'true'); $('remind-A').textContent = 'Hide the reminder'; flow.recovery(); if (hooks.open) hooks.open(); }
+    function collapseA() { $('recovery-A').hidden = true; $('remind-A').setAttribute('aria-expanded', 'false'); $('remind-A').textContent = 'Show the reminder again'; }
+    $('remind-A').addEventListener('click', function () { if ($('recovery-A').hidden) openA(); else collapseA(); });
+    $('hint-A').addEventListener('click', function () { flow.recovery(); });
+    $('check-A').addEventListener('click', function () {
+      var v = raw('entry-A', 'a'), res = checkItem(M.A, v), ok = report('feedback-A', M.A, res);
+      if (hooks.checkA) hooks.checkA(res, v);
+      if (ok && flow.state.recovery) collapseA();
+      flow.solvedA(ok);
+    });
+    $('entry-A').addEventListener('input', function () { say('feedback-A', ''); flow.editA(); });
+    $('check-ladder').addEventListener('click', function () {
+      var raws = M.ladder.map(function (_, i) { return raw('ladder-A', 's' + i); }), r = ladder(M.ladder, raws);
+      mark($('ladder-A'), null);
+      if (r.first === -1) {
+        say('feedback-ladder', 'Every line is right.' + (M.fill !== undefined ? ' Your answer is now in the task above.' : ''), 'good');
+        if (M.fill !== undefined) {
+          var inp = $('entry-A').querySelector('input[data-field="a"]'); inp.value = raws[M.fill];
+          say('feedback-A', 'Right. Your steps solve it.', 'good'); collapseA(); flow.solvedA(true);
+        }
+        return;
+      }
+      mark($('ladder-A'), 's' + r.first, !r.empty);
+      say('feedback-ladder', 'Line ' + (r.first + 1) + ': ' + r.message + (r.first ? ' The lines above it are right.' : ''), 'miss');
+    });
+    $('ladder-A').addEventListener('input', function () { say('feedback-ladder', ''); mark($('ladder-A'), null); });
+    $('ladder-A').addEventListener('change', function () { say('feedback-ladder', ''); });
+    $('check-C').addEventListener('click', function () { flow.solvedC(report('feedback-C', M.C, checkItem(M.C, raw('entry-C', 'c')))); });
+    $('entry-C').addEventListener('input', function () { say('feedback-C', ''); flow.editC(); });
+    $('entry-C').addEventListener('change', function () { say('feedback-C', ''); flow.editC(); });
+    $('stuck-C').addEventListener('click', function () { $('rules-C').hidden = false; $('stuck-C').disabled = true; flow.helpC(); });
+    Object.keys(M.X || {}).forEach(function (id) {
+      var box = $('item-' + id); if (!box) return;
+      $('check-' + id).addEventListener('click', function () { report('feedback-' + id, M.X[id], checkItem(M.X[id], raw('item-' + id, box.querySelector('input[data-field="v"]') ? 'v' : id))); });
+      box.addEventListener('input', function () { say('feedback-' + id, ''); });
+      box.addEventListener('change', function () { say('feedback-' + id, ''); });
+    });
+    flow.render();
+    if (fromEntry()) openA();
+    return { flow: flow, openA: openA, collapseA: collapseA };
+  }
+
+  root.RefresherKit = { parse: parse, number: number, near: near, fmt: fmt, Flow: Flow, el: el, say: say, hints: hints, autosize: autosize, values: values, mark: mark,
+    normalize: normalize, agrees: agrees, checkItem: checkItem, ladder: ladder, solution: solution, fromEntry: fromEntry, wire: wire };
 })(typeof window !== 'undefined' ? window : globalThis);

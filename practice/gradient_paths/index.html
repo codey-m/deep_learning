@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refresher: gradient paths</title>
+<link rel="stylesheet" href="kit.css?v=2">
+</head>
+<body>
+<main>
+  <header>
+    <p class="kicker">Math refresher · ungraded · optional</p>
+    <h1>Gradients along paths</h1>
+    <p>Backpropagation is the chain rule applied to a computation graph. This page checks one move: multiply local derivatives along each path from a quantity to the loss, and add the contributions of different paths.</p>
+    <p class="time">About 3 minutes if you remember it. About 10 if you use the reminder.</p>
+    <p id="progress" class="progress" role="status">Start with the task below. If you get it right, you are done.</p>
+  </header>
+
+  <noscript>
+    <section>
+      <h2>The method, without the interactive parts</h2>
+      <p>To find how a loss L depends on a quantity b, list every path from b to L in the computation graph. Along one path, multiply the local derivatives (each node's derivative with respect to the node before it, at the forward-pass values). Then add the contributions of all the paths. A quantity used twice, like b below, has two paths.</p>
+      <p>The practice on this page needs JavaScript.</p>
+    </section>
+  </noscript>
+
+  <section id="case-A" aria-labelledby="hA">
+    <h2 id="hA">Try this first</h2>
+    <p>A small computation, with <span class="math"><i>a</i> = 3</span> and <span class="math"><i>b</i> = 2</span>:</p>
+    <math display="block" aria-label="q equals a times b, s equals q plus b, L equals s squared">
+      <mi>q</mi><mo>=</mo><mi>a</mi><mi>b</mi><mo>,</mo><mspace width="1em"/><mi>s</mi><mo>=</mo><mi>q</mi><mo>+</mo><mi>b</mi><mo>,</mo><mspace width="1em"/><mi>L</mi><mo>=</mo><msup><mi>s</mi><mn>2</mn></msup>
+    </math>
+    <div class="figure">
+      <svg id="graph-A" viewBox="0 0 560 215" role="img" aria-labelledby="graph-A-desc"></svg>
+      <p id="graph-A-desc" class="figdesc">Computation graph: a and b feed q; q and b feed s; s feeds L. So b is used twice.</p>
+    </div>
+    <p>Find <span class="math">∂<i>L</i>/∂<i>b</i></span> at these values.</p>
+    <div class="line" id="entry-A"><span>∂<i>L</i>/∂<i>b</i> =</span><input class="blank" data-field="a" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="the partial derivative of L with respect to b equals"></div>
+    <div class="actions">
+      <button type="button" id="check-A" class="primary">Check</button>
+      <button type="button" id="remind-A" aria-expanded="false" aria-controls="recovery-A">I need a reminder</button>
+    </div>
+    <p id="feedback-A" class="feedback" role="status"></p>
+
+    <div id="recovery-A" class="recovery" hidden>
+      <h3>Reminder</h3>
+      <p>Use as much of this as you need. Nothing here is scored.</p>
+      <div class="panel">
+        <p><strong>The rules you need</strong></p>
+        <ul class="rules">
+          <li>A local derivative is one node's derivative with respect to a node feeding it, at the forward-pass values: here <span class="math">∂<i>q</i>/∂<i>b</i> = <i>a</i></span>, <span class="math">∂<i>s</i>/∂<i>q</i> = 1</span>, <span class="math">∂<i>s</i>/∂<i>b</i> = 1</span> and <span class="math">∂<i>L</i>/∂<i>s</i> = 2<i>s</i></span>.</li>
+          <li>Along one path, local derivatives multiply.</li>
+          <li>When a quantity reaches the loss along several paths, the contributions add.</li>
+        </ul>
+      </div>
+      <p>The two paths from <i>b</i> to <i>L</i> are highlighted in the graph above, with each edge's local derivative.</p>
+      <p><strong>Work it one step at a time.</strong></p>
+      <div id="ladder-A">
+        <div class="line"><span>∂<i>L</i>/∂<i>s</i> =</span><input class="blank" data-field="s0" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Line 1: the partial of L with respect to s equals"></div>
+        <div class="line"><span>Path <i>b</i> → <i>q</i> → <i>s</i> → <i>L</i>:</span><input class="blank" data-field="s1" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Line 2: the contribution of the path from b through q and s to L"></div>
+        <div class="line"><span>Path <i>b</i> → <i>s</i> → <i>L</i>:</span><input class="blank" data-field="s2" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Line 3: the contribution of the path from b through s to L"></div>
+        <div class="line"><span>∂<i>L</i>/∂<i>b</i> =</span><input class="blank" data-field="s3" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Line 4: the partial of L with respect to b equals"></div>
+      </div>
+      <div class="actions"><button type="button" id="check-ladder">Check my steps</button></div>
+      <p id="feedback-ladder" class="feedback" role="status"></p>
+      <ol id="hints-A" class="hints"></ol>
+      <div class="actions"><button type="button" id="hint-A">Give me a hint</button><button type="button" id="solution-A">Show the first step of the solution</button></div>
+      <ol id="steps-A" class="solution" aria-live="polite"></ol>
+    </div>
+  </section>
+
+  <section id="case-C" aria-labelledby="hC" hidden>
+    <h2 id="hC">Now one on your own</h2>
+    <p>This case completes the refresher. It has no walkthrough; the rules are there if you ask for them.</p>
+    <p>With <span class="math"><i>x</i> = 2</span> and <span class="math"><i>y</i> = 1</span>:</p>
+    <math display="block" aria-label="u equals x plus y, v equals x times u, L equals 4 v">
+      <mi>u</mi><mo>=</mo><mi>x</mi><mo>+</mo><mi>y</mi><mo>,</mo><mspace width="1em"/><mi>v</mi><mo>=</mo><mi>x</mi><mi>u</mi><mo>,</mo><mspace width="1em"/><mi>L</mi><mo>=</mo><mn>4</mn><mi>v</mi>
+    </math>
+    <div class="line" id="entry-C"><span>∂<i>L</i>/∂<i>x</i> =</span><input class="blank" data-field="c" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="the partial derivative of L with respect to x equals"></div>
+    <div class="actions">
+      <button type="button" id="check-C" class="primary">Check</button>
+      <button type="button" id="stuck-C">Show me the rules</button>
+    </div>
+    <p id="feedback-C" class="feedback" role="status"></p>
+    <div id="rules-C" class="panel" hidden>
+      <ul class="rules">
+        <li>List every path from <i>x</i> to <i>L</i>. Here <i>x</i> feeds <i>u</i>, and <i>v</i> uses both <i>x</i> and <i>u</i>.</li>
+        <li>Multiply local derivatives along each path, then add over paths.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="done" hidden aria-labelledby="hD">
+    <h2 id="hD">Done</h2>
+    <p id="done-text"></p>
+    <p>The method in one line: multiply along each path, add over paths.</p>
+  </section>
+
+  <section id="case-X" aria-labelledby="hX" hidden>
+    <h2 id="hX">More practice (optional)</h2>
+    <p>Partial derivatives of a function of two inputs, at <span class="math">(<i>a</i>, <i>b</i>) = (2, 1)</span>, for <span class="math"><i>f</i>(<i>a</i>, <i>b</i>) = <i>a</i>²<i>b</i> + 3<i>b</i></span>. Together they form the gradient.</p>
+    <div class="item" id="item-X1">
+      <div class="line"><span>∂<i>f</i>/∂<i>a</i> =</span><input class="blank" data-field="v" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="the partial of f with respect to a equals"></div>
+      <div class="actions"><button type="button" id="check-X1">Check</button></div>
+      <p id="feedback-X1" class="feedback" role="status"></p>
+    </div>
+    <div class="item" id="item-X2">
+      <div class="line"><span>∂<i>f</i>/∂<i>b</i> =</span><input class="blank" data-field="v" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="the partial of f with respect to b equals"></div>
+      <div class="actions"><button type="button" id="check-X2">Check</button></div>
+      <p id="feedback-X2" class="feedback" role="status"></p>
+    </div>
+  </section>
+</main>
+<script src="kit.js?v=2"></script>
+<script src="model.js?v=1"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>

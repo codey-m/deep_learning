@@ -51,6 +51,25 @@ fieldset label { display: block; margin: 4px 0; }
 .figdesc, .legend { font-size: .9rem; color: var(--muted); max-width: 520px; margin: 0 auto 10px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 [hidden] { display: none !important; }
+/* Calculus pages (2026-11-13): solution so far, value tables, figures with a learner marker, entry-check items. */
+.solution { padding-left: 1.3em; margin: 8px 0; }
+.solution li { margin-bottom: 6px; }
+table.values { border-collapse: collapse; font-variant-numeric: tabular-nums; margin: 6px 0; }
+table.values th, table.values td { border-bottom: 1px solid var(--line); padding: 4px 12px; text-align: right; }
+table.values caption { text-align: left; font-size: .9rem; color: var(--muted); padding-bottom: 4px; }
+.curve { fill: none; stroke: #12566b; stroke-width: 3; }
+.axis { stroke: #657b85; stroke-width: 1.5; }
+.marker { stroke: var(--learner); stroke-width: 3; stroke-dasharray: 6 4; }
+.marker-dot { fill: var(--learner); }
+.path-hi { stroke: var(--accent); stroke-width: 5; }
+.edge { stroke: #657b85; stroke-width: 2; fill: none; }
+.node { fill: #fff; stroke: #33464c; stroke-width: 2; }
+.figure svg text { font: 18px system-ui, sans-serif; fill: #16242a; }
+.entry-item { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 14px; }
+.entry-item:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
+.status-tag { display: inline-block; font-size: .85rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: #eef2f3; color: var(--muted); margin-left: 6px; }
+.status-tag.good { background: #e3f3e8; color: #0a5c2b; }
+.status-tag.open { background: #fdf0e6; color: #7a2e00; }
 @media (max-width: 440px) {
   body { font-size: 17px; }
   header, section { padding: 12px 12px; }
