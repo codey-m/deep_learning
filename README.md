@@ -1,14 +1,24 @@
-# Deep Learning coding activities
+# Deep Learning activities
 
-Labs, coding practices, and final-project notebooks for the five Deep Learning courses on MIT Learn, `6.7960.1x` through `6.7960.5x`.
+Labs, coding practices, optional reviews, and final-project notebooks for the five Deep Learning courses on MIT Learn, `6.7960.1x` through `6.7960.5x`.
 
 The labs combine implementation with controlled experiments. Short practices focus on one procedure or diagnostic. The final project asks you to design an intervention and test the evidence for it. For the course's interactive games, visual experiments, and glossaries, see the [widget catalog](widgets/README.md).
+
+## Optional reviews
+
+These ungraded activities offer reminders and practice that unfolds as you work. No programming is needed.
+
+Mathematics refreshers: [Logs and exponentials](https://codey-m.github.io/deep_learning/practice/logs_exponentials/), [vectors and matrices](https://codey-m.github.io/deep_learning/practice/vectors_matrices/), and [projection onto a direction](https://codey-m.github.io/deep_learning/practice/projection/).
+
+| Spiral review | What you practice |
+| --- | --- |
+| [Attention context](https://codey-m.github.io/deep_learning/practice/attention_context/) | Identify permitted sources, repair attention weights, and test which value changes affect an output. |
 
 ## Open a notebook
 
 Use a notebook's **Colab** link below, then choose **File → Save a copy in Drive** to keep your own editable copy. Follow its setup cells and runtime instructions. The labs and final projects recommend a GPU runtime; the short practices use small CPU examples. Course pages contain the associated assessment and submission instructions.
 
-Some short practices also have a **Browser** link. It runs the same task with Python in your browser, with no account or setup, and shows what your functions return. Your code stays in that page; use **Download Python** to keep a copy.
+Some short coding practices also have a **Browser** link. It runs the same task with Python in your browser, with no account or setup, and shows what your functions return. Your code stays in that page; use **Download Python** to keep a copy.
 
 ## 6.7960.1x Deep Learning: Foundations
 

@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "reviews": [
+    {
+      "title": "Attention context",
+      "path": "practice/attention_context",
+      "source_bundle": "method-refreshers/attention-context",
+      "files": {
+        "index.html": "6344a877329cc5b20ffe2d965034e434094b3ee8c5a6809ad783d8bbf5d80a72",
+        "model.js": "9deba2775c36fc34758808d6dfe7ea21fe2d4ed9175ceb2647a1acf746749dd9",
+        "review.js": "a30a5b622ff1028d356f4e7233062cfc747653e8c5b426f62e2d1ccedf8867cd",
+        "visuals.js": "f1831336077c9ceb447ef8cd092ab066ec5f8a59525e257d449fc01e17715ecc",
+        "review.css": "061b0799b74f44dfcba59073b3fbc1290a9395802ea7d580919bfa24ca7c51be"
+      }
+    }
+  ]
+}
