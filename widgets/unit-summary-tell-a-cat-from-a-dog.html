@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How a network tells a cat from a dog</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  :root{--ink:#1d292b;--muted:#5a676a;--line:#cfd7d5;--paper:#f7f8f5;--a:#a31f34;--b:#245a7a;--c:#9a5b00;--grey:#7b8785;--bad:#7d2a33;
+        --cat:#654c91;--dog:#3b7a3a;--share:#f6ecd9;--share-line:#c9a768;
+        --score:#1b6d74;--score-w:#e3f2f3;--batch:#9b2f5c;--batch-w:#f7e5ed;--bend:#5d6b16;--bend-w:#f0f3df;--loss:#9a3d16;--loss-w:#fbebe3;
+        /* Tade, 2026-11-18: colour only where it carries information (class, which network, the selection), one type scale */
+        --chrome:#3f4d51;--chrome-w:#eef1f0;--under:#9aa5a3;--sel:#176ca5;--sel-w:#e3eef7;
+        --fs-s:12px;--fs-m:14px;--fs-b:16px;--fs-l:20px}
+  body{margin:0;padding:18px 16px 26px;background:var(--paper);color:var(--ink);font:16px/1.45 Arial,Helvetica,sans-serif}
+  main{max-width:840px;margin:auto}
+  button{font:inherit;cursor:pointer}button:disabled{cursor:default;opacity:.45}
+  /* keyboard focus is ink with a white gap, distinct from the blue selection */
+  button:focus-visible,h2:focus-visible{outline:2px solid var(--ink);outline-offset:3px;box-shadow:0 0 0 3px #fff}
+  [hidden]{display:none!important}
+  /* each slide keeps its own tone: it marks which step of the page you are on (Cody, 2026-11-18) */
+  [data-tone="score"]{--tone:var(--score);--wash:var(--score-w)}[data-tone="batch"]{--tone:var(--batch);--wash:var(--batch-w)}
+  [data-tone="bend"]{--tone:var(--bend);--wash:var(--bend-w)}[data-tone="loss"]{--tone:var(--loss);--wash:var(--loss-w)}
+  .kicker{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .how{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font:400 var(--fs-s) Arial,Helvetica,sans-serif;text-transform:none}
+  .hand{position:absolute;left:0;top:0;width:32px;height:32px;pointer-events:none;z-index:9;opacity:0;transition:opacity .2s;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
+  .hand.on{opacity:1}.hand svg{display:block;transition:transform .12s;transform-origin:40% 20%}.hand.press svg{transform:scale(.86)}
+  .lsteps{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:3px;margin:0 0 10px}
+  .lsteps button{padding:6px 2px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--muted);font-size:var(--fs-s);line-height:1.2}
+  .lsteps button[aria-current="step"]{background:var(--wash);border-color:var(--tone);color:var(--ink);font-weight:700}
+  .cap{min-height:4.3em;margin:0 0 10px;font:var(--fs-b)/1.4 Georgia,"Times New Roman",serif}
+  .mnav{display:flex;gap:8px;margin:0 0 10px}
+  .eyebrow{margin:0 0 3px;color:var(--a);font-size:var(--fs-s);font-weight:700;letter-spacing:.11em;text-transform:uppercase}
+  h1{margin:0 0 14px;font:500 clamp(28px,5vw,38px)/1.1 Georgia,"Times New Roman",serif}
+
+  .steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:12px}
+  .step{display:grid;justify-items:center;gap:1px;padding:7px 4px;border:1px solid var(--line);border-top:4px solid var(--tone);border-radius:4px;background:#fff;color:#4a5659;font-size:var(--fs-m)}
+  .step b{font:700 var(--fs-s) "Courier New",monospace;color:var(--tone)}
+  .step[aria-selected="true"]{background:var(--wash);border-color:var(--tone);color:var(--ink);font-weight:700}
+
+  .stage{padding:20px 20px 18px;border:1px solid var(--line);border-top:5px solid var(--tone);border-radius:8px;background:#fff}
+  .kicker{min-height:15px;margin:0 0 2px;color:var(--tone);font:700 var(--fs-s) "Courier New",monospace;text-transform:uppercase}
+  h2{margin:0 0 16px;font:500 clamp(24px,4.4vw,31px)/1.2 Georgia,"Times New Roman",serif}
+  .n-a,.n-b,.n-c{color:var(--ink);font-weight:700}
+  .head{color:var(--muted);font-size:var(--fs-s);font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+
+  svg text{font-family:Arial,Helvetica,sans-serif}
+  svg .lab{fill:var(--muted);font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+  svg .ax{stroke:#c3ccca;stroke-width:1}
+  svg .frame{fill:#fff;stroke:var(--line)}
+  svg .tie{stroke:var(--ink);stroke-width:1.5;stroke-dasharray:4 3}
+
+  .legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0 0;color:var(--muted);font-size:var(--fs-s)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .key{margin:4px 0 0;color:var(--muted);font-size:var(--fs-s);max-width:280px}.key .k-c{color:var(--cat)}.key .k-d{color:var(--dog)}
+  .sw{display:inline-block;width:10px;height:10px}.sw.cat{border-radius:50%;background:var(--cat)}.sw.dog{background:var(--dog)}
+  .sw.a{border-radius:50%;background:var(--a)}.sw.b{background:var(--b)}.sw.c{background:var(--c)}
+
+  /* slide 1 */
+  .s1{display:grid;grid-template-columns:minmax(0,280px) minmax(0,1fr);gap:18px;align-items:start}
+  .s1 svg{width:100%;height:auto;display:block}
+  .shared{padding:12px;border:1px solid var(--line);border-radius:7px;background:#fff}
+  .shared .head{display:block;margin-bottom:6px}
+  .wb{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+  .eq{font:var(--fs-b) Georgia,serif;white-space:nowrap}
+  .net{width:100%;max-width:300px;height:auto;display:block;margin:8px 0 2px}
+  .v{color:var(--tone);font-weight:700;border-bottom:2px dotted var(--tone)}
+  h2.term{margin-bottom:4px;font-size:clamp(28px,5vw,36px)}
+  .lede{margin:0 0 12px;font:var(--fs-b)/1.45 Georgia,"Times New Roman",serif}
+  .v{position:relative;cursor:help;outline:none}.v:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .v .def{position:absolute;left:0;top:calc(100% + 6px);z-index:5;width:max-content;max-width:min(240px,70vw);padding:6px 9px;border-radius:5px;background:var(--ink);color:#fff;font:400 var(--fs-m)/1.35 Arial,Helvetica,sans-serif;letter-spacing:0;text-transform:none;display:none;pointer-events:none}
+  .v:hover .def,.v:focus .def{display:block}
+  .mat .k-cat,.mat .k-dog{color:var(--ink);font-weight:400}
+  .pick{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 8px}
+  .netrow{display:flex;align-items:center;gap:4px 10px}.netrow .net{flex:0 1 252px;min-width:200px;margin:0}.netrow .wb{flex:none;flex-direction:column;align-items:flex-start;gap:4px}
+  .s1eq{display:flex;flex-direction:column;align-items:flex-start;gap:10px}.sdiv{align-self:stretch;margin:0;border:0;border-top:1px solid var(--line)}.s1eq .pick{flex-direction:row;margin:0}.s1eq .pick{gap:5px}.s1eq .pick button{min-height:28px;padding:2px 8px;border-left-width:4px;font-size:var(--fs-s)}
+  .s1{align-items:stretch;grid-template-columns:minmax(0,280px) auto!important;justify-content:start}.s1 > div:last-child{display:flex;flex-direction:column;align-items:flex-start}.shared{flex:1;width:fit-content;max-width:100%;display:flex;flex-direction:column;justify-content:space-evenly;gap:13px}
+  @media(min-width:861px){.shared{padding:12px 18px}}
+  @media(max-width:860px){.s1{grid-template-columns:1fr!important}.s1 svg.plane{max-width:300px}.s1 > div:last-child{align-items:flex-start}.shared{flex:none;width:fit-content;max-width:100%;display:flex;flex-direction:column;gap:13px}}
+  @media(max-width:560px){.netrow{flex-wrap:wrap}.netrow .net{flex-basis:252px}.netrow .wb{flex-direction:row}.s1eq{flex-wrap:wrap}.s1eq .pick{flex-direction:row}}
+  /* each animal's button carries its class colour; the chosen one takes the slide's tone */
+  .pick button{min-height:36px;padding:4px 10px;border:1px solid var(--line);border-left:5px solid var(--c0);border-radius:5px;background:#fff;color:var(--ink);font-size:var(--fs-m)}
+  .pick button[aria-pressed="true"]{background:var(--wash);border-color:var(--tone);border-left-color:var(--c0);box-shadow:inset 0 0 0 1px var(--tone);font-weight:700}
+  .io{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .iog{padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:#fff}
+  .iog .head{display:block;margin-bottom:5px}
+  .iolab{color:var(--muted);font:700 var(--fs-s)/1.5 Arial,Helvetica,sans-serif;letter-spacing:.07em;text-transform:uppercase;text-align:center}.iolab .var{display:block;text-transform:none;letter-spacing:0;font:italic 700 var(--fs-b) Georgia,serif;color:var(--ink)}
+  .iolab .w{display:block}.io{flex-wrap:nowrap}.iog{padding:6px 8px}
+  @media(max-width:560px){.iolab .w{display:none}.io{gap:6px}.io .ioarrow{font-size:var(--fs-s)}}
+  .shared .mat{font-size:var(--fs-m)}.shared .eq{font-size:var(--fs-b)}
+  .head .var{text-transform:none;font:italic 700 var(--fs-m) Georgia,serif;letter-spacing:0}
+  .ioarrow{color:var(--muted);font:italic var(--fs-m)/1.3 Georgia,serif;text-align:center}
+  .cv{display:inline-flex;align-items:center;gap:6px}
+  .cv .lbls{display:grid;gap:3px;font-size:var(--fs-s);color:var(--muted);text-align:right}
+  .cv .lbls span,.cv .mat span{line-height:22px}
+  .cv .lbls .cat{color:var(--cat);font-weight:700}.cv .lbls .dog{color:var(--dog);font-weight:700}
+  .cv .mat .k-cat.hi{background:#ece7f3;outline:2px solid var(--cat);outline-offset:-1px}.cv .mat .k-dog.hi{background:#e6f0e5;outline:2px solid var(--dog);outline-offset:-1px}
+  .call.ok{color:var(--dog)}.call.no{color:var(--bad)}
+  .hi{font-weight:700}
+
+  .n-d{color:var(--ink)}.sw.d{width:9px;height:9px;background:var(--ink);transform:rotate(45deg)}
+  .scores th.nocase{text-transform:none;letter-spacing:0;font:italic var(--fs-s) Georgia,serif}
+  #s-plane{cursor:pointer}
+  /* matrices (slide 2) */
+  .mat{display:inline-grid;gap:3px 8px;padding:4px 7px;border-left:2px solid var(--ink);border-right:2px solid var(--ink);border-radius:5px;vertical-align:middle;font:var(--fs-m) "Courier New",monospace}
+  .mat span,.mat button{min-width:44px;padding:3px 4px;border:0;border-radius:3px;background:none;color:var(--ink);font:inherit;text-align:right}
+  .mat .r-a{box-shadow:inset 3px 0 var(--a)}.mat .r-b{box-shadow:inset 3px 0 var(--b)}.mat .r-c{box-shadow:inset 3px 0 var(--c)}
+  .mat.w span{background:none}
+  .mat button{min-height:32px;background:var(--wash)}
+  .mat button[aria-pressed="true"]{background:var(--sel);color:#fff}
+  .mname{display:block;margin-top:3px;text-align:center;font:italic var(--fs-m) Georgia,serif;color:var(--muted)}
+  .op{font:var(--fs-l) Georgia,serif;color:var(--muted);vertical-align:middle;padding:0 2px}
+  .mblock{display:inline-block;text-align:center;vertical-align:middle}
+  .three{display:grid;gap:10px}
+  .one-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+  .wbox{display:inline-grid;place-items:center;width:44px;height:44px;border:2px solid var(--ink);background:#fff;font:italic 700 var(--fs-l) Georgia,serif;vertical-align:middle}
+  .tag{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;color:#fff;font-size:var(--fs-s);font-weight:700;vertical-align:middle;margin-right:4px}
+  .tag.a{background:var(--a)}.tag.b{background:var(--b)}.tag.c{background:var(--c)}
+  .big-eq{overflow-x:auto;padding:4px 0}
+  .tally{display:inline-block;margin:10px 0 0;padding:4px 10px;border-radius:99px;background:#f1f3f2;color:var(--muted);font-size:var(--fs-s)}
+  .tally b{color:var(--ink)}
+  .dot{margin:10px 0 0;padding:8px 12px;border-radius:6px;background:var(--wash);font:var(--fs-m) "Courier New",monospace;overflow-x:auto;white-space:nowrap}
+  .dot small{display:block;margin-bottom:2px;font:12px Arial,sans-serif;color:var(--muted)}
+
+  .s2{display:grid;grid-template-columns:minmax(0,250px) minmax(0,1fr);gap:16px;align-items:start;margin-top:10px}
+  .s2 .verdict{margin-top:2px}
+  .s2 .mat span,.s2 .mat button{min-width:40px;padding:3px 2px}.s2 .op{padding:0}
+  .s2 svg{width:100%;height:auto;display:block;touch-action:none}
+  .bh{cursor:grab;outline:none}.bh .ring{fill:none;stroke:transparent;stroke-width:3;pointer-events:none}.bh:focus-visible .ring{stroke:#176ca5}
+  @media(max-width:520px){.s2{grid-template-columns:1fr}.s2 svg{max-width:300px}}
+  #b-one{overflow:hidden}
+  @media(max-width:640px){#b-one{--cw:40px}#b-one .chead{column-gap:3px;padding:0 6px}#b-one .chead span{padding-right:1px}#b-one .mat{gap:2px 3px;padding:3px 4px;font-size:var(--fs-s)}#b-one .mat span,#b-one .mat button{min-width:0;padding:2px 1px}#b-one .mat [class*="r-"]{padding-left:5px}.dot{white-space:normal;font-size:var(--fs-s)}#b-one .op{font-size:var(--fs-m)}#b-one .mname{font-size:var(--fs-s)}}#b-one .one-row{display:inline-flex;flex-wrap:nowrap;width:max-content;transform-origin:0 0}
+  .mat .r-d{box-shadow:inset 3px 0 var(--ink)}
+  .beats{display:grid;grid-template-columns:1fr 1fr;gap:4px;max-width:460px;margin:0 0 10px}
+  .beats button{min-height:40px;padding:6px 8px;border:1px solid var(--line);border-radius:5px;background:#fff;color:var(--muted);font-size:var(--fs-m)}
+  .beats button[aria-pressed="true"]{background:var(--wash);border-color:var(--tone);box-shadow:inset 0 0 0 1px var(--tone);color:var(--ink);font-weight:700}
+  /* the selection is the one coloured fill on the slide: the tapped score and the entries that make it */
+  .mat .lit{background:var(--sel-w)!important}.mat .tap.lit{outline:2px solid var(--sel)}
+  #b-one .mat span,#b-one .mat button{min-height:30px;line-height:24px}#b-one .cv .lbls span{line-height:30px;font-weight:700;font-size:var(--fs-s)}#b-one .cv .lbls{gap:3px}
+  .grp{display:inline-flex;align-items:center;gap:6px;flex-wrap:nowrap}
+  .mat .ghost{color:var(--muted)}
+  /* Batched scores, colour with one job each (2026-11-18): class colour only on the class axis (column heads); blue only
+     for the tapped score and its inputs; after an edit, a dashed bracket in the class colour round the Z column it moved */
+  #b-one{--cw:52px}
+  .hmat{display:inline-flex;flex-direction:column;vertical-align:middle}
+  .mat.fix{grid-template-columns:repeat(2,var(--cw))!important}
+  .chead{display:grid;grid-template-columns:repeat(2,var(--cw));column-gap:8px;padding:0 9px;height:18px;font:700 var(--fs-s)/18px Arial,Helvetica,sans-serif;text-align:right}
+  .chead span{padding-right:4px;white-space:nowrap}.chead.feat{color:var(--muted);font-weight:400}
+  .cv.hd .lbls{padding-top:18px}
+  .zl .lbls{display:none}#b-one.wrapped .zl .lbls{display:grid}
+  #b-one .mat button.tap{border:2px solid transparent}
+  #b-one .mat .tap.chg{border-radius:0;border-left:2px dashed var(--cc);border-right:2px dashed var(--cc)}#b-one .mat .tap.chg.r0{border-top:2px dashed var(--cc)}#b-one .mat .tap.chg.r2{border-bottom:2px dashed var(--cc)}
+  #b-one .mat .tap.chg.k-cat{--cc:var(--cat)}#b-one .mat .tap.chg.k-dog{--cc:var(--dog)}
+  .mat button.ed{background:none;text-decoration:underline dashed var(--tone);text-decoration-thickness:1.5px;text-underline-offset:4px}
+  .ehint{margin:4px 0 0;color:var(--muted);font-size:var(--fs-s)}
+  #b-pick button{border-left-width:1px}
+  .mat.anim{border-color:var(--ink)}
+  .mname .dim{display:block;font:var(--fs-s) Arial,Helvetica,sans-serif;font-style:normal;color:var(--muted)}
+  .dot[hidden]{display:none}
+  .mat button.ed{cursor:ns-resize;touch-action:none}
+  /* slide 3 */
+  .panels svg{width:100%;height:auto;display:block}
+  .calls{display:flex;flex-wrap:wrap;gap:6px 16px;margin:8px 0 0;font-size:var(--fs-m)}
+  .calls span{display:inline-flex;align-items:center;gap:4px}
+  .acc{margin:6px 0 0;color:var(--muted);font-size:var(--fs-m)}.acc b{color:var(--ink)}
+
+  .lgrid{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-start;margin:4px 0 4px}#l-curve{flex:none}
+  .lmini{flex:1 1 0;min-width:0;display:flex;flex-direction:row;gap:10px}.lmini>div{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px}.lmini svg{width:100%;max-width:210px;height:auto;display:block}
+  @media(max-width:860px){.lmini{flex:1 1 100%}}
+  .lrows{display:grid;grid-template-columns:auto auto auto auto auto;align-items:center;justify-content:start;gap:6px 10px;margin:4px 0 6px}
+  .lname{font:700 var(--fs-s) Arial,Helvetica,sans-serif;text-align:right}.lres b{display:block;font:500 var(--fs-l)/1.1 Georgia,serif}.lres small{font-size:var(--fs-s)}
+  #l-pick{margin:0 0 10px}
+  @media(max-width:560px){.lrows{gap:4px 5px}.lrows .ioarrow .w{display:none}.lrows .iog{padding:4px 5px}.lres b{font-size:var(--fs-l)}.lname{font-size:var(--fs-s)}}
+  .lchain{margin:4px 0 12px}
+  .ls{display:inline-block;width:18px;height:0;margin-right:5px;vertical-align:middle;border-top:3px solid currentColor}.ls.dash{border-top-style:dashed}.lchain .lce{min-width:56px;text-align:center}.lchain .lce b{font:700 var(--fs-m) "Courier New",monospace;color:var(--ink)}
+  @media(max-width:560px){.lchain{flex-wrap:wrap}}
+  #m-verdict .vv{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+  #m-verdict{min-height:4.1em;transition:color .4s}@media(prefers-reduced-motion:reduce){#m-verdict{transition:none}}
+  /* slide 3: one plane per layer (Tade, 2026-11-18) */
+  #m-planes{display:block;max-width:100%;height:auto;margin:2px auto 0;overflow:visible}
+  #m-planes .card path,#m-planes .card rect{vector-effect:non-scaling-stroke}
+  #m-stepper .head{display:block;margin-bottom:5px}
+  .cap[hidden]{display:none}
+  .s3{display:grid;grid-template-columns:minmax(0,280px) minmax(0,1fr);gap:18px;align-items:start}
+  .s3 svg{width:100%;height:auto;display:block}
+  .s3 .calls{flex-direction:column;gap:6px;margin:4px 0 8px;font-size:var(--fs-m)}
+  svg .nocap{text-transform:none}
+  .sub{margin:-8px 0 12px;color:var(--muted);font-size:var(--fs-m)}
+  .lcount{display:flex;gap:10px;max-width:640px;margin:0 0 6px}
+  .cnt{flex:1;padding:8px 12px;border-top:4px solid var(--tone);background:var(--wash)}
+  .cnt.miss{--tone:#5a676a;--wash:#f1f3f2}
+  .cnt .k{display:block;color:var(--muted);font:700 var(--fs-s) Arial,Helvetica,sans-serif;letter-spacing:.07em;text-transform:uppercase}
+  .cnt b{display:block;font:500 var(--fs-l)/1.1 Georgia,"Times New Roman",serif;color:var(--tone)}
+  .cnt small{display:block;color:var(--muted);font-size:var(--fs-s)}
+  #l-curve{width:auto;max-width:100%;height:auto;display:block}
+  #l-dot{outline:none;cursor:grab}#l-dot .ring{fill:none;stroke:transparent;stroke-width:3;pointer-events:none}#l-dot:focus-visible .ring{stroke:#176ca5}
+  /* slide 4 */
+  .s4{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr);gap:18px;align-items:start}
+  .s4 svg{width:100%;height:auto;display:block}
+  .gap{display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 12px;margin:8px 0 0}
+  .gap label{grid-column:1/-1;color:var(--muted);font-size:var(--fs-s);font-weight:700}
+  .gap input{width:100%;min-height:44px;margin:0;accent-color:var(--loss)}
+  .gap output{min-width:4.5em;text-align:right;font:700 var(--fs-b) "Courier New",monospace;color:var(--ink)}
+  .sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+  .verdict{margin:18px 0 6px;font:var(--fs-l)/1.32 Georgia,"Times New Roman",serif}
+  .verdict.problem,.verdict.fixed{color:var(--ink)}
+  .aside{margin:0 0 14px;color:var(--muted);font-size:var(--fs-m)}
+  .changed{margin:4px 0 14px;padding:12px 14px;border-left:5px solid var(--tone);background:var(--wash);font:var(--fs-b)/1.42 Georgia,"Times New Roman",serif}
+  .changed b{display:block;margin-bottom:2px;color:var(--tone);font:700 var(--fs-s) Arial,sans-serif;letter-spacing:.07em;text-transform:uppercase}
+  .act{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+  .go{display:inline-grid;justify-items:start;gap:1px;min-height:52px;padding:8px 18px;border:2px solid var(--tone);border-radius:7px;background:var(--tone);color:#fff;font-size:var(--fs-b);font-weight:700}
+  .go small{font-size:var(--fs-s);font-weight:400;opacity:.85}
+  .again{min-height:44px;padding:8px 12px;border:1px solid #8a9694;border-radius:6px;background:#fff;color:var(--ink);font-size:var(--fs-m)}
+
+  .recap{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:4px 0 14px}
+  .recap div{padding:8px 6px;border-top:4px solid var(--tone);background:var(--wash);font-size:var(--fs-s);text-align:center}
+  .recap b{display:block;color:var(--tone);font-size:var(--fs-s)}
+
+  .pager{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px}
+  .pager button{min-height:46px;padding:8px 14px;border:1px solid #8a9694;border-radius:6px;background:#fff;color:var(--ink);font-size:var(--fs-b)}
+  .pcount{color:#5b686b;font:var(--fs-s) "Courier New",monospace}
+
+  .fade{animation:fadein .4s ease both}
+  @keyframes fadein{from{opacity:0}to{opacity:1}}
+
+  @media(max-width:640px){
+    body{padding:12px 8px 22px}.stage{padding:15px 11px}
+    .s1,.s3,.s4{grid-template-columns:1fr}.s3 svg{max-width:300px}.s1 svg.plane{max-width:300px}.s4 svg.bars{max-width:260px}
+    .verdict{font-size:var(--fs-b)}
+    .step{font-size:var(--fs-s)}.wide{display:none}.recap{grid-template-columns:1fr 1fr}
+    .scores td{font-size:var(--fs-s)}.mat{font-size:var(--fs-m)}.mat span,.mat button{min-width:38px}
+  }
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Unit 1 synthesis</p>
+  <h1>How a network tells a cat from a dog</h1>
+  <nav class="steps" role="tablist" aria-label="Four steps">
+    <button class="step" role="tab" id="tab-1" aria-controls="stage-1" data-tone="score"><b>1</b>Linear scores</button>
+    <button class="step" role="tab" id="tab-2" aria-controls="stage-2" data-tone="batch"><b>2</b>Batched scores</button>
+    <button class="step" role="tab" id="tab-3" aria-controls="stage-3" data-tone="bend"><b>3</b>Nonlinear layers</button>
+    <button class="step" role="tab" id="tab-4" aria-controls="stage-4" data-tone="loss"><b>4</b>Training loss</button>
+  </nav>
+
+  <!-- 1 · Score -->
+  <section class="stage" id="stage-1" role="tabpanel" aria-labelledby="tab-1" data-tone="score">
+    <p class="kicker">1 · Linear scores<span class="how"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11V4.5a1.5 1.5 0 0 1 3 0V11V5.5a1.5 1.5 0 0 1 3 0V12V8.5a1.5 1.5 0 0 1 3 0V15c0 4-3 7-7 7h-1c-2.5 0-4-1-5.5-3L3.6 15.2a1.5 1.5 0 0 1 2.4-1.8L8 15.5" fill="#fff" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>pick an animal</span></p>
+    <h2 tabindex="-1" class="term">Linear classifier</h2>
+    <p class="lede">Each class’s <span class="v" tabindex="0">score<span class="def" role="tooltip">One number per class. The higher score is the call.</span></span> is a <span class="v" tabindex="0">weighted sum<span class="def" role="tooltip">Each feature times its weight, added up.</span></span> of the features plus a <span class="v" tabindex="0">bias<span class="def" role="tooltip">A fixed number added to the score, whatever the properties.</span></span>.</p>
+    <div class="s1">
+      <div>
+        <svg class="plane" id="s-plane" viewBox="0 0 300 300" role="group" aria-labelledby="s-plane-name"></svg>
+        <p class="legend" id="s-legend" aria-live="polite"></p>
+        <p class="key">Dots show each animal’s true class, <b class="k-c">●</b> cat or <b class="k-d">■</b> dog; shading shows what the rule calls it.</p>
+      </div>
+      <div>
+        <div class="shared">
+          
+          <div class="netrow"><svg class="net" id="s-net" viewBox="0 0 252 100" role="img"></svg>
+          <div class="wb"><span class="eq" id="s-w"></span><span class="eq" id="s-b"></span></div></div>
+          <hr class="sdiv">
+          <div class="s1eq">
+      <div class="pick" id="s-pick" role="group" aria-label="Choose an animal"></div>
+      <div class="io">
+        <span class="iolab"><span class="w">features</span><i class="var">x</i></span>
+        <div class="iog" id="s-x"></div>
+        <div class="ioarrow" aria-hidden="true">Wx + b<br>→</div>
+        <div class="iog" id="s-z"></div>
+        <span class="iolab"><span class="w">scores</span><i class="var">z</i></span>
+      </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="sr" id="s-plane-name">Animals on pointy ears and loves salmon, with the straight line where the two scores tie.</p>
+    <p class="verdict fixed" id="s-verdict"></p>
+    <p class="sr" role="status" id="s-status"></p>
+    <p class="changed" id="s-changed" hidden><b>What changed</b>One linear layer gives every animal a cat score and a dog score from the same W and b, and the higher score decides. The points where the two scores tie form a straight line.</p>
+  </section>
+
+  <!-- 2 · Batch -->
+  <section class="stage" id="stage-2" role="tabpanel" aria-labelledby="tab-2" data-tone="batch" hidden>
+    <p class="kicker">2 · Batched scores<span class="how"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11V4.5a1.5 1.5 0 0 1 3 0V11V5.5a1.5 1.5 0 0 1 3 0V12V8.5a1.5 1.5 0 0 1 3 0V15c0 4-3 7-7 7h-1c-2.5 0-4-1-5.5-3L3.6 15.2a1.5 1.5 0 0 1 2.4-1.8L8 15.5" fill="#fff" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg><span id="b-how">tap a score</span></span></p>
+    <h2 tabindex="-1" class="term" id="b-term">Dot product</h2>
+    <p class="lede" id="b-lede"></p>
+    <div class="beats" id="b-beats" role="group" aria-label="Two steps"><button type="button" data-b="0">1 · One animal</button><button type="button" data-b="1">2 · Every animal at once</button></div>
+    <div class="pick" id="b-pick" role="group" aria-label="Choose an animal"></div>
+    <div id="b-one" class="big-eq"></div>
+    <p class="ehint" id="b-hint" hidden>Dashed numbers in Wᵀ and b can change: drag up or down, or use the arrow keys.</p>
+    <div class="dot" id="b-dot"></div>
+    <p class="verdict fixed" id="b-verdict"></p>
+    <p class="changed" id="b-changed" hidden><b>What changed</b>Each animal is a row of X and each class’s weights are a column of Wᵀ, so one matrix multiplication computes every score. A weight belongs to one class, so changing it moves that class’s score for every animal. The bias is one row, added to every row.</p>
+    <p class="sr" role="status" id="b-status"></p>
+    <div class="act"><button type="button" class="again" id="b-again" hidden>Put the numbers back</button></div>
+  </section>
+
+  <!-- 3 · Nonlinear layers -->
+  <section class="stage" id="stage-3" role="tabpanel" aria-labelledby="tab-3" data-tone="bend" hidden>
+    <p class="kicker">3 · Nonlinear layers<span class="how"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11V4.5a1.5 1.5 0 0 1 3 0V11V5.5a1.5 1.5 0 0 1 3 0V12V8.5a1.5 1.5 0 0 1 3 0V15c0 4-3 7-7 7h-1c-2.5 0-4-1-5.5-3L3.6 15.2a1.5 1.5 0 0 1 2.4-1.8L8 15.5" fill="#fff" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>pick an animal · switch ReLU</span></p>
+    <h2 tabindex="-1" class="term">Nonlinearity</h2>
+    <p class="lede">Stacked <span class="v" tabindex="0">layers<span class="def" role="tooltip">Each layer is an affine map, Wh + b, from one set of neurons to the next.</span></span> need a <span class="v" tabindex="0">nonlinearity<span class="def" role="tooltip">A function applied to each neuron that is not a straight line.</span></span> such as <span class="v" tabindex="0">ReLU<span class="def" role="tooltip">max(0, z): keeps positive values and sets negative values to zero.</span></span> between them. Without one, they collapse into a single <span class="v" tabindex="0">linear layer<span class="def" role="tooltip">One weighted sum plus a bias per output, as on slide 1. Its boundary is a straight line.</span></span>.</p>
+    <div class="pick" id="m-pick" role="group" aria-label="Choose an animal to follow through the layers"></div>
+    <svg id="m-planes" role="img"></svg>
+    <p class="verdict" id="m-verdict"></p>
+    <div class="act"><button type="button" class="go" id="m-go"></button></div>
+    <p class="sr" role="status" id="m-status"></p>
+  </section>
+
+  <!-- 4 · Loss -->
+  <section class="stage" id="stage-4" role="tabpanel" aria-labelledby="tab-4" data-tone="loss" hidden>
+    <p class="kicker">4 · Training loss<span class="how"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11V4.5a1.5 1.5 0 0 1 3 0V11V5.5a1.5 1.5 0 0 1 3 0V12V8.5a1.5 1.5 0 0 1 3 0V15c0 4-3 7-7 7h-1c-2.5 0-4-1-5.5-3L3.6 15.2a1.5 1.5 0 0 1 2.4-1.8L8 15.5" fill="#fff" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>press train</span></p>
+    <h2 tabindex="-1" class="term">Learning</h2>
+    <p class="lede"><span class="v" tabindex="0">Learning<span class="def" role="tooltip">Searching for the weights that make the loss smallest.</span></span> searches the weights for the lowest <span class="v" tabindex="0">loss<span class="def" role="tooltip">One number for how badly the network does on the training animals.</span></span>. Here the loss is <span class="v" tabindex="0">cross-entropy<span class="def" role="tooltip">−ln p, where p is the probability the network gives the true class, averaged over all 35 animals.</span></span>.</p>
+    <div class="lgrid">
+      <svg id="l-curve" viewBox="0 0 520 262" role="img" aria-labelledby="l-curve-desc"></svg>
+      <div class="lmini">
+        <div><span class="lname" style="color:#7d2a33"><i class="ls dash"></i>without ReLU</span><svg id="l-b0" viewBox="0 0 300 300" role="img" aria-label="Boundary of the network without ReLU"></svg></div>
+        <div><span class="lname" style="color:#5d6b16"><i class="ls"></i>with ReLU</span><svg id="l-b1" viewBox="0 0 300 300" role="img" aria-label="Boundary of the network with ReLU"></svg></div>
+      </div>
+    </div>
+    <div class="act"><button type="button" class="go" id="l-play">Train<small>both networks, from the same random weights</small></button><button type="button" class="again" id="l-reset" hidden>Start over</button></div>
+    <p class="sr" id="l-curve-desc"></p>
+    <p class="sr" role="status" id="l-status"></p>
+    <p class="changed" id="l-changed" hidden><b>What changed</b><span id="l-changed-t"></span></p>
+  </section>
+
+  <div class="pager"><button type="button" id="prev">←<span class="wide"> Previous</span></button><span class="pcount" id="pcount">1 of 4</span><button type="button" id="next"><span class="wide" id="next-label">Next: Batched scores </span>→</button></div>
+</main>
+<script>
+(function(){
+  "use strict";
+  var $=function(id){return document.getElementById(id)};
+  // animation frames on a timer, so tweens finish even where frames are throttled
+  var tick=function(cb){return setTimeout(function(){cb(performance.now())},16)};
+  var reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var COL={cat:"#654c91",dog:"#3b7a3a",a:"#a31f34",b:"#245a7a",c:"#9a5b00",ink:"#1d292b"};
+  var CLASS=["cat","dog"];
+
+  /* ---------- numbers ---------- */
+  function fmt(v,d){var s=Math.abs(v).toFixed(d);if(Number(s)===0)return(0).toFixed(d);return(v<0?"−":"")+s}
+  function softmax2(z){var m=Math.max(z[0],z[1]),e0=Math.exp(z[0]-m),e1=Math.exp(z[1]-m);return[e0/(e0+e1),e1/(e0+e1)]}
+  function argmax(z){return z[0]>=z[1]?0:1}
+  function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+  /* ---------- data: pointy ears (x) and loves salmon (y), 0 to 1 ---------- */
+  var rng=mulberry32(11);
+  function strat(n,cols,x0,x1,y0,y1){var out=[],rows=Math.ceil(n/cols);for(var i=0;i<n;i++){var cx=i%cols,cy=Math.floor(i/cols);
+    out.push([+(x0+(x1-x0)*(cx+0.15+0.7*rng())/cols).toFixed(2),+(y0+(y1-y0)*(cy+0.15+0.7*rng())/rows).toFixed(2)])}return out}
+  var DATA=[];
+  strat(12,4,.56,.96,.56,.96).forEach(function(p){DATA.push({p:p,c:0})});
+  strat(10,2,.04,.44,.10,.96).forEach(function(p){DATA.push({p:p,c:1})});
+  strat(10,5,.46,.96,.04,.44).forEach(function(p){DATA.push({p:p,c:1})});
+  var NAMED=[
+    {k:"a",name:"Augustus",p:[.70,.72],c:0},
+    {k:"b",name:"Brutus",p:[.22,.90],c:1},
+    {k:"c",name:"Caesar",p:[.90,.48],c:1}];
+  var ALL=DATA.concat(NAMED);
+
+  /* ---------- one linear layer, softmax regression, rounded to what the page prints ---------- */
+  var LIN=(function(){
+    var W=[[0,0],[0,0]],b=[0,0],lr=1,lam=0.004,N=ALL.length;
+    for(var s=0;s<5000;s++){
+      var gW=[[0,0],[0,0]],gb=[0,0];
+      ALL.forEach(function(d){var x=d.p,z=[W[0][0]*x[0]+W[0][1]*x[1]+b[0],W[1][0]*x[0]+W[1][1]*x[1]+b[1]],p=softmax2(z);
+        for(var k=0;k<2;k++){var g=p[k]-(d.c===k?1:0);gW[k][0]+=g*x[0];gW[k][1]+=g*x[1];gb[k]+=g}});
+      for(var k=0;k<2;k++){for(var j=0;j<2;j++)W[k][j]-=lr*(gW[k][j]/N+lam*W[k][j]);b[k]-=lr*gb[k]/N}
+    }
+    var r=function(v){return Math.round(v*10)/10};
+    return{W:W.map(function(row){return row.map(r)}),b:b.map(r)};
+  })();
+  function lin(x){var W=LIN.W,b=LIN.b;return[W[0][0]*x[0]+W[0][1]*x[1]+b[0],W[1][0]*x[0]+W[1][1]*x[1]+b[1]]}
+
+  /* ---------- 2-2-2-2 networks, trained with and without ReLU ---------- */
+  function forward(net,x){
+    var st=[x.slice()],h=x;
+    net.L.forEach(function(l,i){var z=[l.W[0][0]*h[0]+l.W[0][1]*h[1]+l.b[0],l.W[1][0]*h[0]+l.W[1][1]*h[1]+l.b[1]];st.push(z);
+      if(i<net.L.length-1){var on=net.rs?net.rs[i]:net.relu?[1,1]:[0,0];h=[z[0]>0?z[0]:(1-on[0])*z[0],z[1]>0?z[1]:(1-on[1])*z[1]];st.push(h)}else h=z});
+    return st; // input, then z and h for each hidden layer, then the scores
+  }
+  function out(st){return st[st.length-1]}
+  // a trainer that can be stepped: slide 4 trains two networks a few steps at a time; train() runs one to the end
+  function trainer(seed,relu,nl){nl=nl||3;
+    var r=mulberry32(seed);function nrm(){var u=1-r(),v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+    var L=Array.apply(null,Array(nl)).map(function(){return{W:[[nrm(),nrm()],[nrm(),nrm()]],b:[0.1,0.1]}});
+    var P=[];L.forEach(function(l){P.push(l.W[0],l.W[1],l.b)});
+    var M=P.map(function(a){return[0,0]}),V=P.map(function(a){return[0,0]});
+    var net={L:L,relu:relu},lr=0.03,b1=0.9,b2=0.999,eps=1e-8,N=ALL.length,lam=1e-4;
+    var t=0;
+    function one(){t++;
+      var G=L.map(function(){return{W:[[0,0],[0,0]],b:[0,0]}});
+      ALL.forEach(function(d){
+        var st=forward(net,d.p),p=softmax2(out(st)),dz=[p[0]-(d.c===0?1:0),p[1]-(d.c===1?1:0)];
+        for(var li=nl-1;li>=0;li--){
+          var hin=st[2*li],l=L[li],g=G[li];
+          for(var k=0;k<2;k++){g.W[k][0]+=dz[k]*hin[0];g.W[k][1]+=dz[k]*hin[1];g.b[k]+=dz[k]}
+          if(li>0){var dh=[l.W[0][0]*dz[0]+l.W[1][0]*dz[1],l.W[0][1]*dz[0]+l.W[1][1]*dz[1]],zin=st[2*li-1];
+            dz=relu?[zin[0]>0?dh[0]:0,zin[1]>0?dh[1]:0]:dh}
+        }
+      });
+      var GP=[];G.forEach(function(g,li){GP.push([g.W[0][0]/N+lam*L[li].W[0][0],g.W[0][1]/N+lam*L[li].W[0][1]],[g.W[1][0]/N+lam*L[li].W[1][0],g.W[1][1]/N+lam*L[li].W[1][1]],[g.b[0]/N,g.b[1]/N])});
+      P.forEach(function(a,i){for(var j=0;j<2;j++){var gr=GP[i][j];M[i][j]=b1*M[i][j]+(1-b1)*gr;V[i][j]=b2*V[i][j]+(1-b2)*gr*gr;
+        a[j]-=lr*(M[i][j]/(1-Math.pow(b1,t)))/(Math.sqrt(V[i][j]/(1-Math.pow(b2,t)))+eps)}});
+    }
+    return{net:net,step:function(k){for(var i=0;i<k;i++)one()},t:function(){return t}};
+  }
+  function train(seed,relu,steps,nl){var tr=trainer(seed,relu,nl);tr.step(steps==null?3000:steps);return tr.net}
+  function correct(net){return ALL.filter(function(d){return argmax(out(forward(net,d.p)))===d.c}).length}
+  // Slide 3: features, one hidden layer of two ReLU neurons, scores. Each hidden neuron's ReLU puts one bend in the
+  // boundary. Seed SEED_R is the first seed that gets all 35 right with each neuron's bend visible on its own (checked
+  // when the seed was chosen). 
+  var SEED_R=18,SEED=SEED_R,NET_R=train(SEED_R,true,3000,2);
+
+  /* ---------- svg helpers ---------- */
+  function el(tag,attrs,text){var e=document.createElementNS("http://www.w3.org/2000/svg",tag);for(var k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;return e}
+  function marker(g,x,y,d,big){
+    if(d.k==="d"){var rr=big?8:5;g.appendChild(el("polygon",{points:[x,y-rr,x+rr,y,x,y+rr,x-rr,y].join(" "),fill:COL.ink,stroke:"#fff","stroke-width":1.5}));return}
+    // a named animal is drawn in its class's colour and shape like the rest, larger, with its initial (Tade, 2026-11-18)
+    var col=COL[CLASS[d.c]],r=big?(d.k?9:3.2):(d.k?4.6:2.3);
+    if(d.c===0)g.appendChild(el("circle",{cx:x,cy:y,r:r,fill:col,stroke:d.k?"#fff":"none","stroke-width":2}));
+    else g.appendChild(el("rect",{x:x-r*.9,y:y-r*.9,width:1.8*r,height:1.8*r,rx:1.5,fill:col,stroke:d.k?"#fff":"none","stroke-width":2}));
+    if(d.k&&big)g.appendChild(el("text",{x:x,y:y+4,"text-anchor":"middle","font-size":11,"font-weight":700,fill:"#fff"},d.name[0]));
+  }
+  // a square view of a 2D space: box {x,y,s}, range {x0,y0,span}, optional shading function returning 0/1
+  function view(svg,box,range,pts,opts){
+    opts=opts||{};var g=el("g",{});svg.appendChild(g);
+    var X=function(u){return box.x+(u-range.x0)/range.span*box.s},Y=function(v){return box.y+box.s-(v-range.y0)/range.span*box.s};
+    g.appendChild(el("rect",{x:box.x,y:box.y,width:box.s,height:box.s,class:"frame"}));
+    if(opts.shade){var n=opts.cells||28,c=box.s/n,K=[];for(var i=0;i<n;i++){K.push([]);for(var j=0;j<n;j++){
+      var u=range.x0+(i+.5)/n*range.span,v=range.y0+(j+.5)/n*range.span,k=opts.shade(u,v);K[i].push(k);
+      g.appendChild(el("rect",{x:(box.x+i*c).toFixed(2),y:(box.y+box.s-(j+1)*c).toFixed(2),width:(c+.3).toFixed(2),height:(c+.3).toFixed(2),fill:COL[CLASS[k]],opacity:opts.contour?.16:.13}))}}
+      if(opts.contour){var d="";for(i=0;i<n;i++)for(j=0;j<n;j++){var x=box.x+i*c,y=box.y+box.s-(j+1)*c;
+        if(i+1<n&&K[i][j]!==K[i+1][j])d+="M"+(x+c).toFixed(1)+" "+y.toFixed(1)+"v"+c.toFixed(1);
+        if(j+1<n&&K[i][j]!==K[i][j+1])d+="M"+x.toFixed(1)+" "+y.toFixed(1)+"h"+c.toFixed(1)}
+        g.appendChild(el("path",{d:d,stroke:"#1d292b","stroke-width":1.4,fill:"none"}))}}
+    if(opts.gapFn){var m=opts.mcells||60,F=[],P=function(a,b2){return[X(range.x0+a/m*range.span),Y(range.y0+b2/m*range.span)]},d2="";
+      for(var a=0;a<=m;a++){F.push([]);for(var b2=0;b2<=m;b2++)F[a].push(opts.gapFn(range.x0+a/m*range.span,range.y0+b2/m*range.span))}
+      for(a=0;a<m;a++)for(b2=0;b2<m;b2++){var cs=[[a,b2],[a+1,b2],[a+1,b2+1],[a,b2+1]],q=[];
+        for(var e=0;e<4;e++){var A=cs[e],B=cs[(e+1)%4],fa=F[A[0]][A[1]],fb=F[B[0]][B[1]];
+          if((fa>0)!==(fb>0)){var t=fa/(fa-fb),pa=P(A[0],A[1]),pb=P(B[0],B[1]);q.push([pa[0]+t*(pb[0]-pa[0]),pa[1]+t*(pb[1]-pa[1])])}}
+        for(var k2=0;k2+1<q.length;k2+=2)d2+="M"+q[k2][0].toFixed(1)+" "+q[k2][1].toFixed(1)+"L"+q[k2+1][0].toFixed(1)+" "+q[k2+1][1].toFixed(1)}
+      g.appendChild(el("path",{d:d2,stroke:"#1d292b","stroke-width":1.8,fill:"none","stroke-linecap":"round"}))}
+    if(opts.grid)opts.grid.forEach(function(line){var d3="";line.forEach(function(p,k){d3+=(k?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[1]).toFixed(1)});
+      g.appendChild(el("path",{d:d3,fill:"none",stroke:"#9aa5a3","stroke-width":.8}))});
+    if(opts.axes!==false){
+      if(range.x0<0&&range.x0+range.span>0)g.appendChild(el("line",{x1:X(0),x2:X(0),y1:box.y,y2:box.y+box.s,class:"ax"}));
+      if(range.y0<0&&range.y0+range.span>0)g.appendChild(el("line",{x1:box.x,x2:box.x+box.s,y1:Y(0),y2:Y(0),class:"ax"}));
+    }
+    if(opts.tie){var a=Math.max(range.x0,range.y0),b=Math.min(range.x0,range.y0)+range.span;if(b>a)g.appendChild(el("line",{x1:X(a),y1:Y(a),x2:X(b),y2:Y(b),class:"tie"}))}
+    var pos=pts.map(function(p){return[X(p.u),Y(p.v)]});
+    pts.forEach(function(p,i){if(!p.d.k)marker(g,pos[i][0],pos[i][1],p.d,opts.big)});
+    pts.forEach(function(p,i){if(p.d.k)marker(g,pos[i][0],pos[i][1],p.d,opts.big)});
+    return pos;
+  }
+  function fitRange(vs){var x0=0,x1=0,y0=0,y1=0;vs.forEach(function(v){x0=Math.min(x0,v[0]);x1=Math.max(x1,v[0]);y0=Math.min(y0,v[1]);y1=Math.max(y1,v[1])});
+    var span=Math.max(x1-x0,y1-y0,.5)*1.12;return{x0:(x0+x1)/2-span/2,y0:(y0+y1)/2-span/2,span:span}}
+  function verdict(id,kind,html){var v=$(id);v.className="verdict "+kind;v.innerHTML=html}
+  function vec2(a,d){return"["+fmt(a[0],d)+", "+fmt(a[1],d)+"]"}
+
+  /* ---------- vocabulary definitions: keep each tooltip inside the window ---------- */
+  function defFit(e){var v=e.target.closest&&e.target.closest(".v");if(!v)return;var d=v.querySelector(".def");if(!d)return;d.style.left="0px";
+    var r=d.getBoundingClientRect(),over=r.right-(document.documentElement.clientWidth-8);if(over>0)d.style.left=(-Math.min(over,r.left-8))+"px"}
+  document.addEventListener("mouseover",defFit);document.addEventListener("focusin",defFit);
+
+  /* ---------- 1 · Score ---------- */
+  // One animal is selected at a time; its properties x and scores z show as column vectors.
+  var sTouched=false,sDemo=false,sSel=0;
+  // each named animal's colour is its class colour (Augustus a cat, Brutus and Caesar dogs)
+  var S_ANI=NAMED,S_COL={a:COL.cat,b:COL.dog,c:COL.dog};
+  function sPos(i){return S_ANI[i].p}
+  function colVec(vals,d,labels,rowCls,hi){var h='<span class="cv"><span class="lbls">';
+    labels.forEach(function(l,i){h+='<span class="'+(rowCls[i]||"")+'">'+l+'</span>'});h+='</span><span class="mat" style="grid-template-columns:auto">';
+    vals.forEach(function(v,i){h+='<span class="'+(rowCls[i]?"k-"+rowCls[i]:"")+(hi===i?' hi':'')+'">'+fmt(v,d)+'</span>'});return h+'</span></span>'}
+  function scoreDraw(){
+    var svg=$("s-plane");svg.replaceChildren();
+    view(svg,{x:34,y:8,s:258},{x0:0,y0:0,span:1},ALL.map(function(d){return{u:d.p[0],v:d.p[1],d:d}}),{big:true,axes:false,shade:function(u,v){return argmax(lin([u,v]))}});
+    var W=LIN.W,b=LIN.b,dw=[W[0][0]-W[1][0],W[0][1]-W[1][1]],db=b[0]-b[1],X=function(u){return 34+u*258},Y=function(v){return 266-v*258},seg=[];
+    [[0,null],[1,null],[null,0],[null,1]].forEach(function(e){var u,v;if(e[0]!==null){u=e[0];v=-(db+dw[0]*u)/dw[1]}else{v=e[1];u=-(db+dw[1]*v)/dw[0]}if(u>=-1e-9&&u<=1+1e-9&&v>=-1e-9&&v<=1+1e-9)seg.push([u,v])});
+    if(seg.length>=2)svg.appendChild(el("line",{x1:X(seg[0][0]),y1:Y(seg[0][1]),x2:X(seg[1][0]),y2:Y(seg[1][1]),class:"tie"}));
+    svg.appendChild(el("text",{x:163,y:290,"text-anchor":"middle",class:"lab"},"pointy ears →"));
+    svg.appendChild(el("text",{x:20,y:137,"text-anchor":"middle",class:"lab",transform:"rotate(-90 20 137)"},"loves salmon →"));
+    svg.appendChild(el("circle",{id:"s-selring",r:14,fill:"none",stroke:"#176ca5","stroke-width":2.5}));
+    // the layer as a graph: weights written on the edges, biases on the output nodes, edges coloured by the class they feed
+    var net=$("s-net");net.replaceChildren();
+    var IX=56,OX=176,ins=[[["pointy","ears"],30],[["loves","salmon"],82]],outs=[[["cat","score"],30],[["dog","score"],82]];
+    // two-line labels keep the diagram narrow enough for W and b beside it
+    var two=function(x,y,p,a){var t=el("text",a);p[0].forEach(function(w,i){var ts=el("tspan",{x:x,dy:i?13:0},w);t.appendChild(ts)});t.setAttribute("y",y-2);net.appendChild(t)};
+    var lbl=function(x,y,t,col){var w=t.length*6.6+6;net.appendChild(el("rect",{x:x-w/2,y:y-8,width:w,height:15,rx:3,fill:"#fff"}));net.appendChild(el("text",{x:x,y:y+3.5,"text-anchor":"middle","font-size":12,"font-weight":700,fill:col},t))};
+    var labs=[];
+    for(var k=0;k<2;k++)for(var j=0;j<2;j++){var col=COL[CLASS[k]],y1=ins[j][1],y2=outs[k][1];
+      net.appendChild(el("line",{x1:IX,y1:y1,x2:OX,y2:y2,stroke:col,"stroke-width":2,opacity:.85}));
+      var t=j===k?.5:.24;labs.push([IX+t*(OX-IX),y1+t*(y2-y1)+(j===k?0:0),fmt(W[k][j],1),col])}
+    labs.forEach(function(l){lbl(l[0],l[1],l[2],l[3])});
+    ins.forEach(function(p){net.appendChild(el("circle",{cx:IX,cy:p[1],r:7,fill:"#fff",stroke:COL.ink}));two(IX-12,p[1],p,{"text-anchor":"end","font-size":12,fill:COL.ink})});
+    outs.forEach(function(p,k){net.appendChild(el("circle",{cx:OX,cy:p[1],r:7,fill:"#fff",stroke:COL[CLASS[k]],"stroke-width":2}));
+      // the bias belongs to its score node, so it is written in that node's label
+      var t=el("text",{x:OX+12,y:p[1]-2,"font-size":12,fill:COL[CLASS[k]]});t.appendChild(el("tspan",{x:OX+12,"font-weight":700},CLASS[k]+" score"));
+      t.appendChild(el("tspan",{x:OX+12,dy:13,"font-size":11},"+ bias "+fmt(b[k],1)));net.appendChild(t)});
+    net.setAttribute("aria-label","One linear layer. Weights into the cat score: "+fmt(W[0][0],1)+" from pointy ears, "+fmt(W[0][1],1)+" from loves salmon, bias "+fmt(b[0],1)+". Into the dog score: "+fmt(W[1][0],1)+" and "+fmt(W[1][1],1)+", bias "+fmt(b[1],1)+".");
+    var wm='<span class="mat w" style="grid-template-columns:repeat(2,auto)">';W.forEach(function(r,k){r.forEach(function(v,j){wm+='<span class="k-'+CLASS[k]+'">'+fmt(v,1)+'</span>'})});wm+='</span>';
+    var bm='<span class="mat w" style="grid-template-columns:auto">'+b.map(function(v,k){return'<span class="k-'+CLASS[k]+'">'+fmt(v,1)+'</span>'}).join("")+'</span>';
+    $("s-w").innerHTML="W = "+wm;$("s-b").innerHTML="b = "+bm;
+    $("s-pick").innerHTML=S_ANI.map(function(d,i){return'<button type="button" data-i="'+i+'" style="--c0:'+S_COL[d.k]+'">'+d.name+'</button>'}).join("");
+    sUpdate();
+  }
+  function sUpdate(){
+    var P=sPos(sSel),z=lin(P),c=argmax(z),d=S_ANI[sSel];
+    var ring=$("s-selring");ring.setAttribute("cx",(34+P[0]*258).toFixed(1));ring.setAttribute("cy",(266-P[1]*258).toFixed(1));
+    Array.from($("s-pick").children).forEach(function(bt,i){bt.setAttribute("aria-pressed",String(i===sSel))});
+    // the legend describes whoever is selected
+    var LEG={a:"Augustus, cat",b:"Brutus, dog (labrador)",c:"Caesar, dog (German shepherd)"};
+    $("s-legend").innerHTML='<span><i class="sw '+CLASS[d.c]+'"></i>'+LEG[d.k]+'</span>';
+    $("s-x").innerHTML=colVec(P,2,["ears","salmon"],["",""]);
+    // the higher score is the call: it is highlighted in z rather than written out
+    $("s-z").innerHTML=colVec(z,2,["cat","dog"],["cat","dog"],c);
+    if(!sDemo)verdict("s-verdict","fixed",'<span class="n-'+d.k+'">'+d.name+'</span> scores '+fmt(z[0],2)+" for cat and "+fmt(z[1],2)+" for dog, so the rule calls him a "+CLASS[c]+(d.c>=0&&c!==d.c?", but he is a "+CLASS[d.c]+".":"."));
+    $("s-changed").hidden=!sTouched;
+  }
+  function sSay(){var z=lin(sPos(sSel));$("s-status").textContent=S_ANI[sSel].name+": cat score "+fmt(z[0],2)+", dog score "+fmt(z[1],2)+", called "+CLASS[argmax(z)]+"."}
+  function sPick(i){sSel=i;sTouched=true;sUpdate();sSay()}
+  $("s-pick").addEventListener("click",function(e){var bt=e.target.closest&&e.target.closest("button[data-i]");if(bt)sPick(+bt.dataset.i)});
+  var plane=$("s-plane");
+  function feat(e){var m=plane.getScreenCTM();if(!m)return null;var pt=plane.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;var q=pt.matrixTransform(m.inverse());return[(q.x-34)/258,(266-q.y)/258]}
+  plane.addEventListener("pointerdown",function(e){var f=feat(e);if(!f)return;
+    // a tap on or near a named animal selects it
+    var best=-1,bd=16;for(var i=0;i<3;i++){var p=NAMED[i].p,dd=Math.hypot((p[0]-f[0])*258,(p[1]-f[1])*258);if(dd<bd){bd=dd;best=i}}
+    if(best>=0){sPick(best);e.preventDefault()}});
+
+  /* ---------- 2 · Batch ---------- */
+  // Beat 1 scores one animal, z = Wx + b. Beat 2 stacks all four as rows of X: Z = XWᵀ + b, with b broadcast to every row.
+  // A scratch copy of W and b: edits here never reach the other slides. Animals start where slide 1 left them.
+  function matHTML(rows,opts){opts=opts||{};var h='<span class="mat'+(opts.cls?" "+opts.cls:"")+'" style="grid-template-columns:repeat('+rows[0].length+',auto)">';
+    rows.forEach(function(r){r.forEach(function(v){h+='<span>'+(typeof v==="number"?fmt(v,opts.d==null?2:opts.d):v)+'</span>'})});return h+'</span>'}
+  function mb(inner,name,dims){return'<span class="mblock">'+inner+'<span class="mname">'+name+(dims?'<small class="dim">'+dims+'</small>':'')+'</span></span>'}
+  function grid(n,inner,cls,style){return'<span class="mat'+(cls?" "+cls:"")+'" style="grid-template-columns:repeat('+n+',auto)'+(style?";"+style:"")+'">'+inner+'</span>'}
+  // a matrix with its column heads above it, columns at a fixed width so heads and numbers line up
+  function hgrid(heads,cols,inner,feat){return'<span class="hmat"><span class="chead'+(feat?" feat":"")+'">'+heads.map(function(t,i){return'<span'+(cols?' style="color:'+cols[i]+'"':'')+'>'+t+'</span>'}).join('')+'</span>'+grid(2,inner,"fix")+'</span>'}
+  function labH(names,inner,cls){return'<span class="cv hd'+(cls?" "+cls:"")+'"><span class="lbls">'+names.map(function(t){return'<span style="color:'+COL.ink+'">'+t+'</span>'}).join('')+'</span>'+inner+'</span>'}
+  function lab(names,cols,inner){return'<span class="cv"><span class="lbls">'+names.map(function(t,i){return'<span style="color:'+cols[i]+'">'+t+'</span>'}).join('')+'</span>'+inner+'</span>'}
+  function vH(term,def){return'<span class="v" tabindex="0">'+term+'<span class="def" role="tooltip">'+def+'</span></span>'}
+  var ROWN=["Augustus","Brutus","Caesar"],ROWK=["a","b","c"];
+  var rd=function(v,d){var m=Math.pow(10,d);return Math.round(v*m)/m},B={beat:0,sel:0,cell:null,touched:false,edited:false,changed:[],last:null,demo:false},bdrag=null;
+  function bReset(){B.X=S_ANI.map(function(d,i){return sPos(i).slice()});B.Wt=[[LIN.W[0][0],LIN.W[1][0]],[LIN.W[0][1],LIN.W[1][1]]];B.b=LIN.b.slice();B.changed=[];B.last=null;B.edited=false}
+  function bZ(){return B.X.map(function(x){return[0,1].map(function(k){return x[0]*B.Wt[0][k]+x[1]*B.Wt[1][k]+B.b[k]})})}
+  function bNudge(m,j,k,dir){var Z0=bZ();
+    if(m==="W")B.Wt[j][k]=Math.max(-9.9,Math.min(9.9,rd(B.Wt[j][k]+dir*.1,1)));else B.b[k]=Math.max(-9.9,Math.min(9.9,rd(B.b[k]+dir*.1,1)));
+    var Z1=bZ();B.changed=[];Z1.forEach(function(r,a){r.forEach(function(v,kk){if(Math.abs(v-Z0[a][kk])>1e-9)B.changed.push([a,kk])})});
+    B.last=[m,j,k];B.touched=true;B.edited=true;batchDraw()}
+  function bDot(x,k,name){var w0=B.Wt[0][k],w1=B.Wt[1][k],z=x[0]*w0+x[1]*w1+B.b[k];
+    return"<small>"+name+"’s "+CLASS[k]+" score: multiply matching entries, add, then add the bias</small>"+fmt(x[0],2)+" × "+fmt(w0,1)+" + "+fmt(x[1],2)+" × "+fmt(w1,1)+(B.b[k]<0?" − ":" + ")+fmt(Math.abs(B.b[k]),1)+" = "+fmt(z,2)}
+  function batchDraw(){
+    var ae=document.activeElement,fk=ae&&ae.dataset&&ae.closest&&ae.closest("#b-one")?ae.getAttribute("data-f"):null,c=B.cell,html,dot="",t;
+    Array.from($("b-beats").children).forEach(function(bt,n){bt.setAttribute("aria-pressed",String(n===B.beat))});
+    $("b-pick").hidden=B.beat!==0;$("b-how").textContent=B.beat===0?"tap a score":"tap a score · drag a weight";
+    if(B.beat===0){
+      $("b-term").textContent="Dot product";
+      $("b-lede").innerHTML="Each score is a "+vH("dot product","Multiply matching entries, then add them up.")+": one class’s row of W times x, plus its bias.";
+      // neutral here: on this slide class colour belongs to the class axis, not to the animals
+      $("b-pick").innerHTML=S_ANI.map(function(d,i){return'<button type="button" data-i="'+i+'" aria-pressed="'+(i===B.sel)+'" style="--c0:var(--line)">'+d.name+'</button>'}).join("");
+      var x=B.X[B.sel],w="",xs="",bs="",zs="",k=typeof c==="number"?c:null;
+      [0,1].forEach(function(kk){[0,1].forEach(function(j){w+='<span class="k-'+CLASS[kk]+(k===kk?" lit":"")+'">'+fmt(B.Wt[j][kk],1)+'</span>'})});
+      x.forEach(function(v){xs+='<span class="'+(k!==null?"lit":"")+'">'+fmt(v,2)+'</span>'});
+      [0,1].forEach(function(kk){var z=x[0]*B.Wt[0][kk]+x[1]*B.Wt[1][kk]+B.b[kk];bs+='<span class="k-'+CLASS[kk]+(k===kk?" lit":"")+'">'+fmt(B.b[kk],1)+'</span>';
+        zs+='<button type="button" class="tap k-'+CLASS[kk]+(k===kk?" lit":"")+'" data-z="'+kk+'" data-f="z'+kk+'" aria-label="'+S_ANI[B.sel].name+'’s '+CLASS[kk]+' score, '+fmt(z,2)+'. Show how it is computed">'+fmt(z,2)+'</button>'});
+      html=mb(lab(["cat","dog"],[COL.cat,COL.dog],grid(2,w,"w")),"W","2×2")+'<span class="op">·</span>'+mb(lab(["ears","salmon"],["#5a676a","#5a676a"],grid(1,xs)),"x","2×1")+'<span class="op">+</span>'+mb(grid(1,bs,"w"),"b","2×1")+'<span class="op">=</span>'+mb(grid(1,zs),"z","2×1");
+      if(k!==null)dot=bDot(x,k,ROWN[B.sel]);
+      t=k===null?"Tap a score to see which row of W and which bias make it.":ROWN[B.sel]+"’s "+CLASS[k]+" score uses only the "+CLASS[k]+" row of W and the "+CLASS[k]+" bias.";
+    }else{
+      $("b-term").textContent="Batched matrix multiplication";
+      $("b-lede").innerHTML="A "+vH("batch","Several inputs processed together, one per row.")+" stacks the animals as rows of X, so one "+vH("matrix multiplication","Every row of the first matrix dotted with every column of the second.")+" scores them all. The bias is "+vH("broadcast","The one row of b is added to every row of the product.")+" to every row.";
+      var Z=bZ(),cc=Array.isArray(c)?c:null,X="",Wt="",Bb="",Zs="",chg=function(i,kk){return B.changed.some(function(p){return p[0]===i&&p[1]===kk})};
+      B.X.forEach(function(r,i){r.forEach(function(v){X+='<span class="'+(cc&&cc[0]===i?"lit":"")+'">'+fmt(v,2)+'</span>'})});
+      B.Wt.forEach(function(r,j){r.forEach(function(v,kk){Wt+='<button type="button" class="ed k-'+CLASS[kk]+(cc&&cc[1]===kk?" lit":"")+'" data-m="W" data-j="'+j+'" data-k="'+kk+'" data-f="W'+j+kk+'" aria-label="'+CLASS[kk]+' weight on '+(j?"loves salmon":"pointy ears")+', '+fmt(v,1)+'. Arrow keys or drag up and down change it">'+fmt(v,1)+'</button>'})});
+      [0,1,2].forEach(function(i){[0,1].forEach(function(kk){var lit=cc&&cc[0]===i&&cc[1]===kk?" lit":"";
+        Bb+=i===0?'<button type="button" class="ed k-'+CLASS[kk]+lit+'" data-m="b" data-j="0" data-k="'+kk+'" data-f="b'+kk+'" aria-label="'+CLASS[kk]+' bias, '+fmt(B.b[kk],1)+'. Arrow keys or drag up and down change it">'+fmt(B.b[kk],1)+'</button>'
+          :'<span class="ghost k-'+CLASS[kk]+lit+'" aria-hidden="true">'+fmt(B.b[kk],1)+'</span>'})});
+      Z.forEach(function(r,i){r.forEach(function(v,kk){Zs+='<button type="button" class="tap k-'+CLASS[kk]+(cc&&cc[0]===i&&cc[1]===kk?" lit":"")+(chg(i,kk)?" chg r"+i:"")+'" data-zi="'+i+'" data-zk="'+kk+'" data-f="Z'+i+kk+'" aria-label="'+ROWN[i]+'’s '+CLASS[kk]+' score, '+fmt(v,2)+'. Show how it is computed">'+fmt(v,2)+'</button>'})});
+      var CH=["cat","dog"],CC=[COL.cat,COL.dog];
+      html='<span class="grp">'+mb(labH(ROWN,hgrid(["ears","salmon"],null,X,true)),"X","3×2")+'<span class="op">·</span>'+mb(hgrid(CH,CC,Wt),"Wᵀ","2×2")+'</span><span class="grp"><span class="op">+</span>'+mb(hgrid(CH,CC,Bb),"b, every row","1×2 → 3×2")+'<span class="op">=</span>'+mb(labH(ROWN,hgrid(CH,CC,Zs),"zl"),"Z","3×2")+'</span>';
+      if(cc)dot=bDot(B.X[cc[0]],cc[1],ROWN[cc[0]]);
+      var L=B.last,n=B.changed.length;
+      if(L&&L[0]==="W")t="Changing one "+CLASS[L[2]]+" weight changed "+n+" scores: the "+CLASS[L[2]]+" score of every animal.";
+      else if(L&&L[0]==="b")t="The "+CLASS[L[2]]+" bias sits in every row, so changing it changed "+n+" scores: the "+CLASS[L[2]]+" score of every animal.";
+      else if(cc)t=ROWN[cc[0]]+"’s "+CLASS[cc[1]]+" score: row "+(cc[0]+1)+" of X times the "+CLASS[cc[1]]+" column of Wᵀ, plus the "+CLASS[cc[1]]+" bias.";
+      else t="One product gives all 6 scores. Tap a score, or drag a weight in Wᵀ.";
+    }
+    $("b-one").innerHTML='<div class="one-row">'+html+'</div>';
+    $("b-dot").innerHTML=dot;$("b-dot").hidden=!dot;$("b-hint").hidden=B.beat!==1;
+    if(fk){var fe=$("b-one").querySelector('[data-f="'+fk+'"]');if(fe)fe.focus()}
+    bFit();
+    if(!B.demo)verdict("b-verdict","fixed",t);
+    $("b-changed").hidden=!(B.touched&&B.beat===1&&!B.demo);$("b-again").hidden=!(B.edited&&!B.demo);
+  }
+  // the equation stays on one line: scale it down when it is wider than its box
+  function bFit(){var box=$("b-one"),row=box.firstChild;if(!row)return;row.style.transform="";box.style.height="";
+    row.style.flexWrap="nowrap";row.style.width="";box.classList.remove("wrapped");var avail=box.clientWidth,need=row.scrollWidth;
+    // wrapped onto two lines, Z repeats the animal names so its rows can still be read
+    if(avail>0&&need>avail&&avail/need<.8){box.classList.add("wrapped");row.style.flexWrap="wrap";row.style.width=avail+"px";need=row.scrollWidth}
+    if(avail>0&&need>avail){var k=avail/need;row.style.transform="scale("+k.toFixed(3)+")";box.style.height=Math.ceil(row.offsetHeight*k)+"px"}}
+  window.addEventListener("resize",function(){if(!$("stage-2").hidden)bFit();if(!$("stage-3").hidden)planesDraw();if(!$("stage-4").hidden)lossDraw()});
+  function bSay(){$("b-status").textContent=$("b-verdict").textContent}
+  $("b-beats").addEventListener("click",function(e){var bt=e.target.closest&&e.target.closest("button[data-b]");if(!bt)return;B.beat=+bt.dataset.b;B.cell=null;B.last=null;B.changed=[];batchDraw();bSay()});
+  $("b-pick").addEventListener("click",function(e){var bt=e.target.closest&&e.target.closest("button[data-i]");if(!bt)return;B.sel=+bt.dataset.i;B.touched=true;batchDraw();bSay()});
+  var bone=$("b-one");
+  bone.addEventListener("click",function(e){var bt=e.target.closest&&e.target.closest("button.tap");if(!bt)return;
+    B.cell=bt.dataset.z!=null?+bt.dataset.z:[+bt.dataset.zi,+bt.dataset.zk];B.last=null;B.changed=[];B.touched=true;bt.focus();batchDraw();bSay()});
+  // weights and biases: arrow keys or a vertical drag
+  bone.addEventListener("keydown",function(e){var c=e.target.closest&&e.target.closest("button.ed");if(!c)return;
+    var dir=(e.key==="ArrowUp"||e.key==="ArrowRight")?1:(e.key==="ArrowDown"||e.key==="ArrowLeft")?-1:0;if(!dir)return;
+    e.preventDefault();bNudge(c.dataset.m,+c.dataset.j,+c.dataset.k,dir);bSay()});
+  bone.addEventListener("pointerdown",function(e){var c=e.target.closest&&e.target.closest("button.ed");if(!c)return;bdrag={m:c.dataset.m,j:+c.dataset.j,k:+c.dataset.k,y:e.clientY};c.focus();try{bone.setPointerCapture(e.pointerId)}catch(x){}e.preventDefault()});
+  bone.addEventListener("pointermove",function(e){if(!bdrag)return;var steps=Math.trunc((bdrag.y-e.clientY)/8);
+    while(steps!==0){var d=steps>0?1:-1;bNudge(bdrag.m,bdrag.j,bdrag.k,d);bdrag.y-=d*8;steps-=d}});
+  ["pointerup","pointercancel"].forEach(function(t){bone.addEventListener(t,function(){if(bdrag){bdrag=null;bSay()}})});
+  $("b-again").addEventListener("click",function(){bReset();batchDraw();$("b-status").textContent="Numbers put back."});
+
+  /* ---------- 3 · Nonlinear layers ---------- */
+  // Tade, 2026-11-18: the network as one 2D plane per layer (input, after layer 1, after ReLU, scores), every
+  // animal's dots joined plane to plane by thin lines, as in Lecture 1.1 S10 ("layer by layer you geometrically
+  // transform them"). Each hidden neuron's ReLU switches off with the weights unchanged; with both off, the two
+  // affine layers are one linear layer, W′ = W₂W₁ and b′ = W₂b₁ + b₂, and the middle planes go.
+  var bendOn=true,bendTouched=false,RM=[1,1],mBusy=false,mSel=2,NT={t2:0};
+  function mm(A,B2){return[[A[0][0]*B2[0][0]+A[0][1]*B2[1][0],A[0][0]*B2[0][1]+A[0][1]*B2[1][1]],[A[1][0]*B2[0][0]+A[1][1]*B2[1][0],A[1][0]*B2[0][1]+A[1][1]*B2[1][1]]]}
+  function mv(A,v){return[A[0][0]*v[0]+A[0][1]*v[1],A[1][0]*v[0]+A[1][1]*v[1]]}
+  var LL=NET_R.L,WP=mm(LL[1].W,LL[0].W),BP=(function(){var a=mv(LL[1].W,LL[0].b);return[a[0]+LL[1].b[0],a[1]+LL[1].b[1]]})();
+  var GRID=[];for(var gk=0;gk<=6;gk++){var ga=[],gb=[];for(var gs=0;gs<=30;gs++){ga.push([gk/6,gs/30]);gb.push([gs/30,gk/6])}GRID.push(ga,gb)}
+  // the trained weights with each hidden neuron's ReLU on (1), off (0) or part-way during a switch
+  function mNet(){return{L:NET_R.L,relu:true,rs:[RM.slice()]}}
+  function aff(l,h){return[l.W[0][0]*h[0]+l.W[0][1]*h[1]+l.b[0],l.W[1][0]*h[0]+l.W[1][1]*h[1]+l.b[1]]}
+  // from a point in layer s's plane on to the scores
+  function rest(net,s,h){var on=net.rs?net.rs[0]:net.relu?[1,1]:[0,0],k=s;h=h.slice();
+    if(k===0){h=aff(net.L[0],h);k=1}if(k===1){h=[h[0]>0?h[0]:(1-on[0])*h[0],h[1]>0?h[1]:(1-on[1])*h[1]];k=2}if(k===2){h=aff(net.L[1],h)}return h}
+  function mLayout(s){var net=mNet(),pts=ALL.map(function(d){return forward(net,d.p)[s]}),gl=GRID.map(function(line){return line.map(function(p){return forward(net,p)[s]})});
+    // padded, so dots that ReLU folds onto an axis sit inside the plane, not on its edge
+    var r=s===0?{x0:0,y0:0,span:1}:fitRange(pts.concat([].concat.apply([],gl)));if(s)r={x0:r.x0-.08*r.span,y0:r.y0-.08*r.span,span:1.16*r.span};
+    return{pts:pts,grid:gl,range:r}}
+  var PAX=[["pointy ears","loves salmon"],["unit 1","unit 2"],["unit 1","unit 2"],["cat score","dog score"]];
+  function pName(s,wide){if(s===1)return wide?"layer 1: W₁x + b₁":"layer 1";if(s===2){var a=RM[0]>.5,b=RM[1]>.5;return a&&b?"ReLU":a?"ReLU on unit 1":b?"ReLU on unit 2":"no ReLU"}return s===0?"input":"scores"}
+  // wide: four upright planes left to right, rising in perspective; narrow: four flat planes bottom to top
+  function cardsFit(){var st=$("stage-3"),cs=getComputedStyle(st),avail=st.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight),C=[],i;
+    if(avail>=600){var W=Math.min(800,Math.floor(avail)),cw=112,gap=(W-24-4*cw)/3;
+      for(i=0;i<4;i++)C.push({o:{x:12+i*(cw+gap),y:196},ex:{x:cw,y:-30},ey:{x:0,y:-150}});
+      return{W:W,H:250,C:C,wide:true}}
+    // the name sits to the right of each plane's front edge, in the gap above the plane below
+    var W2=Math.floor(avail),w=Math.min(230,W2-116),dx=Math.round(.22*w),h=Math.round(.3*w),gv=40;
+    for(i=0;i<4;i++)C.push({o:{x:6,y:16+h+(3-i)*(h+gv)},ex:{x:w,y:0},ey:{x:dx,y:-h}});
+    return{W:W2,H:16+4*h+3*gv+34,C:C,wide:false}}
+  function proj(c,u,v){return[c.o.x+u*c.ex.x+v*c.ey.x,c.o.y+u*c.ex.y+v*c.ey.y]}
+  function planesDraw(){
+    var svg=$("m-planes"),G=cardsFit(),net=mNet(),t2=NT.t2,mid=1-t2;svg.replaceChildren();
+    svg.setAttribute("viewBox","0 0 "+G.W+" "+G.H);svg.style.width=G.W+"px";
+    var LAY=[0,1,2,3].map(function(s){return mLayout(s)}),op=[1,mid,mid,1],P=[];
+    // each plane: the network's call shaded, its boundary, the warped grid; drawn through the plane's own skew
+    LAY.forEach(function(L,s){var c=G.C[s];if(op[s]<.02){P.push(null);return}
+      var g=el("g",{class:"card",opacity:op[s],transform:"matrix("+[c.ex.x/100,c.ex.y/100,-c.ey.x/100,-c.ey.y/100,c.o.x+c.ey.x,c.o.y+c.ey.y].map(function(v){return v.toFixed(3)}).join(" ")+")"});svg.appendChild(g);
+      view(g,{x:0,y:0,s:100},L.range,[],{axes:false,cells:20,mcells:36,grid:s===0?null:L.grid,shade:function(u,v){var z=rest(net,s,[u,v]);return z[0]>=z[1]?0:1},gapFn:function(u,v){var z=rest(net,s,[u,v]);return z[0]-z[1]}});
+      P.push(L.pts.map(function(q){return proj(c,(q[0]-L.range.x0)/L.range.span,(q[1]-L.range.y0)/L.range.span)}))});
+    // thin lines from each animal's dot on one plane to its dot on the next; the chosen animal's line is dark
+    var lines=svg.appendChild(el("g",{})),seg=function(A,B,o){ALL.forEach(function(d,n){if(n===ALL.length-3+mSel)return;lines.appendChild(el("line",{x1:A[n][0].toFixed(1),y1:A[n][1].toFixed(1),x2:B[n][0].toFixed(1),y2:B[n][1].toFixed(1),stroke:"#7b8785","stroke-width":.7,opacity:(.38*o).toFixed(3)}))});
+        var k=ALL.length-3+mSel;lines.appendChild(el("line",{x1:A[k][0].toFixed(1),y1:A[k][1].toFixed(1),x2:B[k][0].toFixed(1),y2:B[k][1].toFixed(1),stroke:COL.ink,"stroke-width":1.6,opacity:o.toFixed(3),"data-path":"chosen"}))};
+    if(mid>.02){seg(P[0],P[1],mid);seg(P[1],P[2],mid);seg(P[2],P[3],mid)}
+    if(t2>.02)seg(P[0],P[3],t2);
+    // the animals on every plane, the chosen one ringed
+    P.forEach(function(pp,s){if(!pp)return;var g=svg.appendChild(el("g",{opacity:op[s]}));
+      [false,true].forEach(function(named){ALL.forEach(function(d,n){if(!!d.k===named)marker(g,pp[n][0],pp[n][1],d,true)})});
+      var k=ALL.length-3+mSel;g.appendChild(el("circle",{cx:pp[k][0].toFixed(1),cy:pp[k][1].toFixed(1),r:12,fill:"none",stroke:"#176ca5","stroke-width":2}))});
+    // names: under each upright plane, or beside each flat one
+    var txt=function(x,y,t,o){var a={x:x,y:y,"font-size":12,fill:COL.ink,stroke:"#fff","stroke-width":3,"paint-order":"stroke"};for(var k in o)a[k]=o[k];svg.appendChild(el("text",a,t))};
+    [0,1,2,3].forEach(function(s){if(op[s]<.02)return;var c=G.C[s];
+      if(G.wide){var cx=c.o.x+c.ex.x/2;txt(cx,c.o.y+22,pName(s,true),{"text-anchor":"middle","font-weight":700,opacity:op[s]});txt(cx,c.o.y+38,PAX[s][0]+" × "+PAX[s][1],{"text-anchor":"middle","font-size":11,fill:"#5a676a",opacity:op[s]})}
+      else{var x=c.o.x+c.ex.x+10,y=c.o.y-2;txt(x,y,pName(s,false),{"font-weight":700,opacity:op[s]});txt(x,y+13,PAX[s][0]+" ×",{"font-size":11,fill:"#5a676a",opacity:op[s]});txt(x,y+25,PAX[s][1],{"font-size":11,fill:"#5a676a",opacity:op[s]})}});
+    if(t2>.02){var c0=G.C[0],c3=G.C[3],lx,ly;
+      if(G.wide){lx=(c0.o.x+c0.ex.x+c3.o.x)/2;ly=c0.o.y+22}else{lx=c0.o.x+c0.ex.x+10;ly=(c0.o.y+c3.o.y)/2}
+      txt(lx,ly,"one linear layer",{"text-anchor":G.wide?"middle":"start","font-weight":700,opacity:t2});txt(lx,ly+16,"W′x + b′, W′ = W₂W₁",{"text-anchor":G.wide?"middle":"start","font-size":11,fill:"#5a676a",opacity:t2})}
+    var sc=out(forward(net,sPos(mSel))),n=(RM[0]>.5?1:0)+(RM[1]>.5?1:0);
+    svg.setAttribute("aria-label","The network as one plane per layer: "+(t2>.5?"input and scores, joined by one linear layer.":"input, after layer 1, after ReLU with "+n+" of 2 neurons, scores.")+" Each animal's dots are joined from plane to plane. "+S_ANI[mSel].name+" gets cat score "+fmt(sc[0],2)+" and dog score "+fmt(sc[1],2)+".");
+    mText()}
+  // In beats a person can follow: one neuron's ReLU goes (its axis unfolds and the input loses that bend), a pause,
+  // then the other, then the middle planes merge away. Switching back on is one move.
+  function mRun(steps,done){var i=0;(function next(){if(i>=steps.length){done();return}var st=steps[i++];
+      if(st.wait){setTimeout(next,st.wait);return}
+      var t0=null;(function f(ts){if(t0===null)t0=ts;var u=Math.min(1,(ts-t0)/st.ms),e=u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2;st.f(e);planesDraw();if(u<1)tick(f);else next()})(performance.now())})()}
+  function mNetAnim(on,done){
+    if(reduce){RM=[+on,+on];NT.t2=on?0:1;done();return}
+    var drop=function(k){return{ms:1000,f:function(e){RM[k]=1-e}}};
+    mRun(on?[{ms:700,f:function(e){NT.t2=1-e;RM=[e,e]}}]:[drop(1),{wait:900},drop(0),{wait:900},{ms:800,f:function(e){NT.t2=e}}],done)}
+  // The verdict keeps one sentence. Its three changing values (underlined) update at once as each beat lands;
+  // after the merge, the closing statement is typed out a character at a time.
+  var VQ=null,VP=[["With ",0],["",1],[" of 2 ReLU neurons, ",0],["",1],[" of "+ALL.length+" animals are right and Caesar is called a ",0],["",1],[".",0],["",2]];
+  function mVerdict(kind,vals,tail){var v=$("m-verdict");
+    if(!v.querySelector(".vp"))v.innerHTML=VP.map(function(q){return'<span class="vp'+(q[1]===1?" vv":"")+'">'+q[0]+'</span>'}).join("");
+    v.className="verdict "+kind;var sp=Array.from(v.querySelectorAll(".vp")),vi=0;
+    VP.forEach(function(q,k){if(q[1]===1){var t=vals[vi++];if(sp[k].textContent!==t)sp[k].textContent=t}});
+    var tl=sp[sp.length-1];clearTimeout(VQ);
+    if(reduce||!v.dataset.ready||tail.length<tl.textContent.length){tl.textContent=tail;v.dataset.ready=1;return}
+    (function type(){if(tl.textContent===tail)return;tl.textContent=tail.slice(0,tl.textContent.length+1);VQ=setTimeout(type,35)})()}
+  function mText(){var net=mNet(),ok=correct(net),cz=argmax(out(forward(net,NAMED[2].p)));
+    $("m-pick").innerHTML=S_ANI.map(function(d,i){return'<button type="button" data-i="'+i+'" aria-pressed="'+(i===mSel)+'" style="--c0:'+S_COL[d.k]+'">'+d.name+'</button>'}).join("");
+    // the verdict follows the network beat by beat: it changes only once a beat has landed
+    var steady=RM.every(function(v){return v<1e-6||v>1-1e-6})&&(NT.t2<1e-6||NT.t2>1-1e-6);
+    if(steady){var n=(RM[0]>.5?1:0)+(RM[1]>.5?1:0);
+      mVerdict(n===2?"fixed":"problem",[String(n),String(ok),CLASS[cz]],NT.t2>.5?" W₁ and W₂ combine into one linear layer, so the boundary is straight.":"")}
+    $("m-go").innerHTML=(bendOn?"Switch ReLU off":"Switch ReLU on")+"<small>same weights</small>";
+  }
+  $("m-pick").addEventListener("click",function(e){var bt=e.target.closest&&e.target.closest("button[data-i]");if(!bt)return;mSel=+bt.dataset.i;planesDraw();
+    var st=out(forward(mNet(),sPos(mSel)));$("m-status").textContent=S_ANI[mSel].name+": cat score "+fmt(st[0],2)+", dog score "+fmt(st[1],2)+"."});
+  $("m-go").addEventListener("click",function(){if(mBusy)return;mBusy=true;var turningOn=!bendOn,vd=$("m-verdict");$("m-go").disabled=true;
+    mNetAnim(turningOn,function(){bendOn=turningOn;bendTouched=true;mBusy=false;planesDraw();$("m-go").disabled=false;$("m-status").textContent=vd.textContent})});
+
+  /* ---------- 4 · Loss ---------- */
+  // Two networks with slide 3's shape (2 → 2 → 2), one with ReLU and one without, start from the same random weights
+  // (seed SEED_R) and are trained on all 35 animals by the same optimizer. The chart traces each one's average
+  // cross-entropy against training steps; the small plots show each boundary as it trains. Nearly all the change
+  // happens in the first few hundred steps. 1.2 S3 frames learning as search for the parameters that minimise the loss.
+  var LSTEPS=600,LREC=1,LTAU=0,SNAP,LCOL=["#7d2a33","#5d6b16"],LNAME=["without ReLU","with ReLU"],TRN,HIST,lPlay=false,lTimer=null,touched=false,lFrame=0;
+  function meanCE(net){var s=0;ALL.forEach(function(d){var p=softmax2(out(forward(net,d.p)));s+=-Math.log(Math.max(1e-12,p[d.c]))});return s/ALL.length}
+  // every step's loss and weights are kept, so the display can sit between two steps (LTAU is a fractional step)
+  var snap=function(net){return net.L.map(function(l){return{W:[l.W[0].slice(),l.W[1].slice()],b:l.b.slice()}})};
+  function lInit(){TRN=[trainer(SEED_R,false,2),trainer(SEED_R,true,2)];HIST=[[meanCE(TRN[0].net)],[meanCE(TRN[1].net)]];SNAP=[[snap(TRN[0].net)],[snap(TRN[1].net)]];LTAU=0}
+  function lAhead(tt){while(TRN[0].t()<Math.min(LSTEPS,Math.ceil(tt))){TRN[0].step(1);TRN[1].step(1);[0,1].forEach(function(k){HIST[k].push(meanCE(TRN[k].net));SNAP[k].push(snap(TRN[k].net))})}}
+  function lAt(k,tt){var i=Math.min(Math.floor(tt),HIST[k].length-1),j=Math.min(i+1,HIST[k].length-1),f=tt-i;return HIST[k][i]+(HIST[k][j]-HIST[k][i])*f}
+  function lNetAt(k,tt){var i=Math.min(Math.floor(tt),SNAP[k].length-1),j=Math.min(i+1,SNAP[k].length-1),f=tt-i,A=SNAP[k][i],B=SNAP[k][j];
+    return{relu:k===1,L:A.map(function(l,li){var m=B[li],q=function(a,b){return a+(b-a)*f};return{W:[[q(l.W[0][0],m.W[0][0]),q(l.W[0][1],m.W[0][1])],[q(l.W[1][0],m.W[1][0]),q(l.W[1][1],m.W[1][1])]],b:[q(l.b[0],m.b[0]),q(l.b[1],m.b[1])]}})}}
+  lInit();var LYMAX=Math.ceil(Math.max(HIST[0][0],HIST[1][0])*12)/10;
+  function lineVals(){var t=TRN[0].t();return[String(t)].concat([0,1].map(function(k){return[fmt(HIST[k][HIST[k].length-1],2),String(ALL.length-correct(TRN[k].net))]}).reduce(function(a,b){return a.concat(b)},[]))}
+  function lossSay(){var vals=lineVals();return"Step "+vals[0]+". Without ReLU: loss "+vals[1]+", "+vals[2]+" mistakes. With ReLU: loss "+vals[3]+", "+vals[4]+" mistakes."}
+  function lMini(k){var svg=$("l-b"+k),net=lNetAt(k,LTAU);svg.replaceChildren();
+    view(svg,{x:8,y:8,s:284},{x0:0,y0:0,span:1},ALL.map(function(d){return{u:d.p[0],v:d.p[1],d:d}}),{big:true,axes:false,cells:24,mcells:36,
+      shade:function(u,v){return argmax(out(forward(net,[u,v])))},gapFn:function(u,v){var z=out(forward(net,[u,v]));return z[0]-z[1]}});
+    // when the boundary has left the square, say what the network is doing instead of showing an empty plot
+    var cnt=[0,0];for(var i=0;i<24;i++)for(var j=0;j<24;j++)cnt[argmax(out(forward(net,[(i+.5)/24,(j+.5)/24])))]++;
+    var one=cnt[0]===0?1:cnt[1]===0?0:-1;
+    if(one>=0){var msg="calls every animal a "+CLASS[one],w=Math.min(272,msg.length*10.8+20);
+      svg.appendChild(el("rect",{x:150-w/2,y:128,width:w,height:40,rx:8,fill:"#fff",opacity:.92}));
+      svg.appendChild(el("text",{x:150,y:154,"text-anchor":"middle","font-size":20,"font-weight":700,fill:COL[CLASS[one]]},msg))}}
+  function lossDraw(full){
+    var cv=$("l-curve"),host=cv.parentNode,wide=window.matchMedia("(min-width:861px)").matches,pcs=getComputedStyle($("stage-4")),
+        inner=$("stage-4").clientWidth-parseFloat(pcs.paddingLeft)-parseFloat(pcs.paddingRight),avw=wide?(inner-18)/2:inner,LW=Math.round(Math.max(300,Math.min(600,avw))),
+        // side by side, the chart is as tall as the boundary plots beside it
+        MS=wide?Math.floor(Math.min(210,(inner-LW-18-10)/2)):null,LH=wide?MS+17:262,
+        X0=46,X1=LW-14,Y0=LH-46,Y1=16,LX=function(t){return X0+t/LSTEPS*(X1-X0)},LY=function(l){return Y0-Math.min(l,LYMAX)/LYMAX*(Y0-Y1)};
+    cv.setAttribute("viewBox","0 0 "+LW+" "+LH);[0,1].forEach(function(k){var b=$("l-b"+k);b.style.width=MS?MS+"px":"";b.style.height=MS?MS+"px":""});cv.style.width=LW+"px";cv.replaceChildren();
+    cv.appendChild(el("line",{x1:X0,x2:X1,y1:Y0,y2:Y0,stroke:"#8a9694"}));cv.appendChild(el("line",{x1:X0,x2:X0,y1:Y0,y2:Y1,stroke:"#8a9694"}));
+    for(var l=0;l<=LYMAX+1e-9;l+=LYMAX>1.2?.5:.2)cv.appendChild(el("text",{x:X0-7,y:LY(l)+4,"text-anchor":"end","font-size":12,fill:"#5a676a"},fmt(l,1)));
+    [0,200,400,600].forEach(function(t){cv.appendChild(el("text",{x:LX(t),y:Y0+17,"text-anchor":"middle","font-size":12,fill:"#5a676a"},String(t)))});
+    cv.appendChild(el("text",{x:(X0+X1)/2,y:Y0+40,"text-anchor":"middle",class:"lab nocap"},"training steps →"));
+    cv.appendChild(el("text",{x:X0+4,y:12,class:"lab nocap"},"average cross-entropy"));
+    [0,1].forEach(function(k){var h=HIST[k],d="",ti=Math.floor(LTAU);for(var i=0;i<=ti&&i<h.length;i++)d+=(i?"L":"M")+LX(i).toFixed(1)+" "+LY(h[i]).toFixed(1);
+      var tipv=lAt(k,LTAU);if(LTAU>ti)d+="L"+LX(LTAU).toFixed(1)+" "+LY(tipv).toFixed(1);
+      var pa={d:d,fill:"none",stroke:LCOL[k],"stroke-width":3,"stroke-linejoin":"round"};if(k===0)pa["stroke-dasharray"]="8 5";cv.appendChild(el("path",pa));
+      var lx=LX(LTAU),ly=LY(tipv);cv.appendChild(el("circle",{cx:lx,cy:ly,r:4.5,fill:LCOL[k]}));
+      // a legend in the chart's top right, where both curves are already flat, so no label sits on a line
+      var ly2=Y1+14+k*17,lx2=X1-4;cv.appendChild(el("text",{x:lx2,y:ly2+4,"text-anchor":"end","font-size":12,"font-weight":700,fill:LCOL[k]},LNAME[k]));
+      var sw={x1:lx2-LNAME[k].length*7-30,x2:lx2-LNAME[k].length*7-8,y1:ly2,y2:ly2,stroke:LCOL[k],"stroke-width":3};if(k===0)sw["stroke-dasharray"]="6 4";cv.appendChild(el("line",sw))});
+    if(full!==false){lMini(0);lMini(1)}
+    $("l-curve-desc").textContent="Average cross-entropy over training steps for the network without ReLU and with ReLU, from the same random weights. "+lossSay();
+    var t=LTAU>=LSTEPS?LSTEPS:Math.floor(LTAU);$("l-play").innerHTML=(lPlay?"Pause":t>=LSTEPS?"Trained":"Train")+"<small>"+(t>=LSTEPS?LSTEPS+" steps":"both networks, from the same random weights")+"</small>";
+    $("l-play").disabled=t>=LSTEPS;$("l-reset").hidden=t===0;var done=touched&&t>=LSTEPS;$("l-changed").hidden=!done;
+    if(done){var v=lineVals(),mk=function(n){return n==="0"?"no mistakes":n==="1"?"1 mistake":n+" mistakes"};
+      $("l-changed-t").textContent="After "+v[0]+" steps, the network with ReLU has bent its boundary around the cats: loss "+v[3]+", "+mk(v[4])+". Without ReLU, the best the search can find is a straight line, so its loss levels off at "+v[1]+", with "+mk(v[2])+"."}
+  }
+  // Playback follows the action: each frame aims for about the same visible change in the two losses, so it slows
+  // where they move fast (the first drop, the ReLU network's plunge, the crossing) and speeds up once they flatten.
+  var lRate=.02,LTARGET=.0045;
+  function lTick(){if(!lPlay)return;
+    // after the curves cross (about step 75) the pace rises to 1.75 times over the next 40 steps
+    var boost=1+.75*Math.max(0,Math.min(1,(LTAU-75)/40));
+    var spf=reduce?LSTEPS:Math.max(.12,Math.min(12,boost*LTARGET/Math.max(lRate,1e-6))),t0=LTAU,c0=[lAt(0,t0),lAt(1,t0)];
+    LTAU=Math.min(LSTEPS,LTAU+spf);lAhead(LTAU+1);var c1=[lAt(0,LTAU),lAt(1,LTAU)];
+    lRate=.6*lRate+.4*(Math.abs(c1[0]-c0[0])+Math.abs(c1[1]-c0[1]))/Math.max(1e-6,LTAU-t0);
+    lFrame++;var end=LTAU>=LSTEPS;if(end)lPlay=false;lossDraw(end||spf<4||lFrame%2===0);
+    if(end)$("l-status").textContent=lossSay();else lTimer=setTimeout(lTick,16)}
+  $("l-play").addEventListener("click",function(){lPlay=!lPlay;touched=true;clearTimeout(lTimer);if(lPlay){lFrame=0;lTick()}else{lossDraw();$("l-status").textContent=lossSay()}});
+  $("l-reset").addEventListener("click",function(){lPlay=false;clearTimeout(lTimer);lInit();lRate=.02;lossDraw();$("l-status").textContent="Back to the same random weights."});
+  window.__lossFacts=function(){return{t:TRN[0].t(),ce:[HIST[0][HIST[0].length-1],HIST[1][HIST[1].length-1]],mistakes:[ALL.length-correct(TRN[0].net),ALL.length-correct(TRN[1].net)],start:[HIST[0][0],HIST[1][0]]}};
+
+  /* ---------- how-to: a hand moves each slide's control once, the first time it opens ---------- */
+  var HAND=null,demoRun=null,demoSeen={},DEMO_ON=true;
+  function hand(){if(!HAND){HAND=document.createElement("div");HAND.className="hand";HAND.setAttribute("aria-hidden","true");
+    HAND.innerHTML='<svg viewBox="0 0 24 24" width="32" height="32"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11V4.5a1.5 1.5 0 0 1 3 0V11V5.5a1.5 1.5 0 0 1 3 0V12V8.5a1.5 1.5 0 0 1 3 0V15c0 4-3 7-7 7h-1c-2.5 0-4-1-5.5-3L3.6 15.2a1.5 1.5 0 0 1 2.4-1.8L8 15.5" fill="#fff" stroke="#1d292b" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/></svg>';document.body.appendChild(HAND)}return HAND}
+  function handAt(x,y){var h=hand();h.style.left=(x+window.scrollX-13)+"px";h.style.top=(y+window.scrollY-5)+"px"}
+  function handCls(c){hand().className="hand"+(c?" "+c:"")}
+  function demoStop(){if(!demoRun)return;var r=demoRun;demoRun=null;r.cancelled=true;clearTimeout(r.timer);clearTimeout(r.raf);handCls("");r.restore()}
+  function demoStart(steps,restore){demoStop();var r={cancelled:false,restore:restore,timer:null,raf:null},i=0;demoRun=r;
+    (function next(){if(r.cancelled)return;if(i>=steps.length){demoRun=null;handCls("");restore();return}var st=steps[i++];
+      if(st.wait!=null){r.timer=setTimeout(next,st.wait);return}
+      if(st.ms){var t0=null,f=function(ts){if(r.cancelled)return;if(t0===null)t0=ts;var u=Math.min(1,(ts-t0)/st.ms);st.fn(u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2);if(u<1)r.raf=tick(f);else next()};r.raf=tick(f);return}
+      st.fn();next()})()}
+  function demoPlan(at,moves,restore){var show=function(){var q=at();handAt(q[0],q[1]);handCls("on")};
+    demoStart(reduce?[{fn:show},{fn:function(){handCls("on press")}},{wait:1800}]
+      :[{fn:show},{wait:350},{fn:function(){handCls("on press")}},{wait:150}].concat(moves,[{wait:250},{fn:function(){handCls("on")}},{wait:300}]),restore)}
+  // the hand demonstrates only slide 2's control (tapping a matrix cell); the other slides' buttons explain themselves
+  var DEMOS=[null,
+    function(){var at=function(){var z=$("b-one").querySelector('[data-z="0"]'),r=z?z.getBoundingClientRect():{left:0,top:0,width:0,height:0};return[r.left+r.width/2,r.top+r.height/2]};
+      demoPlan(at,[{fn:function(){B.demo=true;B.cell=0;batchDraw()}},{wait:1400}],function(){B.demo=false;B.cell=null;batchDraw()})},
+    null,null];
+  function demoUntouched(i){return[!sTouched,!B.touched,!bendTouched,!touched][i]}
+  function demoQueue(i){demoStop();if(!DEMOS[i]||!DEMO_ON||demoSeen[i]||!demoUntouched(i))return;demoSeen[i]=true;setTimeout(function(){if(cur===i&&DEMO_ON&&demoUntouched(i))DEMOS[i]()},450)}
+  document.addEventListener("pointerdown",demoStop,true);document.addEventListener("keydown",demoStop,true);
+
+  /* ---------- navigation ---------- */
+  var tabs=Array.from(document.querySelectorAll(".step")),panels=Array.from(document.querySelectorAll(".stage")),cur=0;
+  var nextNames=["Batched scores","Nonlinear layers","Training loss",""];
+  function show(i,focus){cur=i;tabs.forEach(function(t,n){t.setAttribute("aria-selected",String(n===i));t.tabIndex=n===i?0:-1});panels.forEach(function(p,n){p.hidden=n!==i});
+    $("prev").disabled=i===0;$("next").disabled=i===panels.length-1;$("next-label").textContent=nextNames[i]?"Next: "+nextNames[i]+" ":"";$("pcount").textContent=(i+1)+" of "+panels.length;
+    if(i===0)sUpdate();if(i===1){if(!B.edited)bReset();batchDraw()}if(i===2)planesDraw();if(i===3)lossDraw();demoQueue(i);if(focus)panels[i].querySelector("h2").focus()}
+  tabs.forEach(function(t,i){t.addEventListener("click",function(){show(i,false)});t.addEventListener("keydown",function(e){var j=null;if(e.key==="ArrowRight")j=(i+1)%tabs.length;if(e.key==="ArrowLeft")j=(i+tabs.length-1)%tabs.length;if(e.key==="Home")j=0;if(e.key==="End")j=tabs.length-1;if(j!==null){e.preventDefault();show(j,false);tabs[j].focus()}})});
+  $("prev").addEventListener("click",function(){show(cur-1,true)});$("next").addEventListener("click",function(){show(cur+1,true)});
+
+  scoreDraw();bReset();batchDraw();lossDraw();show(0,false);
+  window.__u1={demos:function(v){DEMO_ON=v;demoStop()},pick:function(i){sPick(i)},show:show,score:scoreDraw,batch:batchDraw,bend:function(on){bendOn=on;RM=[+on,+on];NT.t2=on?0:1;planesDraw()},planes:function(rm,t2){RM=rm.slice();NT.t2=t2;planesDraw()},loss:lossDraw,
+    facts:function(){return{lin:LIN,seed:SEED,linCorrect:ALL.filter(function(d){return argmax(lin(d.p))===d.c}).length,reluCorrect:correct(NET_R),noReluCorrect:correct({L:NET_R.L,relu:false}),n:ALL.length,
+      linCalls:NAMED.map(function(d){return CLASS[argmax(lin(d.p))]}),noReluCalls:NAMED.map(function(d){return CLASS[argmax(out(forward({L:NET_R.L,relu:false},d.p)))]}),reluCalls:NAMED.map(function(d){return CLASS[argmax(out(forward(NET_R,d.p)))]}),
+      augTrained:softmax2(out(forward(NET_R,NAMED[0].p))),caesarLogits:Z1,caesarRelu:softmax2(out(forward(NET_R,NAMED[2].p)))}}};
+})();
+</script>
+</body>
+</html>
