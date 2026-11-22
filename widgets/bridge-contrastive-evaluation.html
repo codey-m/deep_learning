@@ -1,40 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Contrastive neighborhood evaluation</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contrastive neighborhoods</title>
 <style>
-  *,*::before,*::after{box-sizing:border-box}body{margin:0;padding:16px;font-family:Georgia,'Times New Roman',serif;background:#FAFAF8;color:#1A1A1A}
-  main{max-width:760px;margin:0 auto}h1{font-size:1.3rem;margin:0 0 6px}.sub,.note{font-size:.88rem;color:#555;line-height:1.5}
-  .controls{display:flex;flex-wrap:wrap;gap:18px;align-items:end;margin:14px 0}.control{min-width:210px}label{display:block;font-weight:700;margin-bottom:6px}
-  select,input[type=range]{width:100%;min-height:34px}.wrap{overflow-x:auto;border:1px solid #ddd;border-radius:8px;background:#fff}
-  table{width:100%;min-width:520px;border-collapse:collapse}th,td{padding:9px;text-align:left;border-top:1px solid #ddd}th{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}
-  .match{font-weight:700}.metric{margin:14px 0;padding:13px;border-left:5px solid #8C1830;background:#fff}.value{font:700 1rem 'Courier New',monospace;color:#8C1830}
-  select:focus-visible,input:focus-visible{outline:3px solid #1D4ED8;outline-offset:3px}@media(max-width:480px){body{padding:10px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}
+  *,*::before,*::after{box-sizing:border-box}
+  :root{--ink:#1d292b;--muted:#5a676a;--line:#cfd7d5;--paper:#f7f8f5;--tone:#5d6b16;--wash:#f0f3df;--bad:#b3261e;
+        --k0:#1f6f8b;--k1:#b5651d;--k2:#6b4c9a;--k3:#2f7d32;
+        --fs-s:12px;--fs-m:14px;--fs-b:16px;--fs-l:20px}
+  body{margin:0;padding:18px 16px 24px;background:var(--paper);color:var(--ink);font:16px/1.45 Arial,Helvetica,sans-serif}
+  main{max-width:840px;margin:auto;padding:20px 20px 18px;border:1px solid var(--line);border-top:5px solid var(--tone);border-radius:8px;background:#fff}
+  h1{margin:0 0 6px;font:500 clamp(24px,4.4vw,31px)/1.2 Georgia,"Times New Roman",serif}
+  .lede{margin:0 0 6px;font:var(--fs-b)/1.45 Georgia,"Times New Roman",serif}
+  .prompt{margin:0 0 12px;font:var(--fs-l)/1.32 Georgia,"Times New Roman",serif}
+  button{font:inherit;cursor:pointer}
+  button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:3px;box-shadow:0 0 0 3px #fff}
+  .g{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:18px;align-items:start}
+  #circ{width:100%;height:auto;display:block}
+  .h{display:block;margin:0 0 4px;color:var(--muted);font-size:var(--fs-s);font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+  .qs{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 10px}
+  .qs button{display:inline-flex;align-items:center;gap:5px;min-height:36px;padding:3px 9px;border:1px solid var(--line);border-radius:5px;background:#fff;color:var(--ink);font-size:var(--fs-m)}
+  .qs button[aria-pressed="true"]{background:var(--wash);border-color:var(--tone);box-shadow:inset 0 0 0 1px var(--tone);font-weight:700}
+  .qs svg{width:14px;height:14px}
+  .ctl label{display:block;color:var(--muted);font-size:var(--fs-s);font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+  .ctl output{font:700 var(--fs-l) "Courier New",monospace;color:var(--tone)}
+  .ctl input{width:100%;min-height:44px;margin:0;accent-color:var(--tone)}
+  .mp{margin:8px 0;padding:8px 12px;border:1px solid var(--line);border-left:4px solid var(--tone);border-radius:6px;background:#fbfcfb}
+  .mp .line{display:grid;grid-template-columns:9em minmax(0,1fr);column-gap:8px;padding:3px 0;font:italic var(--fs-b)/1.4 Georgia,serif}
+  .mp .lhs{text-align:right;color:var(--muted);font:var(--fs-m) Arial,sans-serif;padding-top:2px}
+  .mp .dim{color:var(--muted)}
+  .again{min-height:44px;padding:8px 12px;border:1px solid #8a9694;border-radius:6px;background:#fff;color:var(--ink);font-size:var(--fs-m)}
+  .legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin:4px 0 0;color:var(--muted);font-size:var(--fs-s)}
+  .legend span{display:inline-flex;align-items:center;gap:4px}.legend svg{width:12px;height:12px}
+  .changed{margin:12px 0 0;padding:12px 14px;border-left:5px solid var(--tone);background:var(--wash);font:var(--fs-b)/1.42 Georgia,"Times New Roman",serif}
+  .changed b{display:block;margin-bottom:2px;color:var(--tone);font:700 var(--fs-s) Arial,sans-serif;letter-spacing:.07em;text-transform:uppercase}
+  .sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+  @media(max-width:640px){body{padding:10px 8px}main{padding:14px 11px}.g{grid-template-columns:1fr}.prompt{font-size:var(--fs-b)}.mp .line{grid-template-columns:7.4em minmax(0,1fr)}}
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
 <main>
-  <h1>Inspect contrastive neighborhoods</h1>
-  <p class="sub">Cosine similarity is computed after normalization. Change the held-out query and k; inspect labels as well as the aggregate precision.</p>
-  <div class="controls">
-    <div class="control"><label for="query">Held-out query</label><select id="query"><option value="0">q0 — class bird</option><option value="1">q1 — class car</option><option value="2">q2 — class bird</option></select></div>
-    <div class="control"><label for="k">Neighbors, k = <output id="kValue" for="k">3</output></label><input id="k" type="range" min="1" max="5" value="3" step="1" /></div>
+  <h1>Contrastive neighborhoods</h1>
+  <p class="lede">A contrastive encoder maps each example to a point on the unit circle, so similarity is the cosine of the angle between two points. These 40 reference examples come from four classes, embedded by a small encoder trained with random negatives.</p>
+  <p class="prompt">Pick a query. How many of its k nearest neighbors share its class?</p>
+  <div class="g">
+    <div>
+      <svg id="circ" viewBox="0 0 360 360" role="img" aria-labelledby="d-circ"></svg>
+      <p class="sr" id="d-circ"></p>
+      <p class="legend" id="legend"></p>
+    </div>
+    <div>
+      <span class="h">Held-out queries</span>
+      <div class="qs" id="qs" role="group" aria-label="Choose a query"></div>
+      <div class="ctl"><label for="k">Neighbors, k</label><output id="kv" for="k">3</output><input type="range" id="k" min="1" max="10" step="1" value="3"></div>
+      <div class="mp" id="mp"></div>
+      <button type="button" class="again" id="batch">Sample a training batch for this query</button>
+      <div class="mp" id="bp" hidden></div>
+    </div>
   </div>
-  <div class="wrap"><table><thead><tr><th>Rank</th><th>Reference</th><th>Label</th><th>Cosine similarity</th><th>Matches query?</th></tr></thead><tbody id="rows"></tbody></table></div>
-  <div class="metric" id="status" role="status" aria-live="polite">Precision@<span id="kEcho">3</span> = <span class="value" id="precision"></span></div>
-  <p class="note">A same-class example treated as a training negative is a potential false negative. Inspecting neighborhoods can reveal this failure even when average kNN accuracy looks acceptable.</p>
+  <div class="changed" id="changed" hidden><b>What changed</b>Precision@k counts how many of the k nearest neighbors share the query's class. It changes from query to query, and the average over queries hides that. Random negatives include examples of the anchor's own class, which training pushes away: false negatives.</div>
+  <p class="sr" role="status" aria-live="polite" id="status"></p>
 </main>
 <script>
-(() => {
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const refs=[{n:'r0',l:'bird',v:[1,.1]},{n:'r1',l:'car',v:[.1,1]},{n:'r2',l:'bird',v:[.8,.3]},{n:'r3',l:'boat',v:[.45,.55]},{n:'r4',l:'car',v:[-.1,.9]}];
-  const queries=[{l:'bird',v:[.9,.2]},{l:'car',v:[0,1]},{l:'bird',v:[.55,.55]}];
-  const cosine=(a,b)=>{const dot=a[0]*b[0]+a[1]*b[1],na=Math.hypot(...a),nb=Math.hypot(...b);return dot/(na*nb);};
-  const query=document.getElementById('query'),kr=document.getElementById('k'),rows=document.getElementById('rows');
-  function render(){const q=queries[Number(query.value)],k=Number(kr.value);const ranked=refs.map(r=>({...r,s:cosine(q.v,r.v)})).sort((a,b)=>b.s-a.s).slice(0,k);rows.innerHTML='';ranked.forEach((r,i)=>{const match=r.l===q.l;const tr=document.createElement('tr');tr.innerHTML=`<td>${i+1}</td><td>${r.n}</td><td>${r.l}</td><td>${r.s.toFixed(3)}</td><td class="match">${match?'yes':'no'}</td>`;rows.append(tr);});const matches=ranked.filter(r=>r.l===q.l).length,p=matches/k;document.getElementById('kValue').textContent=k;document.getElementById('kEcho').textContent=k;document.getElementById('precision').textContent=p.toFixed(3);document.getElementById('status').setAttribute('aria-label',`Query label ${q.l}. ${matches} of ${k} neighbors match. Precision at ${k} is ${p.toFixed(3)}.`);}
-  query.addEventListener('change',render);kr.addEventListener('input',render);render();
+(function(){
+  "use strict";
+  var DATA=/*DATA*/{"ref":[[-1.445,0],[-2.7919,0],[-2.5419,0],[-2.6097,0],[2.8312,0],[-3.1345,0],[-2.0143,0],[-1.985,0],[-2.4388,0],[-1.9495,0],[-2.1232,1],[0.1515,1],[-0.4695,1],[-0.3072,1],[-0.7916,1],[-0.8743,1],[-2.2946,1],[-0.8384,1],[0.1038,1],[-1.5804,1],[0.8244,2],[1.3064,2],[0.9805,2],[1.7059,2],[0.5307,2],[1.2249,2],[1.4282,2],[0.8435,2],[1.5592,2],[1.2016,2],[-2.4695,3],[2.377,3],[-2.3642,3],[-1.1019,3],[2.3819,3],[2.2661,3],[2.8373,3],[2.4717,3],[-1.7704,3],[2.3252,3]],"qry":[[-2.0307,0],[-1.3538,0],[-0.1838,1],[0.3443,1],[1.2197,2],[1.234,2],[2.533,3],[-2.887,3]]}/*END*/;
+  var $=function(id){return document.getElementById(id)};
+  var NS="http://www.w3.org/2000/svg";
+  function el(t,a,p,txt){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;p.appendChild(e);return e}
+  var NAMES=["class A","class B","class C","class D"],COL=["var(--k0)","var(--k1)","var(--k2)","var(--k3)"],SHAPE=["circle","square","triangle","diamond"];
+  function mark(c,x,y,r,p,o){o=o||{};var a={fill:o.hollow?"#fff":COL[c],stroke:COL[c],"stroke-width":o.hollow?2.5:1};
+    if(SHAPE[c]==="circle"){a.cx=x;a.cy=y;a.r=r;return el("circle",a,p)}
+    if(SHAPE[c]==="square"){a.x=x-r*0.9;a.y=y-r*0.9;a.width=r*1.8;a.height=r*1.8;return el("rect",a,p)}
+    var d=SHAPE[c]==="triangle"?"M"+x+","+(y-r*1.15)+" L"+(x+r*1.05)+","+(y+r*0.8)+" L"+(x-r*1.05)+","+(y+r*0.8)+" Z":"M"+x+","+(y-r*1.2)+" L"+(x+r*1.1)+","+y+" L"+x+","+(y+r*1.2)+" L"+(x-r*1.1)+","+y+" Z";
+    a.d=d;return el("path",a,p)}
+  function icon(c){var s=document.createElementNS(NS,"svg");s.setAttribute("viewBox","0 0 14 14");s.setAttribute("aria-hidden","true");mark(c,7,7,5,s);return s}
+  NAMES.forEach(function(n,c){var sp=document.createElement("span");sp.appendChild(icon(c));sp.appendChild(document.createTextNode(n));$("legend").appendChild(sp)});
+  var REF=DATA.ref,QRY=DATA.qry,CX=180,CY=180,RAD=120;
+  function cosd(a,b){return Math.cos(a-b)}
+  function neighbors(q,k){return REF.map(function(r,i){return {i:i,s:cosd(q[0],r[0]),c:r[1]}}).sort(function(a,b){return b.s-a.s}).slice(0,k)}
+  function prec(q,k){var n=neighbors(q,k);return n.filter(function(x){return x.c===q[1]}).length/k}
+  /* points that crowd the same angle are stacked inward so each stays visible */
+  var POS=(function(){var idx=REF.map(function(r,i){return i}).sort(function(a,b){return REF[a][0]-REF[b][0]}),pos=[],last=-9,lvl=0;
+    idx.forEach(function(i){var a=REF[i][0];lvl=(a-last<0.075)?lvl+1:0;last=a;var r=RAD-lvl*13;pos[i]=[CX+r*Math.cos(a),CY-r*Math.sin(a)]});return pos})();
+  var st={q:0,k:3,batch:null,seenQ:{0:true},batches:0};
+  function rng(n){var a=7+n*977;return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+  function draw(){
+    var s=$("circ");s.innerHTML="";var q=QRY[st.q],nb=neighbors(q,st.k),nset={};nb.forEach(function(n,r){nset[n.i]=r+1});
+    el("circle",{cx:CX,cy:CY,r:RAD+18,fill:"none",stroke:"#e6eae9"},s);el("circle",{cx:CX,cy:CY,r:RAD,fill:"none",stroke:"#cfd7d5","stroke-dasharray":"3 3"},s);
+    var qx=CX+(RAD+38)*Math.cos(q[0]),qy=CY-(RAD+38)*Math.sin(q[0]);
+    nb.forEach(function(n){var p=POS[n.i];el("line",{x1:qx,y1:qy,x2:p[0],y2:p[1],stroke:n.c===q[1]?"var(--tone)":"#8a9694","stroke-width":1.5,"stroke-dasharray":n.c===q[1]?null:"4 3"},s)});
+    if(st.batch)st.batch.forEach(function(i){var p=POS[i],fn=REF[i][1]===q[1];el("circle",{cx:p[0],cy:p[1],r:11,fill:"none",stroke:fn?"var(--bad)":"#8a9694","stroke-width":fn?2.5:1.5,"stroke-dasharray":fn?"3 2":null},s)});
+    REF.forEach(function(r,i){var p=POS[i];mark(r[1],p[0],p[1],nset[i]?6.5:5,s);if(nset[i])el("circle",{cx:p[0],cy:p[1],r:9,fill:"none",stroke:"var(--ink)","stroke-width":1.5},s)});
+    mark(q[1],qx,qy,8,s,{hollow:true});el("text",{x:qx,y:qy-14,"text-anchor":"middle",style:"font:700 12px Arial;fill:var(--ink)"},s,"query");
+    var d="Unit circle with 40 reference points from four classes. The query, "+NAMES[q[1]]+", sits outside the circle at its angle. Its "+st.k+" nearest neighbors: "+nb.map(function(n){return NAMES[n.c]+" (cosine "+n.s.toFixed(2)+")"}).join(", ")+".";
+    if(st.batch)d+=" A training batch of 7 negatives is circled; "+st.batch.filter(function(i){return REF[i][1]===q[1]}).length+" share the query's class.";
+    $("d-circ").textContent=d;
+    return nb;
+  }
+  function panel(nb){
+    var q=QRY[st.q],m=nb.filter(function(n){return n.c===q[1]}).length,p=m/st.k,avg=QRY.reduce(function(s,qq){return s+prec(qq,st.k)},0)/QRY.length;
+    $("mp").innerHTML='<div class="line"><span class="lhs">query</span><span>'+NAMES[q[1]]+'</span></div>'+
+      '<div class="line"><span class="lhs">same class</span><span>'+m+' of the '+st.k+' nearest</span></div>'+
+      '<div class="line"><span class="lhs">precision@'+st.k+'</span><span>'+m+' / '+st.k+' = '+p.toFixed(2)+'</span></div>'+
+      '<div class="line"><span class="lhs">average, 8 queries</span><span class="dim">'+avg.toFixed(2)+'</span></div>';
+    return {m:m,p:p,avg:avg};
+  }
+  function batchPanel(){
+    if(!st.batch){$("bp").hidden=true;return}
+    var q=QRY[st.q],fn=st.batch.filter(function(i){return REF[i][1]===q[1]}).length,same=REF.filter(function(r){return r[1]===q[1]}).length;
+    $("bp").hidden=false;
+    $("bp").innerHTML='<div class="line"><span class="lhs">batch negatives</span><span>7, drawn at random from the 40 references (circled)</span></div>'+
+      '<div class="line"><span class="lhs">false negatives</span><span><b style="color:var(--bad)">'+fn+'</b> of 7 share the query\'s class (red rings)</span></div>'+
+      '<div class="line"><span class="lhs">expected</span><span class="dim">7 × '+same+'/40 = '+(7*same/40).toFixed(2)+' per batch</span></div>';
+  }
+  function qButtons(){var h=$("qs");h.innerHTML="";QRY.forEach(function(q,i){var b=document.createElement("button");b.type="button";b.appendChild(icon(q[1]));b.appendChild(document.createTextNode("q"+(i+1)));b.setAttribute("aria-pressed",String(i===st.q));b.setAttribute("aria-label","Query "+(i+1)+", "+NAMES[q[1]]);b.dataset.q=i;h.appendChild(b)})}
+  function render(say){
+    var nb=draw(),r=panel(nb);batchPanel();qButtons();
+    $("kv").textContent=st.k;
+    $("changed").hidden=!(Object.keys(st.seenQ).length>=2&&st.batches>=1);
+    if(say)$("status").textContent="Query "+(st.q+1)+", "+NAMES[QRY[st.q][1]]+". "+r.m+" of "+st.k+" nearest share its class: precision "+r.p.toFixed(2)+". Average over 8 queries "+r.avg.toFixed(2)+"."+(st.batch?" Batch: "+st.batch.filter(function(i){return REF[i][1]===QRY[st.q][1]}).length+" false negatives of 7.":"");
+  }
+  $("qs").addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("button[data-q]");if(!b)return;st.q=+b.dataset.q;st.seenQ[st.q]=true;st.batch=null;render(true);$("qs").querySelector('button[data-q="'+st.q+'"]').focus()});
+  $("k").addEventListener("input",function(){st.k=+this.value;render(false)});
+  $("k").addEventListener("change",function(){render(true)});
+  $("batch").addEventListener("click",function(){var r=rng(st.batches++),pool=REF.map(function(_,i){return i});for(var i=pool.length-1;i>0;i--){var j=Math.floor(r()*(i+1)),t=pool[i];pool[i]=pool[j];pool[j]=t}st.batch=pool.slice(0,7);render(true)});
+  render(false);
 })();
 </script>
 </body>

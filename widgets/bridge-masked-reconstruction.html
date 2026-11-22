@@ -1,62 +1,174 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Masked reconstruction metrics</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Masked reconstruction: how much to hide</title>
 <style>
   *,*::before,*::after{box-sizing:border-box}
-  body{margin:0;padding:16px;font-family:Georgia,'Times New Roman',serif;background:#FAFAF8;color:#1A1A1A}
-  main{max-width:760px;margin:0 auto} h1{font-size:1.3rem;margin:0 0 6px}.sub{font-size:.9rem;color:#555;line-height:1.5}
-  .wrap{overflow-x:auto;border:1px solid #ddd;border-radius:8px;background:#fff}
-  table{width:100%;min-width:560px;border-collapse:collapse} th,td{padding:9px;text-align:center;border-top:1px solid #ddd}
-  th{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}.masked{background:#fff5f6}.tag{font-family:'Courier New',monospace;font-weight:700}
-  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:14px 0}
-  .metric{background:#fff;border:1px solid #ddd;border-radius:8px;padding:13px}.value{font:700 1.05rem 'Courier New',monospace;color:#8C1830}
-  fieldset{border:0;padding:0;margin:14px 0} legend{font-weight:700;margin-bottom:6px}.checks{display:flex;gap:12px;flex-wrap:wrap}
-  label{cursor:pointer}button{padding:7px 12px;border:1px solid #8C1830;border-radius:5px;background:#fff;color:#8C1830;font-weight:700;cursor:pointer}
-  button:focus-visible,input:focus-visible{outline:3px solid #1D4ED8;outline-offset:3px}.note{font-size:.84rem;color:#555;line-height:1.5}
-  @media(max-width:480px){body{padding:10px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}
+  :root{--ink:#1d292b;--muted:#5a676a;--line:#cfd7d5;--paper:#f7f8f5;--tone:#245a7a;--wash:#e4eef5;--bad:#b3261e;
+        --fs-s:12px;--fs-m:14px;--fs-b:16px;--fs-l:20px}
+  body{margin:0;padding:18px 16px 24px;background:var(--paper);color:var(--ink);font:16px/1.45 Arial,Helvetica,sans-serif}
+  main{max-width:840px;margin:auto;padding:20px 20px 18px;border:1px solid var(--line);border-top:5px solid var(--tone);border-radius:8px;background:#fff}
+  h1{margin:0 0 6px;font:500 clamp(24px,4.4vw,31px)/1.2 Georgia,"Times New Roman",serif}
+  .lede{margin:0 0 6px;font:var(--fs-b)/1.45 Georgia,"Times New Roman",serif}
+  .prompt{margin:0 0 12px;font:var(--fs-l)/1.32 Georgia,"Times New Roman",serif}
+  button{font:inherit;cursor:pointer}
+  button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:3px;box-shadow:0 0 0 3px #fff}
+  .imgs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 8px}
+  .imgs figure{margin:0}
+  .imgs canvas{width:100%;max-width:100%;height:auto;display:block;image-rendering:pixelated;border:1px solid var(--line);border-radius:4px}
+  .imgs figcaption{margin:4px 0 0;color:var(--muted);font-size:var(--fs-s);font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .ctl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 16px;align-items:end;margin:6px 0 4px}
+  .ctl label{display:block;color:var(--muted);font-size:var(--fs-s);font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+  .ctl output{font:700 var(--fs-l) "Courier New",monospace;color:var(--tone)}
+  .ctl input{width:100%;min-height:44px;margin:0;accent-color:var(--tone)}
+  .again{min-height:44px;padding:8px 12px;border:1px solid #8a9694;border-radius:6px;background:#fff;color:var(--ink);font-size:var(--fs-m)}
+  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start;margin-top:8px}
+  .mp{padding:8px 12px;border:1px solid var(--line);border-left:4px solid var(--tone);border-radius:6px;background:#fbfcfb}
+  .mp .line{display:grid;grid-template-columns:10.5em minmax(0,1fr);column-gap:8px;padding:3px 0;font:italic var(--fs-b)/1.4 Georgia,serif}
+  .mp .lhs{text-align:right;color:var(--muted);font:var(--fs-m) Arial,sans-serif;padding-top:2px}
+  .mp .val{font:700 var(--fs-b) "Courier New",monospace;font-style:normal}
+  .mp .dim{color:var(--muted)}
+  #chart{width:100%;height:auto;display:block}
+  #chart .t{font-size:11px;fill:var(--muted)}
+  .changed{margin:12px 0 0;padding:12px 14px;border-left:5px solid var(--tone);background:var(--wash);font:var(--fs-b)/1.42 Georgia,"Times New Roman",serif}
+  .changed b{display:block;margin-bottom:2px;color:var(--tone);font:700 var(--fs-s) Arial,sans-serif;letter-spacing:.07em;text-transform:uppercase}
+  .sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+  @media(max-width:640px){body{padding:10px 8px}main{padding:14px 11px}.two{grid-template-columns:1fr}.imgs{gap:6px}.prompt{font-size:var(--fs-b)}}
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
 <main>
-  <h1>Masked reconstruction without shortcut copying</h1>
-  <p class="sub">The squared errors are fixed. Change which coordinates count as hidden. An all-coordinate mean can look small when easy visible coordinates dominate.</p>
-  <fieldset>
-    <legend>Coordinates hidden from the encoder</legend>
-    <div class="checks" id="checks"></div>
-  </fieldset>
-  <div class="wrap">
-    <table>
-      <thead><tr><th>Coordinate</th><th>Target</th><th>Reconstruction</th><th>Squared error</th><th>Status</th></tr></thead>
-      <tbody id="rows"></tbody>
-    </table>
+  <h1>Masked reconstruction: how much to hide</h1>
+  <p class="lede">A masked autoencoder hides patches and learns to predict them. Here a shortcut fills each hidden patch by extending the nearby visible pixels, with no idea what the object is.</p>
+  <p class="prompt">How much must be hidden before that shortcut stops working?</p>
+
+  <div class="imgs">
+    <figure><canvas id="c-orig" width="192" height="192" role="img" aria-label="The original image" aria-describedby="d-imgs"></canvas><figcaption>Original</figcaption></figure>
+    <figure><canvas id="c-mask" width="192" height="192" role="img" aria-label="What the encoder sees: hidden patches are grey" aria-describedby="d-imgs"></canvas><figcaption>Visible patches</figcaption></figure>
+    <figure><canvas id="c-fill" width="192" height="192" role="img" aria-label="The shortcut's reconstruction" aria-describedby="d-imgs"></canvas><figcaption>Shortcut fill</figcaption></figure>
   </div>
-  <div class="metrics" id="status" role="status" aria-live="polite">
-    <div class="metric">All-coordinate MSE<br><span class="value" id="allMse"></span></div>
-    <div class="metric">Masked-only MSE<br><span class="value" id="maskedMse"></span></div>
+  <p class="sr" id="d-imgs"></p>
+
+  <div class="ctl">
+    <div><label for="r">Masking ratio</label><output id="rv" for="r">15%</output>
+      <input type="range" id="r" min="1" max="19" step="1" value="3" aria-valuetext="15% of patches hidden"></div>
+    <button type="button" class="again" id="reshuffle">Draw another mask</button>
   </div>
-  <p><button id="shortcut" type="button">Load shortcut-copying case</button> <button id="reset" type="button">Reset</button></p>
-  <p class="note">For masked modeling, report loss on hidden targets separately. Then use a held-out downstream probe to evaluate representation usefulness; neither metric substitutes for the other.</p>
+
+  <div class="two">
+    <div class="mp">
+      <div class="line"><span class="lhs">hidden patches</span><span><span id="nh"></span></span></div>
+      <div class="line"><span class="lhs">error on hidden patches</span><span><span class="val" id="eh"></span> <span class="dim">mean of (fill − original)² over hidden pixels</span></span></div>
+      <div class="line"><span class="lhs">error on all patches</span><span><span class="val" id="ea"></span> <span class="dim">visible patches are copied, so they add 0</span></span></div>
+    </div>
+    <div>
+      <svg id="chart" viewBox="0 0 360 210" role="img" aria-labelledby="d-chart"></svg>
+      <p class="sr" id="d-chart"></p>
+      <p style="margin:2px 0 0;color:var(--muted);font-size:var(--fs-s)">Lines: average over 12 masks. Marks: this mask.</p>
+    </div>
+  </div>
+
+  <div class="changed" id="changed" hidden><b>What changed</b>At a low ratio, extending nearby pixels already fills the gaps, so the task can be solved without recognizing the object. At a high ratio it cannot. At a low ratio the error on all patches looks small because most patches are visible and copied, so judge a reconstruction by its error on the hidden patches.</div>
+  <p class="sr" role="status" aria-live="polite" id="status"></p>
 </main>
 <script>
-(() => {
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  let targets=[1,2,4,3,0,5], recon=[1,2,1,3,0,2], masked=new Set([2,5]);
-  const rows=document.getElementById('rows'), checks=document.getElementById('checks');
-  function buildChecks(){checks.innerHTML='';targets.forEach((_,i)=>{const label=document.createElement('label');const input=document.createElement('input');input.type='checkbox';input.checked=masked.has(i);input.addEventListener('change',()=>{input.checked?masked.add(i):masked.delete(i);render();});label.append(input,` ${i}`);checks.append(label);});}
-  function render(){
-    rows.innerHTML='';const errors=targets.map((v,i)=>(v-recon[i])**2);
-    targets.forEach((value,i)=>{const tr=document.createElement('tr');if(masked.has(i))tr.className='masked';tr.innerHTML=`<td>${i}</td><td>${value}</td><td>${recon[i]}</td><td>${errors[i]}</td><td class="tag">${masked.has(i)?'M: masked':'V: visible'}</td>`;rows.append(tr);});
-    const all=errors.reduce((a,b)=>a+b,0)/errors.length, selected=[...masked].map(i=>errors[i]);
-    const maskedMean=selected.length?selected.reduce((a,b)=>a+b,0)/selected.length:NaN;
-    document.getElementById('allMse').textContent=all.toFixed(2);document.getElementById('maskedMse').textContent=Number.isNaN(maskedMean)?'select a coordinate':maskedMean.toFixed(2);
-    document.getElementById('status').setAttribute('aria-label',`All-coordinate mean squared error ${all.toFixed(2)}. Masked-only mean squared error ${Number.isNaN(maskedMean)?'undefined because no coordinates are masked':maskedMean.toFixed(2)}.`);
+(function(){
+  "use strict";
+  var $=function(id){return document.getElementById(id)};
+  var S=48,P=4,G=S/P,NP=G*G,AVG=12;
+  /* ---------- the image: a spotted animal on a sky-and-ground scene, values 0..1 ---------- */
+  function scene(x,y){
+    var u=x/(S-1),v=y/(S-1),val=0.92-0.18*v;
+    if(v>0.8)val=0.62+0.10*Math.sin(x*0.9)*Math.sin(y*1.1);
+    var bx=(u-0.46)/0.36,by=(v-0.5)/0.22;
+    var body=bx*bx+by*by<1, head=Math.pow((u-0.84)/0.12,2)+Math.pow((v-0.32)/0.11,2)<1;
+    var leg=(v>0.6&&v<0.94)&&((Math.abs(u-0.24)<0.04)||(Math.abs(u-0.38)<0.04)||(Math.abs(u-0.56)<0.04)||(Math.abs(u-0.68)<0.04));
+    var tail=Math.abs(v-(0.42-0.8*(0.13-u)))<0.03&&u>0.02&&u<0.13;
+    if(body||head||leg||tail){val=0.38;
+      var spots=[[0.22,0.45],[0.32,0.55],[0.36,0.38],[0.46,0.5],[0.52,0.36],[0.58,0.6],[0.66,0.44],[0.28,0.64],[0.44,0.66],[0.62,0.3],[0.86,0.28],[0.74,0.56]];
+      for(var k=0;k<spots.length;k++){var dx=u-spots[k][0],dy=v-spots[k][1];if(dx*dx+dy*dy<0.0022){val=0.04;break}}
+      if(head&&Math.pow(u-0.9,2)+Math.pow(v-0.3,2)<0.0005)val=0.98;}
+    return val;
   }
-  document.getElementById('shortcut').addEventListener('click',()=>{targets=[1,2,4,3,0,5];recon=[1,2,0,3,0,1];masked=new Set([2,5]);buildChecks();render();});
-  document.getElementById('reset').addEventListener('click',()=>{targets=[1,2,4,3,0,5];recon=[1,2,1,3,0,2];masked=new Set([2,5]);buildChecks();render();});
-  buildChecks();render();
+  var IMG=new Float32Array(S*S);for(var y=0;y<S;y++)for(var x=0;x<S;x++)IMG[y*S+x]=scene(x,y);
+  /* ---------- masks: one seeded order of patches; a higher ratio hides a superset ---------- */
+  function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+  var seed=11,ORDER;
+  function makeOrder(){var r=mulberry(seed),o=[];for(var i=0;i<NP;i++)o.push(i);for(var i=NP-1;i>0;i--){var j=Math.floor(r()*(i+1)),t=o[i];o[i]=o[j];o[j]=t}ORDER=o}
+  function hiddenSet(ratio){var n=Math.round(ratio*NP),h=new Uint8Array(NP);for(var i=0;i<n;i++)h[ORDER[i]]=1;return h}
+  function isHidden(h,x,y){return h[Math.floor(y/P)*G+Math.floor(x/P)]===1}
+  /* ---------- the shortcut: inverse-distance weighting of visible pixels near each hidden pixel ---------- */
+  function fill(h){
+    var out=new Float32Array(IMG),vis=[];
+    for(var y=0;y<S;y++)for(var x=0;x<S;x++)if(!isHidden(h,x,y))vis.push(x,y);
+    for(var y=0;y<S;y++)for(var x=0;x<S;x++){if(!isHidden(h,x,y))continue;
+      var R=4,sw=0,sv=0;
+      while(sw===0&&R<S){for(var yy=Math.max(0,y-R);yy<=Math.min(S-1,y+R);yy++)for(var xx=Math.max(0,x-R);xx<=Math.min(S-1,x+R);xx++){
+          if(isHidden(h,xx,yy))continue;var d2=(xx-x)*(xx-x)+(yy-y)*(yy-y),w=1/(d2*d2);sw+=w;sv+=w*IMG[yy*S+xx]}
+        R*=2}
+      out[y*S+x]=sw?sv/sw:0.5}
+    return out;
+  }
+  function errors(h,f){var sh=0,nh=0,sa=0;for(var i=0;i<S*S;i++){var e=(f[i]-IMG[i])*(f[i]-IMG[i]);sa+=e;if(isHidden(h,i%S,Math.floor(i/S))){sh+=e;nh++}}return {hidden:nh?sh/nh:0,all:sa/(S*S)}}
+  var RATIOS=[];for(var k=1;k<=19;k++)RATIOS.push(k*0.05);
+  /* the chart plots the average over AVG fixed masks; the current mask is a point that can sit off the curve */
+  var CURVE=[];
+  function computeCurve(){var keep=seed;CURVE=RATIOS.map(function(){return {hidden:0,all:0}});
+    for(var m=1;m<=AVG;m++){seed=1000+m;makeOrder();RATIOS.forEach(function(r,i){var h=hiddenSet(r),e=errors(h,fill(h));CURVE[i].hidden+=e.hidden/AVG;CURVE[i].all+=e.all/AVG})}
+    seed=keep;makeOrder()}
+  /* ---------- drawing ---------- */
+  function draw(id,data,h,grey){
+    var c=$(id),ctx=c.getContext("2d"),im=ctx.createImageData(S,S);
+    for(var i=0;i<S*S;i++){var x=i%S,y=Math.floor(i/S),hid=h&&isHidden(h,x,y),v=Math.round(255*Math.max(0,Math.min(1,data[i])));
+      var r=v,g=v,b=v;if(hid&&grey){r=205;g=212;b=210}
+      im.data[4*i]=r;im.data[4*i+1]=g;im.data[4*i+2]=b;im.data[4*i+3]=255}
+    var off=document.createElement("canvas");off.width=S;off.height=S;off.getContext("2d").putImageData(im,0,0);
+    ctx.imageSmoothingEnabled=false;ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(off,0,0,c.width,c.height);
+    if(h){var k=c.width/S;ctx.strokeStyle=grey?"#8a9694":"rgba(36,90,122,.55)";ctx.lineWidth=1;
+      for(var p=0;p<NP;p++)if(h[p]){var px=(p%G)*P*k,py=Math.floor(p/G)*P*k;ctx.strokeRect(px+0.5,py+0.5,P*k-1,P*k-1)}}
+  }
+  var NS="http://www.w3.org/2000/svg";
+  function el(t,a,p,txt){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;p.appendChild(e);return e}
+  var CUR={hidden:0,all:0};
+  function chart(idx){
+    var s=$("chart");s.innerHTML="";var L=44,R=350,T=12,B=170,ymax=0;CURVE.forEach(function(c){ymax=Math.max(ymax,c.hidden)});ymax*=1.25;ymax=Math.ceil(ymax*50)/50||0.02;
+    function X(r){return L+(r-0.05)/(0.9)*(R-L)}function Y(v){return B-v/ymax*(B-T)}
+    el("line",{x1:L,x2:L,y1:T,y2:B,stroke:"#9aa5a3"},s);el("line",{x1:L,x2:R,y1:B,y2:B,stroke:"#9aa5a3"},s);
+    [0,ymax/2,ymax].forEach(function(v){el("text",{x:L-6,y:Y(v)+4,"text-anchor":"end","class":"t"},s,v.toFixed(3))});
+    [0.15,0.75].forEach(function(r){el("line",{x1:X(r),x2:X(r),y1:T,y2:B,stroke:"#cfd7d5","stroke-dasharray":"3 3"},s)});
+    el("text",{x:X(0.15),y:T+10,"text-anchor":"middle","class":"t"},s,"BERT 15%");
+    el("text",{x:X(0.75),y:T+10,"text-anchor":"middle","class":"t"},s,"MAE images 75%");
+    [0.05,0.5,0.95].forEach(function(r){el("text",{x:X(r),y:B+14,"text-anchor":"middle","class":"t"},s,Math.round(r*100)+"%")});
+    el("text",{x:(L+R)/2,y:B+30,"text-anchor":"middle","class":"t"},s,"masking ratio");
+    var dH=CURVE.map(function(c,i){return (i?"L":"M")+X(RATIOS[i]).toFixed(1)+","+Y(c.hidden).toFixed(1)}).join(" ");
+    var dA=CURVE.map(function(c,i){return (i?"L":"M")+X(RATIOS[i]).toFixed(1)+","+Y(c.all).toFixed(1)}).join(" ");
+    el("path",{d:dH,fill:"none",stroke:"var(--bad)","stroke-width":2.5},s);
+    el("path",{d:dA,fill:"none",stroke:"var(--tone)","stroke-width":2.5,"stroke-dasharray":"7 4"},s);
+    el("circle",{cx:X(RATIOS[idx]),cy:Y(Math.min(ymax,CUR.hidden)),r:5,fill:"var(--bad)",stroke:"#fff","stroke-width":1.5},s);
+    el("rect",{x:X(RATIOS[idx])-4,y:Y(Math.min(ymax,CUR.all))-4,width:8,height:8,fill:"var(--tone)",stroke:"#fff","stroke-width":1.5},s);
+
+    el("text",{x:R,y:Y(CURVE[CURVE.length-1].hidden)-8,"text-anchor":"end",style:"font-size:12px;font-weight:700;fill:var(--bad)"},s,"hidden patches");
+    el("text",{x:R,y:Math.min(B-6,Y(CURVE[CURVE.length-1].all)+16),"text-anchor":"end",style:"font-size:12px;font-weight:700;fill:var(--tone)"},s,"all patches");
+    $("d-chart").textContent="Error against masking ratio, from 5% to 95%. Error on hidden patches rises from "+CURVE[0].hidden.toFixed(3)+" to "+CURVE[CURVE.length-1].hidden.toFixed(3)+". Error on all patches stays lower, from "+CURVE[0].all.toFixed(3)+" to "+CURVE[CURVE.length-1].all.toFixed(3)+".";
+  }
+  var seen={low:false,high:false};
+  function render(announce){
+    var idx=+$("r").value-1,r=RATIOS[idx],h=hiddenSet(r),f=fill(h),e=errors(h,f),n=Math.round(r*NP);
+    draw("c-orig",IMG,null,false);draw("c-mask",IMG,h,true);draw("c-fill",f,h,false);
+    $("rv").textContent=Math.round(r*100)+"%";$("r").setAttribute("aria-valuetext",Math.round(r*100)+"% of patches hidden");
+    CUR=e;$("nh").textContent=n+" of "+NP;$("eh").textContent=e.hidden.toFixed(4);$("ea").textContent=e.all.toFixed(4);
+    chart(idx);
+    if(r<=0.25)seen.low=true;if(r>=0.7)seen.high=true;$("changed").hidden=!(seen.low&&seen.high);
+    $("d-imgs").textContent="An image of a spotted animal standing on the ground, split into "+NP+" patches. "+n+" patches are hidden. The shortcut fills them from nearby visible pixels; "+(r<0.35?"the fill is close to the original.":r<0.65?"the fill blurs the animal where patches cluster.":"most of the animal is lost in the fill.");
+    if(announce)$("status").textContent=Math.round(r*100)+"% hidden. Error on hidden patches "+e.hidden.toFixed(4)+"; on all patches "+e.all.toFixed(4)+".";
+  }
+  makeOrder();computeCurve();render(false);
+  $("r").addEventListener("input",function(){render(false)});
+  $("r").addEventListener("change",function(){render(true)});
+  $("reshuffle").addEventListener("click",function(){seed+=1;makeOrder();render(true)});
 })();
 </script>
 </body>

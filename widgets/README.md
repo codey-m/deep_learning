@@ -42,10 +42,10 @@ the lesson.
 | --- | --- | --- |
 | [What the network was never told](https://codey-m.github.io/deep_learning/widgets/widget-read-what-it-knows.html) | Unit 1 overview | Ninety birds placed by each layer of a trained network, with a straight line placed to separate wings up from wings down and scored on ninety new birds |
 | [Echo Dancer](https://codey-m.github.io/deep_learning/widgets/widget-pca.html) | Unit 1, Lec. 2: Reconstruction-based Methods | PCA, keeping the most variance in two numbers per frame |
-| [Masked reconstruction metrics](https://codey-m.github.io/deep_learning/widgets/bridge-masked-reconstruction.html) | Unit 1, Lec. 2: Reconstruction-based Methods | Computational bridge: masked reconstruction without shortcut copying |
+| [Masked reconstruction: how much to hide](https://codey-m.github.io/deep_learning/widgets/bridge-masked-reconstruction.html) | Unit 1, Lec. 2: Reconstruction-based Methods |  |
 | [Representation space](https://codey-m.github.io/deep_learning/widgets/unit-summary-organize-its-inputs.html) | Unit 1, Lec. 2: Reconstruction-based Methods | Unit 1 synthesis: representation space |
 | [Pull together, push apart](https://codey-m.github.io/deep_learning/widgets/widget-pull-and-push.html) | Unit 2 overview | Forty-five birds of three kinds pulled into flocks by forces you control |
-| [Contrastive neighborhood evaluation](https://codey-m.github.io/deep_learning/widgets/bridge-contrastive-evaluation.html) | Unit 2, Lec. 3: Similarity-based Methods | Computational bridge: inspect contrastive neighborhoods |
+| [Contrastive neighborhoods](https://codey-m.github.io/deep_learning/widgets/bridge-contrastive-evaluation.html) | Unit 2, Lec. 3: Similarity-based Methods |  |
 | [Weight symmetries: the same function, different weights](https://codey-m.github.io/deep_learning/widgets/widget-weight-symmetry.html) | Unit 2, Lec. 4: Weight-space Geometry | Weight symmetries and averaging |
 | [6.7960x — Glossary](https://codey-m.github.io/deep_learning/widgets/glossary-module4.html) | Glossary tab | Module 4 Glossary |
 
