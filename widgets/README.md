@@ -21,6 +21,7 @@ the lesson.
 | --- | --- | --- |
 | [How far a signal travels](https://codey-m.github.io/deep_learning/widgets/widget-signal-through-layers.html) | Unit 1 overview | Signal strength across a stack of layers |
 | [Downhill Racer](https://codey-m.github.io/deep_learning/widgets/widget-gradient-descent.html) | Unit 1, Lec. 1: How to Train a Neural Net 1 | Gradient descent and momentum |
+| [How a deep network turns a loss into an update](https://codey-m.github.io/deep_learning/widgets/unit-summary-train-a-deep-network.html) | Unit 1, Lec. 2: How to Train a Neural Net 2 | Unit 1 synthesis: how a deep network turns a loss into an update |
 | [How many examples do you need?](https://codey-m.github.io/deep_learning/widgets/widget-how-many-examples.html) | Unit 2 overview | Accuracy at telling birds apart against number of labelled photos, training from scratch versus reusing a model trained on something else |
 | [Photo Finish](https://codey-m.github.io/deep_learning/widgets/widget-threshold-metrics.html) | Unit 2, Lec. 5: Evaluation: IID & OOD | Moving the decision threshold |
 | [6.7960x — Glossary](https://codey-m.github.io/deep_learning/widgets/glossary-module2.html) | Glossary tab | Module 2 Glossary |

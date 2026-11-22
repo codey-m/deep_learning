@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How a deep network turns a loss into an update</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  :root{--ink:#1d292b;--muted:#5a676a;--line:#cfd7d5;--paper:#f7f8f5;--a:#a31f34;
+        --clip:#1b6d74;--clip-w:#e3f2f3;--back:#9b2f5c;--back-w:#f7e5ed;--init:#5d6b16;--init-w:#f0f3df;
+        --norm:#9a3d16;--norm-w:#fbebe3;--res:#245a7a;--res-w:#e4eef5;
+        --fwd:#3f4d51;--bwd:#b3261e;--theta:#176ca5;--sel:#176ca5;--sel-w:#e3eef7;
+        --c-lin:#5a676a;--c-relu:#b3261e;--c-kai:#176ca5;
+        --fs-s:12px;--fs-m:14px;--fs-b:16px;--fs-l:20px}
+  body{margin:0;padding:18px 16px 26px;background:var(--paper);color:var(--ink);font:16px/1.45 Arial,Helvetica,sans-serif}
+  main{max-width:840px;margin:auto}
+  button{font:inherit;cursor:pointer}button:disabled{cursor:default;opacity:.45}
+  button:focus-visible,h2:focus-visible,.v:focus-visible{outline:2px solid var(--ink);outline-offset:3px;box-shadow:0 0 0 3px #fff}
+  [hidden]{display:none!important}
+  [data-tone="clip"]{--tone:var(--clip);--wash:var(--clip-w)}[data-tone="back"]{--tone:var(--back);--wash:var(--back-w)}
+  [data-tone="init"]{--tone:var(--init);--wash:var(--init-w)}[data-tone="norm"]{--tone:var(--norm);--wash:var(--norm-w)}
+  [data-tone="res"]{--tone:var(--res);--wash:var(--res-w)}
+  .eyebrow{margin:0 0 3px;color:var(--a);font-size:var(--fs-s);font-weight:700;letter-spacing:.11em;text-transform:uppercase}
+  h1{margin:0 0 6px;font:500 clamp(28px,5vw,38px)/1.1 Georgia,"Times New Roman",serif}
+  .question{margin:0 0 14px;color:var(--muted);font:italic var(--fs-b)/1.4 Georgia,"Times New Roman",serif}
+
+  .steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-bottom:12px}
+  .step{display:grid;justify-items:center;gap:1px;padding:7px 4px;border:1px solid var(--line);border-top:4px solid var(--tone);border-radius:4px;background:#fff;color:#4a5659;font-size:var(--fs-m)}
+  .step b{font:700 var(--fs-s) "Courier New",monospace;color:var(--tone)}
+  .step[aria-selected="true"]{background:var(--wash);border-color:var(--tone);color:var(--ink);font-weight:700}
+
+  .stage{padding:20px 20px 18px;border:1px solid var(--line);border-top:5px solid var(--tone);border-radius:8px;background:#fff}
+  .kicker{min-height:15px;margin:0 0 2px;color:var(--tone);font:700 var(--fs-s) "Courier New",monospace;text-transform:uppercase}
+  h2{margin:0 0 4px;font:500 clamp(28px,5vw,36px)/1.2 Georgia,"Times New Roman",serif}
+  .lede{margin:0 0 10px;font:var(--fs-b)/1.45 Georgia,"Times New Roman",serif}
+  .problem{margin:0 0 12px;font:var(--fs-l)/1.32 Georgia,"Times New Roman",serif}
+  .v{position:relative;cursor:help;outline:none;color:var(--tone);font-weight:700;border-bottom:2px dotted var(--tone)}
+  .v .def{position:absolute;left:0;top:calc(100% + 6px);z-index:5;width:max-content;max-width:min(260px,70vw);padding:6px 9px;border-radius:5px;background:var(--ink);color:#fff;font:400 var(--fs-m)/1.35 Arial,Helvetica,sans-serif;display:none;pointer-events:none}
+  .v:hover .def,.v:focus .def{display:block}
+  .var{font-style:italic;font-family:Georgia,"Times New Roman",serif}
+
+  svg text{font-family:Arial,Helvetica,sans-serif}
+  .fig{width:100%;height:auto;display:block;margin:0 0 6px}
+  .note{margin:0 0 10px;color:var(--muted);font-size:var(--fs-s)}
+
+  .verdict{min-height:2.7em;margin:10px 0 6px;font:var(--fs-l)/1.32 Georgia,"Times New Roman",serif}
+  #b-verdict:empty{min-height:0;margin:0}
+  .aside{margin:0 0 12px;color:var(--muted);font:italic var(--fs-m)/1.4 Georgia,serif}
+  .changed{margin:4px 0 14px;padding:12px 14px;border-left:5px solid var(--tone);background:var(--wash);font:var(--fs-b)/1.42 Georgia,"Times New Roman",serif}
+  .changed b{display:block;margin-bottom:2px;color:var(--tone);font:700 var(--fs-s) Arial,sans-serif;letter-spacing:.07em;text-transform:uppercase}
+  .changed p{margin:0}.changed p+p{margin-top:8px}
+  .act{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:8px 0}
+  .go{display:inline-grid;justify-items:start;gap:1px;min-height:52px;padding:8px 18px;border:2px solid var(--tone);border-radius:7px;background:var(--tone);color:#fff;font-size:var(--fs-b);font-weight:700}
+  .go small{font-size:var(--fs-s);font-weight:400;opacity:.9}
+  .plain{min-height:44px;padding:8px 14px;border:2px solid var(--tone);border-radius:7px;background:#fff;color:var(--ink);font-size:var(--fs-b);font-weight:700}
+  .again{min-height:44px;padding:8px 12px;border:1px solid #8a9694;border-radius:6px;background:#fff;color:var(--ink);font-size:var(--fs-m)}
+  .sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+  /* slide 2 */
+  #b-fig .box{stroke-width:1.5}
+  #b-fig .f{fill:#f3dcae;stroke:#9a6a12}#b-fig .f.hl{fill:#f8c96b;stroke:var(--ink);stroke-width:2.5}
+  #b-fig .loss{fill:#e5735f;stroke:#8f2a1c}
+  #b-fig .th{fill:#2a9fd6;stroke:#0f5f86}
+  #b-fig .lbl{font-size:15px;fill:var(--ink)}#b-fig .lbl.it{font-family:Georgia,serif;font-style:italic}
+  #b-fig .small{font-size:12px;fill:var(--muted)}
+  #b-fig .ar{stroke:var(--fwd);stroke-width:1.8;fill:none}
+  #b-fig .ar.off{stroke:#d7dddc}#b-fig .bw.off,#b-fig .bwt.off{opacity:0}
+  #b-fig .bw .ar{stroke:var(--bwd)}
+  #b-fig g{transition:opacity .25s}
+  #b-fig .shp{display:none}
+  #b-fig.shapes-on .shp{display:inline}
+  .cell-x{fill:#e8ecea;stroke:#3f4d51}.cell-W{fill:#bfe3f4;stroke:#0f5f86}.cell-g{fill:#f8d3cf;stroke:#b3261e}.cell-d{fill:#f8d3cf;stroke:#0f5f86;stroke-dasharray:2 1}
+  .ops{min-height:9.2em;margin:2px 0 8px;padding:8px 12px;border:1px solid var(--line);border-left:4px solid var(--fwd);border-radius:6px;background:#fbfcfb}
+  .ops .h{display:block;margin:0 0 4px;color:var(--muted);font:700 var(--fs-s) Arial,sans-serif;letter-spacing:.07em;text-transform:uppercase}
+  .ops .line,.ops .bline{display:grid;grid-template-columns:2.6em minmax(0,1fr);column-gap:6px;align-items:start}
+  .ops .line{padding:2px 0;color:var(--muted);font:italic var(--fs-b)/1.5 Georgia,serif}
+  .ops .lhs{white-space:nowrap;text-align:right}
+  .ops .rhs{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px}
+  .ops .rhs > span{white-space:normal}
+  .ops .line.new{color:var(--ink);font-weight:700}
+  .ops .line .geq{display:none;margin:0}.ops.shapes-on .line .geq{display:flex}
+  .ops .line .geq .lab{display:none}
+  .ops .bh{margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+  .ops .bline{padding:4px 6px;border-radius:5px;color:var(--ink);font:italic var(--fs-b)/1.4 Georgia,serif}
+  .ops .bline .chips{display:flex;flex-wrap:wrap;align-items:flex-start;gap:6px 10px}
+  .ops .bline.hl{background:#fdf0d2}
+  .ops .bline .who{font-weight:700;font-style:italic;text-align:right}
+  .ops .chip{display:inline-flex;flex-direction:column;gap:3px;padding:1px 8px;border-left:3px solid}
+  .ops .chip.pass{border-color:var(--bwd)}.ops .chip.keep{border-color:var(--theta)}
+  .ops .chip .geq{display:none;margin:0}.ops.shapes-on .chip .geq{display:flex}
+  .ops .key,.ops .upd{margin-left:calc(2.6em + 12px)!important}
+  .ops .key{display:flex;flex-wrap:wrap;gap:4px 16px;margin:6px 0 0;color:var(--muted);font:var(--fs-s) Arial,sans-serif}
+  .ops .key span{padding-left:6px;border-left:3px solid}
+  .ops .upd{margin:6px 0 0;color:var(--ink);font:italic var(--fs-m)/1.4 Georgia,serif}
+  .geq{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:4px 0 0;font:italic var(--fs-m) Georgia,serif;color:var(--muted)}
+  .geq svg{display:block}.geq .lab{font:var(--fs-s) Arial,sans-serif;font-style:normal}
+  .toggle{min-height:36px;padding:4px 12px;border:1px solid var(--sel);border-radius:18px;background:#fff;color:var(--sel);font-size:var(--fs-m);font-weight:700}
+  .toggle[aria-pressed="true"]{background:var(--sel);color:#fff}
+  .figbar{display:flex;justify-content:flex-end;margin:0 0 2px}
+
+  /* slide 3 */
+  #i-fig .ax{stroke:#9aa5a3;stroke-width:1}
+  #i-fig .grid{stroke:#e6eae9;stroke-width:1}
+  #i-fig .tick{font-size:12px;fill:var(--muted)}
+  #i-fig .ref{stroke:var(--ink);stroke-width:1.5;stroke-dasharray:6 4}
+  #i-fig .reflab{font-size:12px;fill:var(--ink);font-weight:700}
+  #i-fig .curve{fill:none;stroke-width:3.5}
+  #i-fig .off{font-size:12px;font-weight:700}
+  .task{margin:0 0 10px;font:var(--fs-l)/1.32 Georgia,"Times New Roman",serif}
+  .ictl{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:16px;align-items:start;margin:4px 0 8px}
+  .slider label{display:block;margin:0 0 2px;color:var(--muted);font-size:var(--fs-s);font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+  .slider .eqv{font:var(--fs-l) Georgia,serif}.slider .eqv output{display:inline-block;min-width:2.2em;text-align:center;font:700 var(--fs-l) "Courier New",monospace;color:var(--tone)}
+  .slider input{width:100%;min-height:44px;margin:0;accent-color:var(--init)}
+  .scale{display:flex;justify-content:space-between;color:var(--muted);font-size:var(--fs-s)}
+  .meter{margin:8px 0 0;padding:10px 12px;border-top:4px solid var(--tone);background:var(--wash)}
+  .meter .k{display:block;color:var(--muted);font-size:var(--fs-s);font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+  .meter b{font:500 26px/1.1 Georgia,serif;color:var(--ink)}
+  .meter small{display:block;color:var(--muted);font-size:var(--fs-m)}
+  .close h3{margin:0 0 4px;color:var(--muted);font:700 var(--fs-s) Arial,sans-serif;letter-spacing:.07em;text-transform:uppercase}
+  .close svg{width:100%;max-width:190px;height:auto;display:block}
+  .close p{margin:4px 0 0;color:var(--muted);font-size:var(--fs-s);line-height:1.35}
+  .seg{display:inline-flex;border:2px solid var(--tone);border-radius:7px;overflow:hidden}
+  .seg button{min-height:44px;padding:6px 14px;border:0;background:#fff;color:var(--ink);font-size:var(--fs-b);font-weight:700}
+  .seg button+button{border-left:2px solid var(--tone)}
+  .seg button[aria-pressed="true"]{background:var(--tone);color:#fff}
+  .seg.small button{min-height:36px;padding:4px 10px;font-size:var(--fs-m);font-weight:400}
+  #n-fig .face-top{fill-opacity:.85}#n-fig .face-side{fill-opacity:.7}
+  .found{margin:8px 0 10px;padding:12px 14px;border:2px solid var(--tone);border-radius:8px;background:#fff;font:var(--fs-b)/1.42 Georgia,serif}
+  .found .name{display:block;margin:0 0 2px;color:var(--tone);font:700 var(--fs-l) Georgia,serif}
+  .found p{margin:0}.found p+p{margin-top:10px}
+  @media(max-width:640px){.ictl{grid-template-columns:1fr}.close svg{max-width:160px}.task{font-size:var(--fs-b)}}
+
+  .pager{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px}
+  .pager button{min-height:46px;padding:8px 14px;border:1px solid #8a9694;border-radius:6px;background:#fff;color:var(--ink);font-size:var(--fs-b)}
+  .pcount{color:#5b686b;font:var(--fs-s) "Courier New",monospace}
+  .todo{padding:14px;border:1px dashed var(--line);border-radius:6px;color:var(--muted)}
+  /* shared: math panel under a figure (same two-column layout as slide 2) */
+  .mp{margin:6px 0 8px;padding:8px 12px;border:1px solid var(--line);border-left:4px solid var(--tone);border-radius:6px;background:#fbfcfb}
+  .mp .h{display:block;margin:0 0 4px;color:var(--muted);font:700 var(--fs-s) Arial,sans-serif;letter-spacing:.07em;text-transform:uppercase}
+  .mp .line{display:grid;grid-template-columns:7.2em minmax(0,1fr);column-gap:8px;align-items:start;padding:2px 0;font:italic var(--fs-b)/1.45 Georgia,serif;color:var(--ink)}
+  .mp .line.dim{color:var(--muted)}
+  .mp .lhs{text-align:right;color:var(--muted);font-style:normal;font-size:var(--fs-m);padding-top:2px}
+  .mp .rhs{display:flex;flex-wrap:wrap;gap:2px 10px}
+  .mp code{font:var(--fs-m) "Courier New",monospace;font-style:normal}
+  .hint{margin:4px 0 8px;color:var(--muted);font:italic var(--fs-m)/1.4 Georgia,serif}
+  /* slide 1 */
+  .s1g{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:16px;align-items:start}
+  #c-map{width:100%;height:auto;display:block;touch-action:none}
+  #c-map .start{cursor:grab}#c-map .start:focus{outline:none}#c-map .start:focus-visible .ring{stroke:var(--ink);stroke-width:2.5}
+  #c-map .leg{stroke-width:1.5;stroke-dasharray:4 3;fill:none}
+  #c-map .tick{font-size:11px;fill:var(--muted)}
+  .legend1{display:flex;flex-wrap:wrap;gap:4px 14px;margin:4px 0 0;color:var(--muted);font-size:var(--fs-s)}
+  .legend1 i{display:inline-block;width:22px;height:0;border-top:3px solid;vertical-align:middle;margin-right:5px}
+  /* slide 4 */
+  #n-fig{width:100%;max-width:600px;height:auto;display:block}
+  #n-fig .cell{fill:#fff;stroke:#b9c3c1;cursor:pointer}
+  #n-fig .cell.in{fill:#f6c8a8;stroke:var(--norm)}
+  #n-fig .cell.mark{fill:var(--norm);stroke:var(--ink);stroke-width:2}
+  #n-fig .lab{font-size:12px;fill:var(--muted)}
+  #n-fig .ttl{font-size:13px;font-weight:700;fill:var(--ink)}
+  #n-fig:focus{outline:none}#n-fig:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+  .mshape{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+  /* slide 5 */
+  .s5g{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:20px;align-items:start}
+  #r-curve,#r-block{width:100%;height:auto;display:block}
+  #r-block .bx{fill:#f3dcae;stroke:#9a6a12}#r-block .bt{font:italic 15px Georgia,serif;fill:var(--ink)}
+  #r-block .small{font-size:12px;fill:var(--muted)}
+  #r-block .sc{fill:none;stroke:var(--res);stroke-width:3}
+  /* story beats: each frame opens on short lines with small figures, then hands over to its activity */
+  .intro{display:none}
+  .stage.playing .intro{display:flex;flex-direction:column;align-items:flex-start;gap:20px;min-height:420px;padding:6px 0 4px}
+  .stage.playing > :not(.kicker):not(h2):not(.intro){display:none!important}
+  .intro-lines{display:grid;gap:16px;width:100%;max-width:40em}
+  .intro .ln{margin:0;font:400 clamp(19px,3vw,24px)/1.38 Georgia,"Times New Roman",serif;opacity:0;transform:translateY(8px);transition:opacity 480ms ease,transform 480ms ease}
+  .intro .ln.on{opacity:1;transform:none}
+  .intro .ln p{margin:0}
+  .intro .ln:has(.fig){display:grid;gap:8px 22px;align-items:center}
+  @media(min-width:620px){.intro .ln:has(.fig){grid-template-columns:minmax(0,1fr) 170px}}
+  .intro .fig svg{display:block;width:170px;height:auto}
+  .intro .ln.bridge{font-style:italic;color:var(--tone)}
+  .replay{margin-left:12px;min-height:24px;padding:0;border:0;background:none;color:var(--muted);font:13px Arial,sans-serif;text-transform:none;text-decoration:underline}
+  .prompt{margin:0 0 10px;font:var(--fs-l)/1.32 Georgia,"Times New Roman",serif}
+  .revealed > :not(.kicker):not(h2):not(.intro){animation:rise 420ms ease-out both}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @media(prefers-reduced-motion:reduce){.intro .ln{transition:none}.revealed > *{animation:none!important}}
+  @media(max-width:640px){.s1g,.s5g{grid-template-columns:1fr}.mp .line{grid-template-columns:5.6em minmax(0,1fr)}}
+
+  @media(max-width:640px){
+    body{padding:12px 8px 22px}.stage{padding:15px 11px}
+    .verdict,.problem{font-size:var(--fs-b)}.step{font-size:var(--fs-s)}.wide{display:none}
+    }
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Unit 1 synthesis</p>
+  <h1>How a deep network turns a loss into an update</h1>
+  <p class="question">How does a network turn a loss into an update, and what keeps that update useful in a deep stack?</p>
+  <nav class="steps" role="tablist" aria-label="Five steps">
+    <button class="step" role="tab" id="tab-1" aria-controls="stage-1" data-tone="clip"><b>1</b>Clip</button>
+    <button class="step" role="tab" id="tab-2" aria-controls="stage-2" data-tone="back"><b>2</b>Backprop</button>
+    <button class="step" role="tab" id="tab-3" aria-controls="stage-3" data-tone="init"><b>3</b>Initialize</button>
+    <button class="step" role="tab" id="tab-4" aria-controls="stage-4" data-tone="norm"><b>4</b>Normalize</button>
+    <button class="step" role="tab" id="tab-5" aria-controls="stage-5" data-tone="res"><b>5</b>Shortcut</button>
+  </nav>
+
+  <!-- 1 · Clip -->
+  <section class="stage" id="stage-1" role="tabpanel" aria-labelledby="tab-1" data-tone="clip">
+    <p class="kicker">1 · Clip<button type="button" class="replay" hidden>Replay the setup</button></p>
+    <h2 tabindex="-1">Gradient clipping</h2>
+    <div class="intro" aria-live="polite" data-go="Open the map"><div class="intro-lines">
+      <div class="ln"><p>Each step moves the parameters by −η∇<span class="var">J</span>, where η is the learning rate.</p><div class="fig" data-fig="step" aria-hidden="true"></div></div>
+      <div class="ln"><p>Where the loss is steep, ∇<span class="var">J</span> is large, and so is the step.</p><div class="fig" data-fig="steep" aria-hidden="true"></div></div>
+      <div class="ln"><p>Clipping limits each component of the gradient to ±<span class="var">m</span> before the step.</p><div class="fig" data-fig="box" aria-hidden="true"></div></div>
+      <p class="ln bridge">Start on a cliff edge, with η = 0.35 and m = 1.</p>
+    </div><button type="button" class="again intro-skip">Show all</button></div>
+    <p class="prompt">Take one step from the start point, then clip it.</p>
+    <div class="s1g">
+      <div>
+        <svg id="c-map" viewBox="0 0 380 380" role="img" aria-labelledby="c-map-desc"></svg>
+        <p class="sr" id="c-map-desc"></p>
+        <div class="act" style="margin:6px 0 0"><button type="button" class="toggle" id="c-zoombtn" aria-pressed="false">Zoom in on the start point</button></div>
+        <p class="legend1"><span>darker: lower loss</span><span><i style="border-color:#b3261e"></i>step without clipping</span><span id="c-leg2" hidden><i style="border-color:#1b6d74"></i>clipped step</span></p>
+      </div>
+      <div>
+        <div class="mp" id="c-mp" hidden><div id="c-lines"></div></div>
+        <div class="act">
+          <button type="button" class="plain" id="c-step">Take one step</button>
+          <button type="button" class="go" id="c-clip" hidden>Clip each component to m = 1</button>
+          <button type="button" class="again" id="c-reset" hidden>Start over</button>
+        </div>
+        <p class="hint" id="c-hint" hidden>Drag the start point on the full map, or focus it and use the arrow keys, to try other places.</p>
+      </div>
+    </div>
+    <div class="changed" id="c-changed" hidden><b>What changed</b><p id="c-changed-t"></p></div>
+    <p class="sr" role="status" aria-live="polite" id="c-status"></p>
+  </section>
+
+  <!-- 2 · Backprop -->
+  <section class="stage" id="stage-2" role="tabpanel" aria-labelledby="tab-2" data-tone="back" hidden>
+    <p class="kicker">2 · Backprop<button type="button" class="replay" hidden>Replay the setup</button></p>
+    <h2 tabindex="-1">Backpropagation</h2>
+    <div class="intro" aria-live="polite" data-go="Open the network"><div class="intro-lines">
+      <div class="ln"><p>Each layer computes <span class="var">Wx</span> + <span class="var">b</span>, with parameters θ = (<span class="var">W</span>, <span class="var">b</span>).</p><div class="fig" data-fig="layer" aria-hidden="true"></div></div>
+      <div class="ln"><p>The loss <span class="var">J</span> is one number at the end of the chain.</p><div class="fig" data-fig="chain" aria-hidden="true"></div></div>
+      <div class="ln"><p>Going back, each layer receives <span class="var">g</span>, the gradient of <span class="var">J</span> with respect to its output, written as a row.</p><div class="fig" data-fig="grow" aria-hidden="true"></div></div>
+      <p class="ln bridge">How does J change if a weight in the middle changes?</p>
+    </div><button type="button" class="again intro-skip">Show all</button></div>
+    <p class="prompt">Run the network forward, then backward.</p>
+
+    <div class="figbar"><button type="button" class="toggle" id="b-shapes" aria-pressed="false">Show shapes</button></div>
+    <svg id="b-fig" class="fig" viewBox="0 0 700 256" role="img" aria-labelledby="b-fig-desc"></svg>
+    <p class="sr" id="b-fig-desc"></p>
+    <div class="ops" id="b-ops" hidden><span class="h">Forward pass</span><div id="b-lines"></div><div id="b-bsec" hidden><span class="h bh">Backward pass</span><div id="b-blines"></div></div></div>
+
+    <div class="act">
+      <button type="button" class="plain" id="b-fwd">Forward</button>
+      <button type="button" class="go" id="b-bwd" disabled>Backward</button>
+      <button type="button" class="again" id="b-reset" hidden>Start over</button>
+    </div>
+    <p class="verdict" id="b-verdict"></p>
+
+    <div class="changed" id="b-changed" hidden><b>What changed</b>
+      <p>One backward pass gives every layer its gradients. On the way back each layer multiplies <span class="var">g</span> by its <span class="var">W</span>, so the <span class="var">g</span> that reaches an early layer is a product of every <span class="var">W</span> after it.</p>
+    </div>
+    <p class="sr" role="status" aria-live="polite" id="b-status"></p>
+  </section>
+
+  <!-- 3 · Initialize -->
+  <section class="stage" id="stage-3" role="tabpanel" aria-labelledby="tab-3" data-tone="init" hidden>
+    <p class="kicker">3 · Initialize<button type="button" class="replay" hidden>Replay the setup</button></p>
+    <h2 tabindex="-1">Initialization</h2>
+    <div class="intro" aria-live="polite" data-go="Open the stack"><div class="intro-lines">
+      <div class="ln"><p>Going back, each layer multiplies <span class="var">g</span> by its <span class="var">W</span>.</p><div class="fig" data-fig="product" aria-hidden="true"></div></div>
+      <div class="ln"><p>So the starting weights decide how big <span class="var">g</span> is when it reaches the first layer.</p><div class="fig" data-fig="fade" aria-hidden="true"></div></div>
+      <div class="ln"><p>This stack has 20 layers of <span class="var">n</span> = 256 inputs. You choose Var(<span class="var">W</span>), the variance the starting weights are drawn with.</p></div>
+      <p class="ln bridge">Keep g level from the output back to the first layer.</p>
+    </div><button type="button" class="again intro-skip">Show all</button></div>
+    <p class="task" id="i-task"></p>
+
+    <svg id="i-fig" class="fig" viewBox="0 0 700 300" role="img" aria-labelledby="i-fig-desc"></svg>
+    <p class="sr" id="i-fig-desc"></p>
+
+    <div class="ictl">
+      <div class="slider">
+        <label for="i-c">Starting weight variance</label>
+        <div class="eqv">Var(<span class="var">W</span>) = <output id="i-cv" for="i-c">2.0</output> / <span class="var">n</span></div>
+        <input type="range" id="i-c" min="0" max="37" step="1" value="17">
+        <div class="scale" aria-hidden="true"><span>smaller weights</span><span>larger weights</span></div>
+        <div class="meter">
+          <span class="k">Each layer passed back multiplies g's variance by</span>
+          <b id="i-f">×2.0</b>
+          <small id="i-v0"></small>
+          <small>Level when the per-layer multiplier is about ×1.</small>
+        </div>
+      </div>
+      <div class="close">
+        <h3>One layer up close</h3>
+        <svg id="i-mask" viewBox="0 0 160 160" role="img" aria-labelledby="i-mask-cap"></svg>
+        <p id="i-mask-cap"></p>
+      </div>
+    </div>
+
+    <div class="found" id="i-found-x" hidden><span class="name">Xavier initialization</span><p>With linear layers, each layer multiplies g's variance by <span class="var">n</span> · Var(<span class="var">W</span>). Var(<span class="var">W</span>) = 1/<span class="var">n</span> makes that multiplier 1, so g keeps its size all the way back.</p></div>
+    <div class="found" id="i-found-k" hidden><span class="name">Kaiming initialization</span><p>At the linear setting, ReLU cuts the expected gradient variance roughly in half at each layer: about half the units are off, and they pass no gradient back. After 20 layers, about <span id="i-left"></span> of the starting variance remains. Var(<span class="var">W</span>) = 2/<span class="var">n</span> doubles each layer's multiplier back to about 1.</p></div>
+
+    <div class="act">
+      <div class="seg" id="i-act" role="group" aria-label="Layers, keeping your setting" hidden><button type="button" id="i-lin" aria-pressed="true">Linear layers</button><button type="button" id="i-rel" aria-pressed="false">With ReLU</button></div>
+      <button type="button" class="again" id="i-reset" hidden>Start over</button>
+    </div>
+    <p class="aside" id="i-aside" hidden>In the opener the multiplier was a slider. Here it is <span class="var">n</span> · Var(<span class="var">W</span>), and ReLU halves it.</p>
+    <div class="changed" id="i-changed" hidden><b>What changed</b>
+      <p>Both methods choose the starting variance so that each layer's multiplier is about 1, and the right choice depends on the activation. The lecture follows the signal forward; here we follow the gradient backward. Both give the same ½ in this equal-width network.</p>
+    </div>
+    <p class="note" id="i-note"></p>
+    <p class="sr" role="status" aria-live="polite" id="i-status"></p>
+  </section>
+
+  <!-- 4 · Normalize -->
+  <section class="stage" id="stage-4" role="tabpanel" aria-labelledby="tab-4" data-tone="norm" hidden>
+    <p class="kicker">4 · Normalize<button type="button" class="replay" hidden>Replay the setup</button></p>
+    <h2 tabindex="-1">Normalization</h2>
+    <div class="intro" aria-live="polite" data-go="Open the tensor"><div class="intro-lines">
+      <div class="ln"><p>One learning rate has to suit every weight, so inputs are put on a common scale.</p><div class="fig" data-fig="scales" aria-hidden="true"></div></div>
+      <div class="ln"><p>Each layer's activations are the next layer's input, and their scale drifts as training proceeds.</p><div class="fig" data-fig="drift" aria-hidden="true"></div></div>
+      <div class="ln"><p>A normalization layer subtracts a mean and divides by a standard deviation, then rescales.</p><div class="fig" data-fig="norm" aria-hidden="true"></div></div>
+      <p class="ln bridge">Which values go into that mean?</p>
+    </div><button type="button" class="again intro-skip">Show all</button></div>
+    <div class="act" style="margin-top:0"><div class="seg" id="n-kind" role="group" aria-label="Normalization"><button type="button" data-k="batch" aria-pressed="true">Batch norm</button><button type="button" data-k="layer" aria-pressed="false">Layer norm</button></div>
+      <div class="seg small" id="n-view" role="group" aria-label="View"><button type="button" data-v="3d" aria-pressed="true">Block</button><button type="button" data-v="grid" aria-pressed="false">Image by image</button></div></div>
+    <svg id="n-fig" viewBox="0 0 300 220" role="img" tabindex="0" aria-labelledby="n-fig-desc"></svg>
+    <p class="sr" id="n-fig-desc"></p>
+    <p class="hint" id="n-hint"></p>
+    <div class="mp"><span class="h" id="n-h"></span>
+      <div class="line"><span class="lhs">averaged over</span><span class="rhs" id="n-over"></span></div>
+      <div class="line"><span class="lhs">mean</span><span class="rhs"><code id="n-code"></code></span></div>
+      <div class="line"><span class="lhs">shape of mean</span><span class="rhs mshape" id="n-shape"></span></div>
+    </div>
+    <div class="changed" id="n-changed" hidden><b>What changed</b><p>Both normalize the same way; they differ in the axes they average over. Batch norm averages over images and locations for one channel; layer norm averages over channels for one image and location.</p></div>
+    <p class="sr" role="status" aria-live="polite" id="n-status"></p>
+  </section>
+
+  <!-- 5 · Shortcut -->
+  <section class="stage" id="stage-5" role="tabpanel" aria-labelledby="tab-5" data-tone="res" hidden>
+    <p class="kicker">5 · Shortcut<button type="button" class="replay" hidden>Replay the setup</button></p>
+    <h2 tabindex="-1">Residual connections</h2>
+    <div class="intro" aria-live="polite" data-go="Open the block"><div class="intro-lines">
+      <div class="ln"><p>Past about 20 to 30 layers, a deeper plain network does worse, even on its training data.</p><div class="fig" data-fig="degrade" aria-hidden="true"></div></div>
+      <div class="ln"><p>A deeper network could copy a shallower one if its extra layers passed their input straight through.</p><div class="fig" data-fig="copy" aria-hidden="true"></div></div>
+      <div class="ln"><p>In the lecture's example, training does not find that solution.</p></div>
+      <p class="ln bridge">Try an added block whose weights are all zero.</p>
+    </div><button type="button" class="again intro-skip">Show all</button></div>
+    <p class="prompt">Both weights stay zero. What output do you expect when we add the shortcut?</p>
+    <div class="s5g">
+      <div>
+        <svg id="r-block" viewBox="0 0 260 330" role="img" aria-labelledby="r-block-desc"></svg>
+        <p class="sr" id="r-block-desc"></p>
+      </div>
+      <div>
+    <div class="mp"><span class="h">The added block</span><div id="r-lines"></div></div>
+    <div class="act"><button type="button" class="go" id="r-add">Add the identity shortcut</button><button type="button" class="again" id="r-reset" hidden>Start over</button></div>
+      </div>
+    </div>
+    <div class="changed" id="r-changed" hidden><b>What changed</b><p>When the residual branch contributes zero, the block passes its input through unchanged, so a block that is not needed only has to learn F(x) = 0. On the backward pass, the shortcut also gives the gradient a direct path to the earlier block.</p>
+      <p>Across the page: backprop supplies the gradient, clipping limits each step, initialization sets the gradient's starting scale, normalization keeps inputs on scale, and shortcuts let added depth start from doing nothing.</p></div>
+    <p class="sr" role="status" aria-live="polite" id="r-status"></p>
+  </section>
+
+  <div class="pager"><button type="button" id="prev">←<span class="wide"> Previous</span></button><span class="pcount" id="pcount">1 of 5</span><button type="button" id="next"><span class="wide" id="next-label">Next</span> →</button></div>
+</main>
+<script>
+(function(){
+  "use strict";
+  var DATA=/*DATA*/{"n":256,"depth":20,"draws":16,"tol":0.04,"cs":[0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0,2.1,2.2,2.3,2.4,2.5,2.6,2.7,2.8,2.9,3.0,3.1,3.2,3.3,3.4,3.5,3.6,3.7,3.8,3.9,4.0],"mask":"0111111000110111101100011010110110101101010100101011111000100110000110001111001000101100101110110111100111101100011001111011011100111101111110101011000010111000011011010111101010000101010110111100101001010100011101000010111100000010111010010011011011111111","on":0.502,"lin":[[4.165e-11,1.324e-10,4.23e-10,1.464e-09,4.976e-09,1.678e-08,5.527e-08,1.863e-07,6.148e-07,1.947e-06,6.43e-06,2.078e-05,6.921e-05,0.0002352,0.000783,0.002621,0.008605,0.02789,0.09396,0.3009,1.0],[1.313e-08,3.132e-08,7.503e-08,1.947e-07,4.965e-07,1.255e-06,3.102e-06,7.843e-06,1.941e-05,4.61e-05,0.0001142,0.0002767,0.0006914,0.001762,0.0044,0.01105,0.0272,0.06612,0.167,0.4011,1.0],[1.139e-06,2.173e-06,4.165e-06,8.647e-06,1.764e-05,3.568e-05,7.053e-05,0.0001427,0.0002824,0.0005366,0.001063,0.002061,0.004121,0.008403,0.01678,0.03371,0.0664,0.1291,0.261,0.5014,1.0],[4.367e-05,6.943e-05,0.0001109,0.0001918,0.0003261,0.0005497,0.0009055,0.001526,0.002518,0.003987,0.006584,0.01064,0.01772,0.03011,0.05011,0.08388,0.1377,0.2231,0.3758,0.6017,1.0],[0.0009531,0.001299,0.001778,0.002637,0.003842,0.005551,0.007837,0.01132,0.01601,0.02173,0.03076,0.04259,0.06081,0.08858,0.1264,0.1813,0.2551,0.3543,0.5115,0.702,1.0],[0.01377,0.01642,0.01967,0.02552,0.03254,0.04114,0.05082,0.06425,0.07949,0.09441,0.1169,0.1417,0.177,0.2256,0.2816,0.3535,0.4351,0.5289,0.6681,0.8023,1.0],[0.1452,0.1539,0.1639,0.189,0.2142,0.2407,0.2643,0.2971,0.3267,0.3449,0.3797,0.4089,0.4541,0.5144,0.5708,0.6369,0.697,0.7531,0.8456,0.9026,1.0],[1.195,1.139,1.092,1.133,1.156,1.169,1.156,1.169,1.157,1.099,1.089,1.055,1.055,1.076,1.074,1.079,1.062,1.033,1.044,1.003,1.0],[8.036,6.969,6.07,5.728,5.312,4.884,4.388,4.034,3.63,3.136,2.824,2.489,2.261,2.096,1.903,1.737,1.555,1.375,1.263,1.103,1.0],[45.79,36.4,29.07,25.14,21.37,18.01,14.84,12.5,10.31,8.166,6.742,5.446,4.536,3.854,3.207,2.684,2.203,1.785,1.503,1.203,1.0],[227.0,166.6,122.8,98.04,76.92,59.85,45.5,35.4,26.95,19.7,15.01,11.19,8.605,6.749,5.185,4.005,3.034,2.27,1.764,1.304,1.0],[999.4,680.9,466.1,345.6,251.8,181.9,128.4,92.76,65.58,44.51,31.5,21.81,15.57,11.34,8.088,5.801,4.081,2.835,2.046,1.404,1.0],[3972.0,2526.0,1614.0,1117.0,759.3,512.0,337.3,227.4,150.1,95.07,62.79,40.58,27.04,18.38,12.23,8.191,5.378,3.487,2.349,1.504,1.0],[14440.0,8609.0,5156.0,3345.0,2132.0,1348.0,832.6,526.3,325.6,193.3,119.7,72.53,45.31,28.87,18.02,11.31,6.962,4.231,2.673,1.605,1.0],[48550.0,27240.0,15350.0,9375.0,5625.0,3347.0,1946.0,1157.0,674.0,376.7,219.5,125.2,73.59,44.14,25.93,15.32,8.873,5.075,3.017,1.705,1.0],[152300.0,80700.0,42960.0,24770.0,14040.0,7888.0,4331.0,2433.0,1338.0,706.3,388.8,209.4,116.3,65.85,36.53,20.38,11.15,6.025,3.382,1.805,1.0],[449000.0,225400.0,113700.0,62110.0,33340.0,17750.0,9233.0,4914.0,2560.0,1280.0,667.6,340.6,179.2,96.14,50.53,26.71,13.84,7.086,3.769,1.905,1.0],[1253000.0,597400.0,286200.0,148500.0,75760.0,38310.0,18930.0,9574.0,4738.0,2251.0,1115.0,540.4,270.1,137.7,68.74,34.52,17.0,8.265,4.176,2.006,1.0],[3323000.0,1510000.0,688800.0,340500.0,165400.0,79650.0,37480.0,18050.0,8509.0,3850.0,1816.0,838.4,399.0,193.7,92.12,44.05,20.66,9.567,4.604,2.106,1.0],[8426000.0,3654000.0,1591000.0,750800.0,348100.0,160000.0,71900.0,33050.0,14870.0,6422.0,2892.0,1274.0,578.9,268.3,121.8,55.59,24.89,11.0,5.053,2.206,1.0],[20500000.0,8502000.0,3542000.0,1599000.0,708900.0,311700.0,134000.0,58900.0,25350.0,10470.0,4511.0,1901.0,826.1,366.2,159.0,69.43,29.73,12.57,5.523,2.307,1.0],[48020000.0,19090000.0,7620000.0,3296000.0,1401000.0,590300.0,243100.0,102400.0,42250.0,16720.0,6904.0,2788.0,1161.0,493.3,205.3,85.89,35.25,14.28,6.013,2.407,1.0],[108600000.0,41450000.0,15890000.0,6597000.0,2692000.0,1089000.0,430500.0,174100.0,68950.0,26200.0,10380.0,4026.0,1610.0,656.5,262.2,105.3,41.5,16.14,6.525,2.507,1.0],[238000000.0,87330000.0,32190000.0,12850000.0,5041000.0,1961000.0,745400.0,290000.0,110400.0,40340.0,15370.0,5731.0,2203.0,863.9,331.8,128.2,48.55,18.16,7.057,2.607,1.0],[506400000.0,178900000.0,63490000.0,24410000.0,9221000.0,3454000.0,1264000.0,473600.0,173600.0,61100.0,22420.0,8049.0,2979.0,1125.0,416.1,154.8,56.46,20.33,7.61,2.708,1.0],[1048000000.0,357000000.0,122200000.0,45290000.0,16500000.0,5960000.0,2104000.0,759900.0,268600.0,91150.0,32250.0,11170.0,3986.0,1451.0,517.6,185.6,65.3,22.68,8.185,2.808,1.0],[2114000000.0,695400000.0,229800000.0,82250000.0,28930000.0,10090000.0,3438000.0,1199000.0,409300.0,134100.0,45810.0,15310.0,5277.0,1855.0,638.9,221.2,75.14,25.2,8.78,2.908,1.0],[4165000000.0,1324000000.0,423000000.0,146400000.0,49760000.0,16780000.0,5527000.0,1863000.0,614800.0,194700.0,64300.0,20780.0,6921.0,2352.0,783.0,262.1,86.05,27.89,9.396,3.009,1.0],[8025000000.0,2469000000.0,763200000.0,255600000.0,84090000.0,27440000.0,8747000.0,2854000.0,911200.0,279300.0,89250.0,27910.0,8997.0,2959.0,953.3,308.8,98.11,30.78,10.03,3.109,1.0],[15140000000.0,4514000000.0,1352000000.0,438400000.0,139800000.0,44170000.0,13640000.0,4312000.0,1334000.0,396000.0,122600.0,37140.0,11600.0,3696.0,1153.0,361.9,111.4,33.85,10.69,3.209,1.0],[28020000000.0,8099000000.0,2352000000.0,739800000.0,228700000.0,70080000.0,20990000.0,6432000.0,1929000.0,555500.0,166800.0,48990.0,14840.0,4584.0,1387.0,422.1,126.0,37.13,11.37,3.309,1.0],[50910000000.0,14280000000.0,4025000000.0,1229000000.0,368700000.0,109700000.0,31880000.0,9482000.0,2761000.0,771400.0,224800.0,64090.0,18840.0,5649.0,1659.0,490.1,142.0,40.6,12.07,3.41,1.0],[90900000000.0,24770000000.0,6782000000.0,2011000000.0,586200000.0,169400000.0,47830000.0,13820000.0,3909000.0,1061000.0,300400.0,83190.0,23760.0,6920.0,1975.0,566.5,159.4,44.29,12.79,3.51,1.0],[159700000000.0,42310000000.0,11260000000.0,3247000000.0,920000000.0,258500000.0,70960000.0,19930000.0,5481000.0,1447000.0,398100.0,107200.0,29760.0,8429.0,2338.0,652.2,178.4,48.2,13.53,3.61,1.0],[276200000000.0,71210000000.0,18440000000.0,5174000000.0,1426000000.0,389900000.0,104100000.0,28460000.0,7615000.0,1955000.0,523600.0,137200.0,37050.0,10210.0,2756.0,748.0,199.1,52.33,14.29,3.711,1.0],[470800000000.0,118200000000.0,29800000000.0,8141000000.0,2185000000.0,581600000.0,151300000.0,40260000.0,10490000.0,2622000.0,683600.0,174400.0,45870.0,12310.0,3234.0,854.7,221.5,56.69,15.07,3.811,1.0],[791600000000.0,193600000000.0,47570000000.0,12660000000.0,3311000000.0,858700000.0,217600000.0,56430000.0,14320000.0,3489000.0,886400.0,220300.0,56460.0,14760.0,3780.0,973.2,245.8,61.28,15.88,3.911,1.0],[1313000000000.0,313200000000.0,75030000000.0,19470000000.0,4965000000.0,1255000000.0,310200000.0,78430000.0,19410000.0,4610000.0,1142000.0,276700.0,69140.0,17620.0,4400.0,1105.0,272.0,66.12,16.7,4.011,1.0]],"relu":[[3.741e-17,2.503e-16,1.618e-15,1.07e-14,7.072e-14,4.638e-13,3.237e-12,2.089e-11,1.342e-10,9.074e-10,6.273e-09,4.099e-08,2.731e-07,1.721e-06,1.202e-05,7.926e-05,0.0005245,0.003621,0.02379,0.1603,1.0],[1.18e-14,5.92e-14,2.87e-13,1.423e-12,7.056e-12,3.471e-11,1.817e-10,8.792e-10,4.235e-09,2.148e-08,1.114e-07,5.46e-07,2.728e-06,1.289e-05,6.754e-05,0.000334,0.001658,0.008582,0.0423,0.2137,1.0],[1.023e-12,4.108e-12,1.593e-11,6.321e-11,2.507e-10,9.864e-10,4.13e-09,1.599e-08,6.163e-08,2.501e-07,1.037e-06,4.068e-06,1.626e-05,6.147e-05,0.0002576,0.001019,0.004047,0.01676,0.06609,0.2671,1.0],[3.923e-11,1.312e-10,4.242e-10,1.402e-09,4.635e-09,1.52e-08,5.303e-08,1.711e-07,5.495e-07,1.858e-06,6.423e-06,2.099e-05,6.992e-05,0.0002203,0.0007693,0.002536,0.008391,0.02896,0.09517,0.3205,1.0],[8.562e-10,2.455e-09,6.801e-09,1.927e-08,5.46e-08,1.535e-07,4.59e-07,1.269e-06,3.494e-06,1.013e-05,3.001e-05,8.404e-05,0.00024,0.000648,0.00194,0.005482,0.01555,0.04599,0.1295,0.374,1.0],[1.237e-08,3.104e-08,7.524e-08,1.866e-07,4.624e-07,1.137e-06,2.976e-06,7.202e-06,1.735e-05,4.4e-05,0.0001141,0.0002795,0.0006984,0.00165,0.004322,0.01069,0.02652,0.06866,0.1692,0.4274,1.0],[1.305e-07,2.909e-07,6.269e-07,1.382e-06,3.044e-06,6.655e-06,1.548e-05,3.33e-05,7.13e-05,0.0001607,0.0003704,0.0008069,0.001792,0.003764,0.008763,0.01926,0.04248,0.09775,0.2141,0.4808,1.0],[1.073e-06,2.154e-06,4.177e-06,8.285e-06,1.643e-05,3.232e-05,6.767e-05,0.000131,0.0002524,0.0005122,0.001062,0.002083,0.004163,0.007869,0.01649,0.03262,0.06475,0.1341,0.2644,0.5342,1.0],[7.219e-06,1.317e-05,2.322e-05,4.187e-05,7.549e-05,0.000135,0.000257,0.0004523,0.0007923,0.001461,0.002755,0.004911,0.008924,0.01533,0.02921,0.05253,0.0948,0.1785,0.3199,0.5877,1.0],[4.114e-05,6.881e-05,0.0001112,0.0001838,0.0003037,0.000498,0.0008689,0.001402,0.002251,0.003806,0.006578,0.01075,0.0179,0.02819,0.04924,0.08116,0.1343,0.2317,0.3807,0.6411,1.0],[0.0002039,0.0003149,0.0004697,0.0007167,0.001093,0.001654,0.002665,0.003968,0.005881,0.00918,0.01464,0.02209,0.03396,0.04937,0.07959,0.1211,0.1849,0.2946,0.4468,0.6945,1.0],[0.0008978,0.001287,0.001783,0.002526,0.003578,0.005028,0.00752,0.0104,0.01431,0.02074,0.03073,0.04303,0.06144,0.08295,0.1242,0.1754,0.2487,0.368,0.5181,0.7479,1.0],[0.003568,0.004774,0.006173,0.008163,0.01079,0.01415,0.01976,0.0255,0.03275,0.04431,0.06126,0.08006,0.1067,0.1344,0.1878,0.2477,0.3278,0.4526,0.5948,0.8013,1.0],[0.01297,0.01627,0.01972,0.02445,0.03031,0.03727,0.04876,0.059,0.07106,0.09011,0.1168,0.1431,0.1788,0.2112,0.2766,0.342,0.4243,0.5492,0.6767,0.8548,1.0],[0.04361,0.05149,0.05874,0.06853,0.07994,0.09252,0.1139,0.1298,0.1471,0.1755,0.2142,0.247,0.2904,0.3229,0.398,0.4631,0.5408,0.6588,0.764,0.9082,1.0],[0.1368,0.1525,0.1643,0.1811,0.1995,0.2181,0.2536,0.2728,0.292,0.3292,0.3793,0.4131,0.4588,0.4817,0.5608,0.6163,0.6797,0.782,0.8565,0.9616,1.0],[0.4033,0.4261,0.4349,0.454,0.4739,0.4907,0.5407,0.5509,0.5587,0.5967,0.6513,0.672,0.707,0.7034,0.7757,0.8076,0.8438,0.9197,0.9543,1.015,1.0],[1.125,1.129,1.095,1.086,1.077,1.059,1.109,1.073,1.034,1.049,1.088,1.066,1.066,1.007,1.055,1.044,1.036,1.073,1.057,1.068,1.0],[2.985,2.853,2.635,2.489,2.35,2.202,2.195,2.024,1.857,1.794,1.772,1.654,1.575,1.417,1.414,1.332,1.259,1.242,1.166,1.122,1.0],[7.569,6.906,6.087,5.489,4.947,4.424,4.211,3.705,3.245,2.993,2.821,2.514,2.284,1.963,1.87,1.681,1.517,1.428,1.279,1.175,1.0],[18.41,16.07,13.55,11.69,10.07,8.618,7.845,6.603,5.532,4.88,4.401,3.751,3.26,2.679,2.441,2.099,1.812,1.632,1.398,1.229,1.0],[43.13,36.07,29.15,24.09,19.91,16.32,14.24,11.48,9.219,7.794,6.735,5.502,4.582,3.609,3.151,2.597,2.148,1.854,1.523,1.282,1.0],[97.59,78.35,60.78,48.22,38.25,30.1,25.21,19.52,15.05,12.21,10.13,7.945,6.352,4.803,4.026,3.185,2.529,2.095,1.652,1.336,1.0],[213.8,165.1,123.1,93.93,71.64,54.21,43.66,32.51,24.09,18.8,15.0,11.31,8.693,6.32,5.094,3.875,2.959,2.357,1.787,1.389,1.0],[454.9,338.1,242.9,178.4,131.0,95.49,74.05,53.09,37.89,28.47,21.87,15.88,11.76,8.231,6.388,4.68,3.441,2.639,1.927,1.442,1.0],[941.4,674.8,467.4,331.1,234.5,164.8,123.2,85.18,58.62,42.48,31.47,22.03,15.73,10.62,7.946,5.613,3.98,2.944,2.073,1.496,1.0],[1899.0,1314.0,879.0,601.2,411.1,278.9,201.4,134.4,89.32,62.49,44.69,30.21,20.83,13.57,9.808,6.69,4.58,3.27,2.223,1.549,1.0],[3741.0,2503.0,1618.0,1070.0,707.2,463.8,323.7,208.9,134.2,90.74,62.73,40.99,27.31,17.21,12.02,7.926,5.245,3.621,2.379,1.603,1.0],[7208.0,4667.0,2920.0,1868.0,1195.0,758.5,512.2,319.9,198.8,130.1,87.07,55.06,35.51,21.65,14.63,9.338,5.98,3.995,2.54,1.656,1.0],[13600.0,8532.0,5170.0,3205.0,1986.0,1221.0,798.9,483.3,291.0,184.5,119.6,73.28,45.77,27.04,17.7,10.94,6.789,4.394,2.707,1.71,1.0],[25170.0,15310.0,8997.0,5408.0,3250.0,1937.0,1229.0,721.1,421.0,258.9,162.7,96.66,58.55,33.54,21.29,12.76,7.679,4.819,2.879,1.763,1.0],[45730.0,26990.0,15400.0,8983.0,5239.0,3032.0,1867.0,1063.0,602.4,359.5,219.3,126.5,74.34,41.33,25.47,14.82,8.653,5.27,3.056,1.816,1.0],[81650.0,46820.0,25950.0,14700.0,8331.0,4683.0,2801.0,1549.0,853.1,494.5,293.0,164.1,93.74,50.63,30.31,17.13,9.716,5.749,3.238,1.87,1.0],[143400.0,79970.0,43080.0,23740.0,13070.0,7146.0,4156.0,2235.0,1196.0,674.2,388.4,211.5,117.4,61.66,35.89,19.72,10.88,6.256,3.426,1.923,1.0],[248100.0,134600.0,70540.0,37820.0,20270.0,10780.0,6099.0,3191.0,1662.0,911.3,510.8,270.7,146.2,74.7,42.31,22.62,12.13,6.792,3.619,1.977,1.0],[422900.0,223400.0,114000.0,59510.0,31060.0,16080.0,8859.0,4513.0,2289.0,1222.0,666.9,344.1,181.0,90.03,49.65,25.84,13.5,7.358,3.817,2.03,1.0],[711000.0,365900.0,182000.0,92550.0,47060.0,23740.0,12740.0,6326.0,3126.0,1626.0,864.8,434.7,222.8,108.0,58.02,29.43,14.98,7.954,4.021,2.084,1.0],[1180000.0,592000.0,287000.0,142300.0,70560.0,34710.0,18170.0,8792.0,4235.0,2148.0,1114.0,546.0,272.8,128.9,67.54,33.4,16.58,8.582,4.23,2.137,1.0]]}/*END*/;
+  var $=function(id){return document.getElementById(id)};
+  var NS="http://www.w3.org/2000/svg";
+  var reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function el(tag,attrs,parent,text){var e=document.createElementNS(NS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;if(parent)parent.appendChild(e);return e}
+  function say(id,t){var s=$(id);s.textContent="";setTimeout(function(){s.textContent=t},30)}
+
+  /* ---------- slide 2: backprop ---------- */
+  var SUB=["₀","₁","₂","₃"];
+  // forward row y=70, theta row y=128, backward row y=190, dJ/dW labels y=238
+  var X={x0:24,f1:86,x1:150,f2:212,x2:276,f3:338,x3:402,L:470,J:548,one:648};
+  var Q={
+    x0:{t:"x₀",d:"4×1",s:"Column vector, 4×1: the input."},
+    W1:{t:"W₁",d:"3×4",s:"Matrix, 3×4: f₁ maps 4 inputs to 3 outputs."},
+    b1:{t:"b₁",d:"3×1",s:"Column vector, 3×1: one bias per output of f₁."},
+    x1:{t:"x₁",d:"3×1",s:"Column vector, 3×1: f₁'s output and f₂'s input."},
+    W2:{t:"W₂",d:"2×3",s:"Matrix, 2×3: f₂ maps 3 inputs to 2 outputs."},
+    b2:{t:"b₂",d:"2×1",s:"Column vector, 2×1: one bias per output of f₂."},
+    x2:{t:"x₂",d:"2×1",s:"Column vector, 2×1: f₂'s output and f₃'s input."},
+    W3:{t:"W₃",d:"1×2",s:"Matrix, 1×2: f₃ maps 2 inputs to 1 output."},
+    b3:{t:"b₃",d:"scalar",s:"One number: f₃'s bias."},
+    x3:{t:"x₃",d:"scalar",s:"One number: the network's output, which the loss ℒ compares with the target."},
+    J:{t:"J",d:"scalar",s:"One number: the cost."},
+    g3:{t:"g₃",d:"scalar",s:"∂J/∂x₃, one number: how J changes with the output. The backward pass starts from dJ/dJ = 1.",b:1},
+    g2:{t:"g₂",d:"1×2",s:"∂J/∂x₂, a row vector, 1×2: one entry per entry of x₂, laid out as a row.",b:1},
+    g1:{t:"g₁",d:"1×3",s:"∂J/∂x₁ = g₂W₂, a row vector: 1×2 · 2×3 = 1×3.",b:1},
+    g0:{t:"g₀",d:"1×4",s:"∂J/∂x₀ = g₁W₁, a row vector: 1×3 · 3×4 = 1×4.",b:1},
+    dW3:{t:"∂J/∂W₃",d:"2×1",s:"x₂g₃: 2×1 · 1×1 = 2×1. Transposed to W₃'s 1×2 for the update.",b:1},
+    db3:{t:"∂J/∂b₃",d:"scalar",s:"g₃ itself.",b:1},
+    dW2:{t:"∂J/∂W₂",d:"3×2",s:"x₁g₂: 3×1 · 1×2 = 3×2. Transposed to W₂'s 2×3 for the update.",b:1},
+    db2:{t:"∂J/∂b₂",d:"1×2",s:"g₂ itself, a row. Transposed to b₂'s 2×1 for the update.",b:1},
+    dW1:{t:"∂J/∂W₁",d:"4×3",s:"x₀g₁: 4×1 · 1×3 = 4×3. Transposed to W₁'s 3×4 for the update.",b:1},
+    db1:{t:"∂J/∂b₁",d:"1×3",s:"g₁ itself, a row. Transposed to b₁'s 3×1 for the update.",b:1}
+  };
+  var B={stage:0,shapes:false,timer:[]};
+  var CELL=9;
+  function dims(key){var d=Q[key].d;if(d==="scalar")return [1,1];var m=d.split("×");return [+m[0],+m[1]]}
+  function kind(key){return key[0]==="d"?"d":(key[0]==="W"||key[0]==="b")?"W":key[0]==="g"?"g":"x"}
+  function cells(r,c,k,x0,y0,parent){for(var i=0;i<r;i++)for(var j=0;j<c;j++)el("rect",{x:x0+j*CELL,y:y0+i*CELL,width:CELL,height:CELL,"class":"cell-"+k},parent)}
+  function glyph(key,cx,ytop,parent){var d=dims(key),g=el("g",{"class":"shp"},parent);cells(d[0],d[1],kind(key),cx-d[1]*CELL/2,ytop,g);return g}
+  function glyphSvg(r,c,k){var sv=document.createElementNS(NS,"svg");sv.setAttribute("width",c*9+2);sv.setAttribute("height",r*9+2);sv.setAttribute("aria-hidden","true");
+    for(var i=0;i<r;i++)for(var j=0;j<c;j++)el("rect",{x:1+j*9,y:1+i*9,width:9,height:9,"class":"cell-"+k},sv);return sv}
+  function eqRow(host,parts){parts.forEach(function(p){if(typeof p==="string"){var t=document.createElement("span");t.textContent=p;host.appendChild(t)}
+    else{var w=document.createElement("span");w.style.display="inline-grid";w.style.justifyItems="center";w.appendChild(glyphSvg(p[0],p[1],p[2]));var l=document.createElement("span");l.className="lab";l.textContent=p[3];w.appendChild(l);host.appendChild(w)}})}
+  var bNodes={};
+  function bDraw(){
+    var s=$("b-fig");s.innerHTML="";
+    var defs=el("defs",{},s);
+    [["fa","#3f4d51"],["ba","#b3261e"],["ta","#0f5f86"]].forEach(function(m){var mk=el("marker",{id:m[0],viewBox:"0 0 10 10",refX:9,refY:5,markerWidth:7,markerHeight:7,orient:"auto-start-reverse"},defs);el("path",{d:"M0,0 L10,5 L0,10 z",fill:m[1]},mk)});
+    function q(key,x,y,parent,cls){var g=el("g",{"class":"q "+(cls||"")},parent);el("text",{x:x,y:y,"text-anchor":"middle","class":"lbl it"},g,Q[key].t);glyph(key,x,y+9,g);bNodes[key]=g;return g}
+    function box(x,y,w,h,cls,label,parent,italic){var g=el("g",{},parent);el("rect",{x:x-w/2,y:y-h/2,width:w,height:h,rx:3,"class":"box "+cls},g);el("text",{x:x,y:y+5,"text-anchor":"middle","class":"lbl"+(italic?" it":"")},g,label);return g}
+    function arrow(x1,y1,x2,y2,parent,mk,cls){return el("path",{d:"M"+x1+","+y1+" L"+x2+","+y2,"class":"ar "+(cls||""),"marker-end":"url(#"+mk+")"},parent)}
+    // forward row
+    var fw=el("g",{id:"b-fw"},s);
+    q("x0",X.x0,75,fw);
+    var fArrows=[];
+    [["f1","x0","x1","W1","b1"],["f2","x1","x2","W2","b2"],["f3","x2","x3","W3","b3"]].forEach(function(r,i){
+      var fx=X[r[0]];
+      fArrows.push(arrow(X[r[1]]+14,70,fx-24,70,fw,"fa","off"));
+      box(fx,70,44,34,"f"+(r[0]==="f2"?" hl":""),"f"+SUB[i+1],fw,true);
+      fArrows.push(arrow(fx+24,70,X[r[2]]-14,70,fw,"fa","off"));
+      q(r[2],X[r[2]],75,fw);
+      // theta
+      [[r[3],-16,"W"],[r[4],16,"b"]].forEach(function(t){var tg=el("g",{},fw);el("rect",{x:fx+t[1]-14,y:118,width:28,height:24,rx:3,"class":"box th"},tg);
+        el("text",{x:fx+t[1],y:135,"text-anchor":"middle","class":"lbl it",style:"fill:#fff"},tg,t[2]+SUB[i+1]);glyph(t[0],fx+t[1],148,tg);bNodes[t[0]]=tg});
+      el("path",{d:"M"+fx+",118 L"+fx+",90","class":"ar",stroke:"#0f5f86","marker-end":"url(#ta)",style:"stroke:#0f5f86"},fw);
+    });
+    fArrows.push(arrow(X.x3+14,70,X.L-24,70,fw,"fa","off"));
+    box(X.L,70,44,34,"loss","ℒ",fw);
+    fArrows.push(arrow(X.L+24,70,X.J-14,70,fw,"fa","off"));
+    q("J",X.J,75,fw);
+    el("text",{x:X.f2,y:34,"text-anchor":"middle","class":"small"},fw,"3 in, 2 out");
+    // backward row
+    var bw=el("g",{id:"b-bw"},s);
+    var bParts=[];
+    function bpart(){var g=el("g",{"class":"bw off"},bw);bParts.push(g);return g}
+    var p0=bpart();el("text",{x:X.one,y:195,"text-anchor":"middle","class":"lbl"},p0,"1");arrow(X.one-12,190,X.L+26,190,p0,"ba");
+    box(X.L,190,44,34,"loss","ℒ′",p0);
+    var p1=bpart();arrow(X.L-24,190,X.x3+18,190,p1,"ba");q("g3",X.x3,195,p1);
+    [["f3","g2","dW3",3,"db3"],["f2","g1","dW2",2,"db2"],["f1","g0","dW1",1,"db1"]].forEach(function(r){
+      var p=bpart(),fx=X[r[0]],prevX=X["x"+r[3]],nextX=X["x"+(r[3]-1)];
+      arrow(prevX-16,190,fx+24,190,p,"ba");
+      box(fx,190,44,34,"f"+(r[0]==="f2"?" hl":""),"f"+SUB[r[3]]+"′",p,true);
+      arrow(fx-24,190,nextX+16,190,p,"ba");
+      q(r[1],nextX,195,p);
+      arrow(fx-6,208,fx-24,226,p,"ta");arrow(fx+6,208,fx+24,226,p,"ta");
+      [[r[2],-30,"∂J/∂W"],[r[4],32,"∂J/∂b"]].forEach(function(t){var dg=el("g",{"class":"q"},p);el("text",{x:fx+t[1],y:242,"text-anchor":"middle","class":"lbl it",style:"font-size:13px"},dg,t[2]+SUB[r[3]]);glyph(t[0],fx+t[1],252,dg);bNodes[t[0]]=dg});
+    });
+    B.fArrows=fArrows;B.bParts=bParts;
+    bLayout();
+  }
+  /* with shapes on, the grids under W and b reach y=175, so the backward row moves down to clear them */
+  var SHIFT=26;
+  function bLayout(){var s=$("b-fig");s.classList.toggle("shapes-on",B.shapes);
+    s.setAttribute("viewBox","0 0 700 "+(B.shapes?256+44+SHIFT:256));
+    var bw=$("b-bw");if(bw)bw.setAttribute("transform",B.shapes?"translate(0,"+SHIFT+")":"")}
+  function bShapesText(){
+    var keys=Object.keys(Q).filter(function(k){return !Q[k].b||B.stage>=2});
+    return " Shapes: "+keys.map(function(k){return Q[k].t+" "+Q[k].d.replace("×"," by ")}).join(", ")+"."}
+  function bClear(){B.timer.forEach(clearTimeout);B.timer=[]}
+  function bLater(fn,ms){if(reduce){fn();return}B.timer.push(setTimeout(fn,ms))}
+  function bDesc(){
+    var d="A chain of three linear layers. x₀ (4 numbers) goes into f₁ with weights W₁ and bias b₁, giving x₁ (3); f₂ with W₂ and b₂ gives x₂ (2); f₃ with W₃ and b₃ gives x₃ (1); the loss ℒ gives the cost J. f₂ is highlighted.";
+    if(B.stage>=2)d+=" Backward row, right to left: starting from 1, through ℒ′, g₃, f₃′, g₂, f₂′, g₁, f₁′, g₀. Each f′ also sends ∂J/∂W and ∂J/∂b down for its own update.";
+    if(B.shapes)d+=bShapesText();
+    $("b-fig-desc").textContent=d;
+  }
+  function bRender(){
+    $("b-fwd").disabled=B.stage!==0;
+    $("b-bwd").disabled=B.stage!==1;
+    $("b-reset").hidden=B.stage<2;
+    $("b-changed").hidden=B.stage<2;
+    bDesc();
+  }
+  var OPS=[
+    {t:"x₁ = W₁x₀ + b₁",g:[[3,4,"W"],"·",[4,1,"x"],"+",[3,1,"W"],"=",[3,1,"x"]],sr:"x1 equals W1 x0 plus b1"},
+    {t:"x₂ = W₂x₁ + b₂ = W₂(W₁x₀ + b₁) + b₂",g:[[2,3,"W"],"·",[3,1,"x"],"+",[2,1,"W"],"=",[2,1,"x"]],sr:"x2 equals W2 x1 plus b2, which is W2 times the quantity W1 x0 plus b1, plus b2"},
+    {t:"x₃ = W₃x₂ + b₃ = W₃(W₂(W₁x₀ + b₁) + b₂) + b₃",g:[[1,2,"W"],"·",[2,1,"x"],"+",[1,1,"W"],"=",[1,1,"x"]],sr:"x3 equals W3 x2 plus b3, the whole chain nested inside"},
+    {t:"J = ℒ(x₃) = ℒ(W₃(W₂(W₁x₀ + b₁) + b₂) + b₃)",g:null,sr:"J equals the loss of x3, one number"}
+  ];
+  function bLine(k){
+    Array.from($("b-lines").children).forEach(function(c){c.classList.remove("new")});
+    var d=document.createElement("div");d.className="line new";
+    var parts=OPS[k].t.split(" = "),lhs=document.createElement("span");lhs.className="lhs";lhs.textContent=parts[0]+" =";d.appendChild(lhs);
+    var rhs=document.createElement("span");rhs.className="rhs";
+    parts.slice(1).forEach(function(q,i){var t=document.createElement("span");t.textContent=(i?"= ":"")+q;rhs.appendChild(t)});
+    if(OPS[k].g){var gq=document.createElement("span");gq.className="geq";gq.setAttribute("aria-hidden","true");eqRow(gq,OPS[k].g.map(function(p){return typeof p==="string"?p:p.concat([""])}));rhs.appendChild(gq)}
+    d.appendChild(rhs);
+    $("b-lines").appendChild(d);
+  }
+  var BOPS=[
+    null,
+    {who:"ℒ′",chips:[["pass","g₃ = ∂J/∂x₃, from dJ/dJ = 1",null]]},
+    {who:"f₃′",chips:[["pass","g₂ = g₃W₃",[[1,1,"g"],"·",[1,2,"W"],"=",[1,2,"g"]]],["keep","∂J/∂W₃ = x₂g₃",[[2,1,"x"],"·",[1,1,"g"],"=",[2,1,"d"]]],["keep","∂J/∂b₃ = g₃",[[1,1,"g"],"=",[1,1,"d"]]]]},
+    {who:"f₂′",hl:1,chips:[["pass","g₁ = g₂W₂",[[1,2,"g"],"·",[2,3,"W"],"=",[1,3,"g"]]],["keep","∂J/∂W₂ = x₁g₂",[[3,1,"x"],"·",[1,2,"g"],"=",[3,2,"d"]]],["keep","∂J/∂b₂ = g₂",[[1,2,"g"],"=",[1,2,"d"]]]]},
+    {who:"f₁′",chips:[["pass","g₀ = g₁W₁",[[1,3,"g"],"·",[3,4,"W"],"=",[1,4,"g"]]],["keep","∂J/∂W₁ = x₀g₁",[[4,1,"x"],"·",[1,3,"g"],"=",[4,3,"d"]]],["keep","∂J/∂b₁ = g₁",[[1,3,"g"],"=",[1,3,"d"]]]]}
+  ];
+  function bBLine(k){
+    var o=BOPS[k];if(!o)return;
+    var d=document.createElement("div");d.className="bline"+(o.hl?" hl":"");
+    var w=document.createElement("span");w.className="who";w.textContent=o.who;d.appendChild(w);
+    var box=document.createElement("span");box.className="chips";d.appendChild(box);
+    o.chips.forEach(function(c){var ch=document.createElement("span");ch.className="chip "+c[0];var t=document.createElement("span");t.textContent=c[1];ch.appendChild(t);
+      if(c[2]){var gq=document.createElement("span");gq.className="geq";gq.setAttribute("aria-hidden","true");eqRow(gq,c[2].map(function(p){return typeof p==="string"?p:p.concat([""])}));ch.appendChild(gq)}
+      box.appendChild(ch)});
+    $("b-blines").appendChild(d);
+  }
+  function bBEnd(){
+    var k=document.createElement("div");k.className="key";k.innerHTML='<span style="border-color:var(--bwd)">passed to the preceding layer</span><span style="border-color:var(--theta)">kept to update this layer</span>';
+    var u=document.createElement("p");u.className="upd";u.textContent="The bias plays no part in what is passed back. Each kept gradient is turned on its side to match its parameter for the update: W ← W − η(∂J/∂W)ᵀ, b ← b − η(∂J/∂b)ᵀ.";
+    $("b-blines").appendChild(k);$("b-blines").appendChild(u);
+  }
+  function bForward(){
+    bClear();$("b-lines").innerHTML="";$("b-ops").hidden=false;
+    B.fArrows.forEach(function(a,i){bLater(function(){a.classList.remove("off");if(i%2===1)bLine((i-1)/2)},i*420)});
+    bLater(function(){
+      B.stage=1;bRender();
+      $("b-verdict").textContent="Each layer keeps its input for the backward pass.";
+      say("b-status","Forward pass done. "+OPS.map(function(o){return o.sr}).join(". ")+". Each layer kept its input. Backward is now available.");
+      $("b-bwd").focus();
+    },reduce?0:B.fArrows.length*420);
+  }
+  function bBackward(){
+    bClear();
+    $("b-blines").innerHTML="";$("b-bsec").hidden=false;
+    B.bParts.forEach(function(p,i){bLater(function(){p.classList.remove("off");bBLine(i);if(i===B.bParts.length-1)bBEnd()},i*500)});
+    bLater(function(){
+      B.stage=2;bRender();
+      $("b-verdict").textContent="";
+      say("b-status","Backward pass done. At f₂, g₂ times W₂ gives g₁, 1 by 3, passed to the preceding layer. x₁ times g₂ gives dJ/dW₂, 3 by 2, and g₂ itself is dJ/db₂, both kept to update the layer.");
+    },reduce?0:B.bParts.length*500);
+  }
+  function bReset(){bClear();B.stage=0;$("b-ops").hidden=true;$("b-lines").innerHTML="";$("b-blines").innerHTML="";$("b-bsec").hidden=true;bDraw();bRender();$("b-verdict").textContent="";$("b-fwd").focus()}
+  $("b-fwd").addEventListener("click",bForward);
+  $("b-bwd").addEventListener("click",bBackward);
+  $("b-reset").addEventListener("click",bReset);
+  $("b-shapes").addEventListener("click",function(){B.shapes=!B.shapes;this.setAttribute("aria-pressed",String(B.shapes));$("b-ops").classList.toggle("shapes-on",B.shapes);bLayout();bDesc();say("b-status",B.shapes?"Shapes shown."+bShapesText():"Shapes hidden.")});
+  bDraw();bRender();
+
+  /* ---------- slide 3: initialization ---------- */
+  function iFresh(){return {relu:false,ci:DATA.cs.indexOf(2),foundX:false,foundK:false,moved:false}}
+  var I=iFresh();
+  var P={l:70,r:600,t:20,b:220,ymin:-8,ymax:8};
+  function px(l){return P.l+(P.r-P.l)*l/DATA.depth}
+  function py(v){var y=Math.log10(v);return P.b-(P.b-P.t)*(y-P.ymin)/(P.ymax-P.ymin)}
+  function sup(n){var m={"-":"⁻","0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹"};return String(n).split("").map(function(c){return m[c]||c}).join("")}
+  function fmt(v){if(v>=0.1&&v<100)return (Math.round(v*10)/10).toString();var e=Math.floor(Math.log10(v)),m=v/Math.pow(10,e);return (Math.round(m*10)/10)+" × 10"+sup(e)}
+  function fmtWords(v){if(v>=0.1&&v<100)return "about "+(Math.round(v*10)/10)+" times";var e=Math.floor(Math.log10(v)),m=v/Math.pow(10,e);return (Math.round(m*10)/10)+" times 10 to the "+(e<0?"minus "+(-e):e)+" times"}
+  function curve(){return DATA[I.relu?"relu":"lin"][I.ci]}
+  function fac(cv){return Math.pow(cv[0]/cv[DATA.depth],1/DATA.depth)}
+  function isLevel(cv){return Math.abs(Math.log2(fac(cv)))<DATA.tol}
+  function iDraw(){
+    var s=$("i-fig");s.innerHTML="";
+    var defs=el("defs",{},s);var mk=el("marker",{id:"ia",viewBox:"0 0 10 10",refX:9,refY:5,markerWidth:7,markerHeight:7,orient:"auto-start-reverse"},defs);el("path",{d:"M0,0 L10,5 L0,10 z",fill:"#b3261e"},mk);
+    var cp=el("clipPath",{id:"iclip"},defs);el("rect",{x:P.l-6,y:P.t,width:P.r-P.l+12,height:P.b-P.t},cp);
+    for(var e=P.ymin;e<=P.ymax;e+=2){var y=py(Math.pow(10,e));el("line",{x1:P.l,x2:P.r,y1:y,y2:y,"class":"grid"},s);el("text",{x:P.l-8,y:y+4,"text-anchor":"end","class":"tick"},s,e===0?"1":"10"+sup(e))}
+    el("line",{x1:P.l,x2:P.l,y1:P.t,y2:P.b,"class":"ax"},s);el("line",{x1:P.l,x2:P.r,y1:P.b,y2:P.b,"class":"ax"},s);
+    var SUBN={0:"₀",5:"₅",10:"₁₀",15:"₁₅",20:"₂₀"};
+    for(var l=0;l<=DATA.depth;l+=5)el("text",{x:px(l),y:P.b+16,"text-anchor":"middle","class":"tick"},s,"x"+SUBN[l]);
+    el("text",{x:px(0),y:P.b+32,"text-anchor":"start","class":"tick"},s,"first layer");
+    el("text",{x:px(DATA.depth),y:P.b+32,"text-anchor":"end","class":"tick"},s,"output: backward pass starts here");
+    el("path",{d:"M"+(px(DATA.depth)-40)+","+(P.b+52)+" L"+(px(0)+40)+","+(P.b+52),stroke:"#b3261e","stroke-width":2,fill:"none","marker-end":"url(#ia)"},s);
+    el("text",{x:(px(0)+px(DATA.depth))/2,y:P.b+70,"text-anchor":"middle","class":"tick"},s,"g passes back, right to left, as on slide 2");
+    el("text",{x:16,y:(P.t+P.b)/2,"text-anchor":"middle","class":"tick",transform:"rotate(-90 16 "+((P.t+P.b)/2)+")"},s,"variance of g");
+    var ry=py(1);el("line",{x1:P.l,x2:P.r,y1:ry,y2:ry,"class":"ref"},s);
+    el("text",{x:P.r+6,y:ry+4,"class":"reflab"},s,"starting");el("text",{x:P.r+6,y:ry+18,"class":"reflab"},s,"variance");
+    var cv=curve(),col=isLevel(cv)?"var(--c-kai)":"var(--c-relu)";
+    var g=el("g",{"clip-path":"url(#iclip)"},s);
+    el("path",{d:cv.map(function(v,l){return (l?"L":"M")+px(l).toFixed(1)+","+py(v).toFixed(1)}).join(" "),"class":"curve",style:"stroke:"+col},g);
+    cv.forEach(function(v,l){if(l%5===0)el("circle",{cx:px(l),cy:py(v),r:4.5,style:"fill:"+col},g)});
+    var v0=cv[0],ly=Math.log10(v0);
+    if(ly>P.ymax||ly<P.ymin){
+      // where the curve leaves the frame
+      var edge=ly>P.ymax?P.ymax:P.ymin,lx=0;for(var k=DATA.depth;k>=0;k--){var q=Math.log10(cv[k]);if((ly>P.ymax&&q>edge)||(ly<P.ymin&&q<edge)){lx=k;break}}
+      el("text",{x:px(lx)+6,y:ly>P.ymax?P.t+14:P.b-8,"class":"off",style:"fill:"+col},s,ly>P.ymax?"off the chart ↑":"off the chart ↓");
+    }
+  }
+  function iMask(){
+    var s=$("i-mask");s.innerHTML="";var on=0;
+    for(var i=0;i<256;i++){var r=Math.floor(i/16),c=i%16,x=c*10,y=r*10,act=!I.relu||DATA.mask[i]==="1";
+      if(act){on++;el("rect",{x:x+1,y:y+1,width:8,height:8,style:"fill:var(--init)"},s)}
+      else{el("rect",{x:x+1.5,y:y+1.5,width:7,height:7,style:"fill:#fff;stroke:#9aa5a3;stroke-width:1"},s)}}
+    $("i-mask-cap").textContent=I.relu?"Filled squares pass gradient back. With ReLU, a unit whose input was negative outputs 0 and passes none back. About half pass gradient back."
+      :"Each square is one of the 256 units. With linear layers, every unit passes gradient back.";
+  }
+  function iText(){
+    var cv=curve(),f=fac(cv),lev=isLevel(cv);
+    $("i-cv").textContent=DATA.cs[I.ci].toFixed(1);
+    $("i-c").setAttribute("aria-valuetext","Var(W) = "+DATA.cs[I.ci].toFixed(1)+" over n");
+    $("i-f").textContent="×"+(Math.round(f*100)/100).toFixed(2);
+    $("i-v0").textContent=lev?"Level: g reaches the first layer at its starting size.":"At the first layer, g has "+fmt(cv[0])+" times its starting variance.";
+    $("i-task").textContent=!I.relu?(lev?"Linear layers, and g is level.":"Choose the starting variance so that g reaches the first layer at its starting size.")
+      :(lev?"ReLU is on, and g is level.":"ReLU is on. What happened to the per-layer multiplier? Find the variance that keeps g level.");
+    $("i-found-x").hidden=!I.foundX;$("i-found-k").hidden=!I.foundK;
+    $("i-act").hidden=!I.moved;$("i-lin").setAttribute("aria-pressed",String(!I.relu));$("i-rel").setAttribute("aria-pressed",String(I.relu));
+    $("i-reset").hidden=!I.moved;
+    $("i-left").textContent=fmt(DATA.relu[DATA.cs.indexOf(1)][0]);
+    var both=I.foundX&&I.foundK;$("i-aside").hidden=!both;$("i-changed").hidden=!both;
+    $("i-note").textContent="Measured, not drawn: one network, "+DATA.n+" units wide and "+DATA.depth+" layers deep, averaged over "+DATA.draws+" random draws, for every slider setting. Biases start at zero, as is usual. Each point is the variance across the entries of g at that layer, relative to the output gradient's.";
+    $("i-fig-desc").textContent="Log-scale plot of the variance of g at each layer, from the first layer on the left to the output on the right, where the backward pass starts at the starting variance. "+(I.relu?"ReLU layers":"Linear layers")+", Var(W) = "+DATA.cs[I.ci].toFixed(1)+" over n: at the first layer g has "+fmtWords(cv[0])+" its starting variance.";
+    return {f:f,lev:lev,cv:cv};
+  }
+  function iRender(){iDraw();iMask();return iText()}
+  function iAnnounce(){
+    var r=iText(),t=(I.relu?"ReLU. ":"Linear. ")+"Var(W) = "+DATA.cs[I.ci].toFixed(1)+" over n. Each layer multiplies by "+(Math.round(r.f*100)/100)+". ";
+    t+=r.lev?"Level.":"At the first layer, g has "+fmtWords(r.cv[0])+" its starting variance.";
+    if(r.lev&&!I.relu&&!I.foundX){I.foundX=true;t+=" Xavier initialization found.";iText()}
+    if(r.lev&&I.relu&&!I.foundK){I.foundK=true;t+=" Kaiming initialization found.";iText()}
+    say("i-status",t);
+  }
+  $("i-c").addEventListener("input",function(){I.ci=+this.value;I.moved=true;iRender()});
+  $("i-c").addEventListener("change",iAnnounce);
+  function iSet(relu){if(I.relu===relu)return;I.relu=relu;iRender();iAnnounce()}
+  $("i-lin").addEventListener("click",function(){iSet(false)});
+  $("i-rel").addEventListener("click",function(){iSet(true)});
+  $("i-reset").addEventListener("click",function(){I=iFresh();$("i-c").value=I.ci;iRender();$("i-c").focus()});
+  $("i-c").value=I.ci;iRender();
+
+  /* ---------- slide 1: clipping ---------- */
+  var CL={eta:0.35,m:1,k:10,start:[-2,1.6],st:0,dom:3,t:1,zoom:false};
+  function Jf(a,b){var o=Math.max(0,Math.abs(b)-1);return 0.1*(a-1)*(a-1)+0.5*b*b+CL.k*o*o*o}
+  function gJ(a,b){var o=Math.max(0,Math.abs(b)-1);return [0.2*(a-1),b+3*CL.k*(b<0?-1:1)*o*o]}
+  function clip(v){return Math.max(-CL.m,Math.min(CL.m,v))}
+  var MP={l:20,t:10,w:350,h:350};
+  /* the view: full map, or a window of half-width 0.7 centred on the start point */
+  function view(){return CL.zoom?{cx:CL.start[0],cy:CL.start[1],h:0.7}:{cx:0,cy:0,h:CL.dom}}
+  function mx(a){var v=view();return MP.l+(a-(v.cx-v.h))/(2*v.h)*MP.w}
+  function my(b){var v=view();return MP.t+((v.cy+v.h)-b)/(2*v.h)*MP.h}
+  function f2(v){return (v<0?"−":"")+Math.abs(v).toFixed(2)}
+  function fJ(v){return v<10?v.toFixed(2):v<1000?v.toFixed(1):v.toExponential(1)}
+  var LO=Math.log(Jf(1,0)+0.05),HI=Math.log(Jf(-3,3)+0.05);
+  function cDrawMap(){
+    var s=$("c-map");s.innerHTML="";var defs=el("defs",{},s);
+    [["cr","#b3261e"],["cc","#1b6d74"]].forEach(function(m){var mk=el("marker",{id:m[0],viewBox:"0 0 10 10",refX:8,refY:5,markerWidth:6,markerHeight:6,orient:"auto"},defs);el("path",{d:"M0,0 L10,5 L0,10 z",fill:m[1]},mk)});
+    var cp=el("clipPath",{id:"cmap"},defs);el("rect",{x:MP.l,y:MP.t,width:MP.w,height:MP.h},cp);
+    CL.heat=el("g",{"clip-path":"url(#cmap)"},s);
+    el("rect",{x:MP.l,y:MP.t,width:MP.w,height:MP.h,fill:"none",stroke:"#9aa5a3"},s);
+    el("text",{x:MP.l+MP.w/2,y:MP.t+MP.h+16,"text-anchor":"middle","class":"tick"},s,"θ₁ →");
+    el("text",{x:10,y:MP.t+MP.h/2,"text-anchor":"middle","class":"tick",transform:"rotate(-90 10 "+(MP.t+MP.h/2)+")"},s,"θ₂ →");
+    var st=el("g",{"class":"start",tabindex:"0",role:"slider","aria-label":"Start point","aria-valuetext":""},s);CL.sg=st;
+    el("circle",{"class":"ring",cx:0,cy:0,r:9,fill:"none",stroke:"transparent"},st);el("circle",{cx:0,cy:0,r:4.5,fill:"#fff",stroke:"var(--ink)","stroke-width":2},st);
+    CL.layer=el("g",{"clip-path":"url(#cmap)","pointer-events":"none"},s);
+  }
+  function cHeat(){
+    var g=CL.heat;g.innerHTML="";var v=view(),N=CL.zoom?40:70,cw=MP.w/N;
+    for(var i=0;i<N;i++)for(var j=0;j<N;j++){var a=v.cx-v.h+(i+0.5)*2*v.h/N,b=v.cy+v.h-(j+0.5)*2*v.h/N,t=(Math.log(Jf(a,b)+0.05)-LO)/(HI-LO);t=Math.max(0,Math.min(1,t));
+      el("rect",{x:MP.l+i*cw,y:MP.t+j*cw,width:cw+0.4,height:cw+0.4,fill:"rgb("+Math.round(255-(1-t)*190)+","+Math.round(255-(1-t)*130)+","+Math.round(255-(1-t)*125)+")"},g)}
+    if(CL.zoom){var k=0.25;for(var q=Math.ceil((v.cx-v.h)/k)*k;q<=v.cx+v.h;q+=k)el("line",{x1:mx(q),x2:mx(q),y1:MP.t,y2:MP.t+MP.h,stroke:"rgba(255,255,255,.55)"},g);
+      for(var q=Math.ceil((v.cy-v.h)/k)*k;q<=v.cy+v.h;q+=k)el("line",{y1:my(q),y2:my(q),x1:MP.l,x2:MP.l+MP.w,stroke:"rgba(255,255,255,.55)"},g);
+      el("text",{x:MP.l+6,y:MP.t+MP.h-6,"class":"tick"},g,"zoomed in: grid 0.25")}
+    else{el("text",{x:MP.l+6,y:my(1.45),"class":"tick"},g,"cliff");el("text",{x:MP.l+6,y:my(-1.35),"class":"tick"},g,"cliff")}
+    CL.heatKey=(CL.zoom?"z":"f")+(CL.zoom?CL.start.join():"");
+  }
+  function seg(x1,y1,x2,y2,col,parent,o){return el("path",{d:"M"+x1+","+y1+" L"+x2+","+y2,stroke:col,"stroke-width":o&&o.w||2,"stroke-dasharray":o&&o.dash||null,opacity:o&&o.op!=null?o.op:1,fill:"none","marker-end":o&&o.mk?"url(#"+o.mk+")":null},parent)}
+  function cLine(l,r,dim){return '<div class="line'+(dim?" dim":"")+'"><span class="lhs">'+l+'</span><span class="rhs">'+r+'</span></div>'}
+  function cRender(){
+    var a=CL.start[0],b=CL.start[1],v=gJ(a,b),u=[-CL.eta*v[0],-CL.eta*v[1]],cv=[clip(v[0]),clip(v[1])],c=[-CL.eta*cv[0],-CL.eta*cv[1]];
+    var J0=Jf(a,b),Ju=Jf(a+u[0],b+u[1]),Jc=Jf(a+c[0],b+c[1]),hw=CL.eta*CL.m,t=CL.st>=2?CL.t:0;
+    var key=(CL.zoom?"z":"f")+(CL.zoom?CL.start.join():"");if(CL.heatKey!==key)cHeat();
+    CL.sg.setAttribute("transform","translate("+mx(a)+","+my(b)+")");CL.sg.setAttribute("aria-valuetext","θ₁ "+a.toFixed(1)+", θ₂ "+b.toFixed(1));
+    var L=CL.layer;L.innerHTML="";
+    if(CL.st>=2){el("rect",{x:mx(a-hw),y:my(b+hw),width:mx(a+hw)-mx(a-hw),height:my(b-hw)-my(b+hw),fill:"rgba(27,109,116,.08)",stroke:"#1b6d74","stroke-width":1.5,"stroke-dasharray":"4 3"},L);
+      if(CL.zoom)el("text",{x:mx(a+hw)+4,y:my(b+hw)+12,"class":"tick",style:"fill:#1b6d74;font:italic 13px Georgia,serif"},L,"±ηm")}
+    if(CL.st>=1){
+      var col=t>0?"#1b6d74":"#b3261e",hx=u[0]+(c[0]-u[0])*t,vy=u[1]+(c[1]-u[1])*t;
+      if(t>0)seg(mx(a),my(b),mx(a+u[0]),my(b+u[1]),"#b3261e",L,{w:2.5,op:0.3,mk:"cr"});
+      seg(mx(a),my(b),mx(a+hx),my(b),col,L,{dash:"5 3"});
+      seg(mx(a+hx),my(b),mx(a+hx),my(b+vy),col,L,{dash:"5 3"});
+      if(t===0||t>=1)seg(mx(a),my(b),mx(a+(t>=1?c[0]:u[0])),my(b+(t>=1?c[1]:u[1])),t>=1?"#1b6d74":"#b3261e",L,{w:3,mk:t>=1?"cc":"cr"});
+      if(CL.zoom){
+        el("text",{x:(mx(a)+mx(a+hx))/2,y:my(b)+(vy<0?-8:16),"text-anchor":"middle",style:"font:italic 13px Georgia,serif;fill:var(--ink)"},L,f2(hx));
+        var y2=Math.max(MP.t+14,Math.min(MP.t+MP.h-20,(my(b)+Math.max(MP.t-40,Math.min(MP.t+MP.h+40,my(b+vy))))/2));
+        el("text",{x:mx(a+hx)+(hx<0?10:-10),y:y2,"text-anchor":hx<0?"start":"end",style:"font:italic 13px Georgia,serif;fill:var(--ink)"},L,f2(vy));
+      }
+    }
+    var off=Math.abs(a+u[0])>CL.dom||Math.abs(b+u[1])>CL.dom;
+    var h="";
+    if(CL.st>=1){h+=cLine("gradient","∇J = ("+f2(v[0])+", "+f2(v[1])+")");h+=cLine("loss, one step","J: "+fJ(J0)+" → "+fJ(Ju)+(off?" (off the map)":""),CL.st>=2)}
+    if(CL.st>=2)h+=cLine("loss, clipped","J: "+fJ(J0)+" → "+fJ(Jc));
+    $("c-lines").innerHTML=h;
+    var sh=[u[0]!==c[0],u[1]!==c[1]],ct;
+    if(!sh[0]&&!sh[1])ct="Both gradient components are within the limit, so the two steps land together.";
+    else if(sh[0]&&sh[1])ct="Clipping shortens both components of the step. Each coordinate can move by at most ηm = "+hw.toFixed(2)+" in one step.";
+    else ct="Clipping shortens the "+(sh[1]?"vertical":"horizontal")+" step. Both arrows still move the same distance "+(sh[1]?"horizontally":"vertically")+". Each coordinate can move by at most ηm = "+hw.toFixed(2)+" in one step.";
+    $("c-changed-t").textContent=ct;
+    $("c-mp").hidden=CL.st<1;
+    $("c-step").hidden=CL.st>=1;$("c-clip").hidden=CL.st!==1;$("c-reset").hidden=CL.st<1;$("c-hint").hidden=CL.st<2;$("c-changed").hidden=CL.st<2;$("c-leg2").hidden=CL.st<2;
+    $("c-zoombtn").setAttribute("aria-pressed",String(CL.zoom));
+    var d=(CL.zoom?"Zoomed in on the start point. ":"Heat map of the loss over two parameters, with cliffs above θ₂ = 1 and below θ₂ = −1. ")+"Start point at θ₁ "+a.toFixed(1)+", θ₂ "+b.toFixed(1)+", loss "+fJ(J0)+".";
+    if(CL.st>=1)d+=" The step is a horizontal leg of "+f2(u[0])+" plus a vertical leg of "+f2(u[1])+"; the loss becomes "+fJ(Ju)+".";
+    if(CL.st>=2)d+=" A square of half-width ηm = "+hw.toFixed(2)+" surrounds the start point. Clipping cuts each leg at its edge: the legs become "+f2(c[0])+" and "+f2(c[1])+", and the loss becomes "+fJ(Jc)+".";
+    $("c-map-desc").textContent=d;
+    return {J0:J0,Ju:Ju,Jc:Jc,u:u,c:c};
+  }
+  function cAnimate(){
+    if(reduce){CL.t=1;cSay();return}
+    var t0=null;CL.t=0;
+    function frame(ts){if(t0===null)t0=ts;var k=Math.max(0,Math.min(1,(ts-t0)/800));CL.t=k<1?k*k*(3-2*k):1;cRender();if(k<1)requestAnimationFrame(frame);else cSay()}
+    requestAnimationFrame(frame);
+  }
+  function cSay(){var r=cRender();say("c-status",CL.st>=2?"Without clipping the loss goes from "+fJ(r.J0)+" to "+fJ(r.Ju)+". Clipped, it goes to "+fJ(r.Jc)+".":"One step: the loss goes from "+fJ(r.J0)+" to "+fJ(r.Ju)+".")}
+  function cMove(a,b){CL.start=[Math.max(-2.9,Math.min(2.9,a)),Math.max(-2.9,Math.min(2.9,b))];cRender()}
+  cDrawMap();cRender();
+  $("c-step").addEventListener("click",function(){CL.st=1;cSay();$("c-clip").focus()});
+  $("c-clip").addEventListener("click",function(){CL.st=2;cAnimate();$("c-reset").focus()});
+  $("c-reset").addEventListener("click",function(){CL.st=0;CL.t=1;CL.start=[-2,1.6];cRender();$("c-step").focus()});
+  $("c-zoombtn").addEventListener("click",function(){CL.zoom=!CL.zoom;cRender();say("c-status",CL.zoom?"Zoomed in on the start point.":"Full map.")});
+  (function(){var drag=false,s=$("c-map");
+    function pt(e){var r=s.getBoundingClientRect(),x=(e.clientX-r.left)*380/r.width,y=(e.clientY-r.top)*380/r.height,v=view();return [v.cx-v.h+(x-MP.l)/MP.w*2*v.h,v.cy+v.h-(y-MP.t)/MP.h*2*v.h]}
+    CL.sg.addEventListener("pointerdown",function(e){if(CL.zoom)return;drag=true;s.setPointerCapture(e.pointerId);e.preventDefault()});
+    s.addEventListener("pointermove",function(e){if(!drag)return;var p=pt(e);cMove(Math.round(p[0]*10)/10,Math.round(p[1]*10)/10)});
+    s.addEventListener("pointerup",function(){if(drag){drag=false;cSay()}});
+    CL.sg.addEventListener("keydown",function(e){var d={ArrowLeft:[-0.1,0],ArrowRight:[0.1,0],ArrowUp:[0,0.1],ArrowDown:[0,-0.1]}[e.key];if(!d)return;e.preventDefault();cMove(Math.round((CL.start[0]+d[0])*10)/10,Math.round((CL.start[1]+d[1])*10)/10);cSay()});
+  })();
+
+  /* ---------- slide 4: normalization ---------- */
+  var NM={N:3,C:4,H:2,W:3,kind:"batch",view:"3d",mark:[0,1,2],seen:{batch:true}};
+  var NC=18,NG={x0:46,y0:30,gap:18};
+  function nIn(n,c,p){var m=NM.mark;return NM.kind==="batch"?c===m[1]:(n===m[0]&&p===m[2])}
+  function nDraw(){
+    var s=$("n-fig");s.innerHTML="";var HW=NM.H*NM.W,gw=HW*NC;
+    for(var n=0;n<NM.N;n++){var ox=NG.x0+n*(gw+NG.gap);
+      el("text",{x:ox+gw/2,y:18,"text-anchor":"middle","class":"ttl"},s,"image "+(n+1));
+      for(var c=0;c<NM.C;c++)for(var p=0;p<HW;p++){
+        var cls="cell"+(nIn(n,c,p)?" in":"")+((n===NM.mark[0]&&c===NM.mark[1]&&p===NM.mark[2])?" mark":"");
+        var r=el("rect",{x:ox+p*NC,y:NG.y0+c*NC,width:NC-2,height:NC-2,rx:2,"class":cls},s);r.dataset.n=n;r.dataset.c=c;r.dataset.p=p}
+    }
+    for(var c=0;c<NM.C;c++)el("text",{x:NG.x0-6,y:NG.y0+c*NC+12,"text-anchor":"end","class":"lab"},s,"c"+(c+1));
+    el("text",{x:NG.x0-30,y:NG.y0+NM.C*NC/2,"text-anchor":"middle","class":"lab",transform:"rotate(-90 "+(NG.x0-30)+" "+(NG.y0+NM.C*NC/2)+")"},s,"channel");
+    el("text",{x:NG.x0+(NM.N*(gw+NG.gap)-NG.gap)/2,y:NG.y0+NM.C*NC+18,"text-anchor":"middle","class":"lab"},s,"each row: the "+HW+" locations (H × W = "+NM.H+" × "+NM.W+") of one channel");
+  }
+  /* Tade's block: C across the front, H,W (flattened) down, N back in depth. The front face is image 1. */
+  function nDraw3D(){
+    var s=$("n-fig");s.innerHTML="";var HW=NM.H*NM.W,S=24,dx=18,dy=-13,ox=40,oy=30+(NM.N)*13;
+    function cls(n,c,p){return "cell"+(nIn(n,c,p)?" in":"")+((n===NM.mark[0]&&c===NM.mark[1]&&p===NM.mark[2])?" mark":"")}
+    function quad(pts,c,n,p,extra){var r=el("path",{d:"M"+pts.map(function(q){return q[0]+","+q[1]}).join(" L")+" Z","class":cls(n,c,p)+" "+extra},s);r.dataset.n=n;r.dataset.c=c;r.dataset.p=p;return r}
+    function P(c,n){return [ox+c*S+n*dx,oy+n*dy]}
+    function Q(p,n){return [ox+NM.C*S+n*dx,oy+p*S+n*dy]}
+    for(var n=NM.N-1;n>=0;n--)for(var c=0;c<NM.C;c++)quad([P(c,n),P(c+1,n),P(c+1,n+1),P(c,n+1)],c,n,0,"face-top");
+    for(var n=NM.N-1;n>=0;n--)for(var p=0;p<HW;p++)quad([Q(p,n),Q(p,n+1),Q(p+1,n+1),Q(p+1,n)],NM.C-1,n,p,"face-side");
+    for(var c=0;c<NM.C;c++)for(var p=0;p<HW;p++){var r=el("rect",{x:ox+c*S,y:oy+p*S,width:S,height:S,"class":cls(0,c,p)},s);r.dataset.n=0;r.dataset.c=c;r.dataset.p=p}
+    el("text",{x:ox+NM.C*S/2,y:oy+HW*S+18,"text-anchor":"middle","class":"ttl"},s,"C (channels)");
+    el("text",{x:ox-10,y:oy+HW*S/2,"text-anchor":"middle","class":"ttl",transform:"rotate(-90 "+(ox-10)+" "+(oy+HW*S/2)+")"},s,"H, W (locations)");
+    var e=Q(HW,NM.N);el("text",{x:e[0]+6,y:e[1]+4,"class":"ttl"},s,"N (images)");
+    el("text",{x:ox,y:oy+HW*S+34,"class":"lab"},s,"front face: image 1");
+  }
+  function nShape(){
+    var host=$("n-shape");host.innerHTML="";var m=NM.mark;
+    function grid(r,c,hi){var sv=document.createElementNS(NS,"svg");sv.setAttribute("width",c*11+2);sv.setAttribute("height",r*11+2);sv.setAttribute("aria-hidden","true");
+      for(var i=0;i<r;i++)for(var j=0;j<c;j++)el("rect",{x:1+j*11,y:1+i*11,width:11,height:11,style:"fill:"+(hi(i,j)?"var(--norm)":"#f6c8a8")+";stroke:var(--norm)"},sv);return sv}
+    var t=document.createElement("span");
+    if(NM.kind==="batch"){host.appendChild(grid(NM.C,1,function(i){return i===m[1]}));t.textContent="C = "+NM.C+": one mean per channel";}
+    else{for(var n=0;n<NM.N;n++)host.appendChild(grid(NM.H,NM.W,function(i,j){return n===m[0]&&i*NM.W+j===m[2]}));t.textContent="N × H × W = "+NM.N+" × "+NM.H+" × "+NM.W+": one mean per image and location";}
+    host.appendChild(t);
+  }
+  function nRender(){
+    var g3=NM.view==="3d";if(g3)NM.mark[0]=0;
+    $("n-fig").setAttribute("viewBox",g3?"0 0 300 236":"0 0 430 136");
+    if(g3)nDraw3D();else nDraw();nShape();
+    $("n-hint").textContent="Move the mark to the next channel, in the same image and location"+(g3?" (click the front face, or focus the block and use the arrow keys)":" (click, or focus the figure and use the arrow keys)")+". Under which normalization does it still use the same mean?";
+    Array.from($("n-view").querySelectorAll("button")).forEach(function(x){x.setAttribute("aria-pressed",String(x.dataset.v===NM.view))});var b=NM.kind==="batch",m=NM.mark;
+    $("n-h").textContent=b?"Batch norm":"Layer norm";
+    $("n-over").textContent=b?"every image and every location, for one channel: N · H · W = "+(NM.N*NM.H*NM.W)+" values":"every channel, for one image and one location: C = "+NM.C+" values";
+    $("n-code").textContent=b?"torch.einsum('nchw->c', x) / (N*H*W)":"torch.einsum('nchw->nhw', x) / C";
+    Array.from($("n-kind").querySelectorAll("button")).forEach(function(x){x.setAttribute("aria-pressed",String(x.dataset.k===NM.kind))});
+    $("n-changed").hidden=!(NM.seen.batch&&NM.seen.layer);
+    $("n-fig-desc").textContent="Activations of "+NM.N+" images, "+NM.C+" channels and "+(NM.H*NM.W)+" locations each. Marked: image "+(m[0]+1)+", channel "+(m[1]+1)+", location "+(m[2]+1)+". "+(b?"Batch norm highlights channel "+(m[1]+1)+" in every image and location, "+(NM.N*NM.H*NM.W)+" values.":"Layer norm highlights all "+NM.C+" channels at that image and location.");
+  }
+  $("n-kind").addEventListener("click",function(e){var x=e.target.closest&&e.target.closest("button[data-k]");if(!x)return;NM.kind=x.dataset.k;NM.seen[NM.kind]=true;nRender();say("n-status",$("n-fig-desc").textContent)});
+  $("n-fig").addEventListener("click",function(e){var r=e.target;if(!r.dataset||r.dataset.n==null)return;NM.mark=[+r.dataset.n,+r.dataset.c,+r.dataset.p];nRender();say("n-status","Marked image "+(NM.mark[0]+1)+", channel "+(NM.mark[1]+1)+", location "+(NM.mark[2]+1)+".")});
+  $("n-view").addEventListener("click",function(e){var x=e.target.closest&&e.target.closest("button[data-v]");if(!x)return;NM.view=x.dataset.v;nRender()});
+  $("n-fig").addEventListener("keydown",function(e){var m=NM.mark.slice(),HW=NM.H*NM.W;
+    if(NM.view==="3d"){if(e.key==="ArrowLeft")m[1]=Math.max(0,m[1]-1);else if(e.key==="ArrowRight")m[1]=Math.min(NM.C-1,m[1]+1);else if(e.key==="ArrowUp")m[2]=Math.max(0,m[2]-1);else if(e.key==="ArrowDown")m[2]=Math.min(HW-1,m[2]+1);else return;
+      e.preventDefault();NM.mark=m;nRender();say("n-status","Channel "+(m[1]+1)+", location "+(m[2]+1)+", image 1.");return}
+    if(e.key==="ArrowUp")m[1]=Math.max(0,m[1]-1);else if(e.key==="ArrowDown")m[1]=Math.min(NM.C-1,m[1]+1);
+    else if(e.key==="ArrowLeft"){if(m[2]>0)m[2]--;else if(m[0]>0){m[0]--;m[2]=HW-1}}
+    else if(e.key==="ArrowRight"){if(m[2]<HW-1)m[2]++;else if(m[0]<NM.N-1){m[0]++;m[2]=0}}else return;
+    e.preventDefault();NM.mark=m;nRender();say("n-status","Image "+(m[0]+1)+", channel "+(m[1]+1)+", location "+(m[2]+1)+".")});
+  nRender();
+
+  /* ---------- slide 5: shortcut ---------- */
+  var RS={on:false,x:[0.8,-0.5,1.2,0.3]};
+  function bars(s,vals,x0,y0,col,lab){
+    var bw=22,sc=28;el("line",{x1:x0-4,x2:x0+vals.length*(bw+6),y1:y0,y2:y0,stroke:"#9aa5a3"},s);
+    vals.forEach(function(v,i){var h=v*sc;el("rect",{x:x0+i*(bw+6),y:h>=0?y0-h:y0,width:bw,height:Math.max(Math.abs(h),0.01),fill:col},s)});
+    el("text",{x:x0-10,y:y0+5,"text-anchor":"end","class":"bt"},s,lab);
+  }
+  function rBlock(){
+    var s=$("r-block");s.innerHTML="";var defs=el("defs",{},s);var mk=el("marker",{id:"rk",viewBox:"0 0 10 10",refX:9,refY:5,markerWidth:7,markerHeight:7,orient:"auto"},defs);el("path",{d:"M0,0 L10,5 L0,10 z",fill:"#3f4d51"},mk);
+    var cx=120,out=RS.on?RS.x:RS.x.map(function(){return 0});
+    bars(s,RS.x,cx-54,48,"#7b8785","x");
+    [["W₁ = 0",112],["ReLU",162],["W₂ = 0",212]].forEach(function(b,i){el("path",{d:"M"+cx+","+(i?b[1]-34:80)+" L"+cx+","+(b[1]-16),stroke:"#3f4d51","stroke-width":1.6,"marker-end":"url(#rk)"},s);
+      el("rect",{x:cx-38,y:b[1]-14,width:76,height:28,rx:3,"class":"bx"},s);el("text",{x:cx,y:b[1]+5,"text-anchor":"middle","class":"bt"},s,b[0])});
+    el("path",{d:"M"+(cx-48)+",96 L"+(cx-56)+",96 L"+(cx-56)+",228 L"+(cx-48)+",228",fill:"none",stroke:"#9aa5a3"},s);
+    el("text",{x:cx-62,y:166,"text-anchor":"end","class":"bt"},s,"F(x)");
+    el("path",{d:"M"+cx+",226 L"+cx+",248",stroke:"#3f4d51","stroke-width":1.6,"marker-end":"url(#rk)"},s);
+    if(RS.on){el("path",{d:"M"+(cx+60)+",48 L"+(cx+95)+",48 L"+(cx+95)+",262 L"+(cx+12)+",262","class":"sc","marker-end":"url(#rk)"},s);
+      el("text",{x:cx+100,y:160,"class":"small"},s,"x");}
+    el("circle",{cx:cx,cy:262,r:11,fill:"#fff",stroke:"#3f4d51","stroke-width":1.6},s);el("text",{x:cx,y:268,"text-anchor":"middle","class":"bt"},s,RS.on?"+":"");
+    el("path",{d:"M"+cx+",273 L"+cx+",284",stroke:"#3f4d51","stroke-width":1.6},s);
+    bars(s,out,cx-54,310,RS.on?"var(--res)":"#b3261e","y");
+    $("r-block-desc").textContent="A block of W₁, ReLU and W₂, every weight 0, fed the input x = ("+RS.x.join(", ")+"). "+(RS.on?"With the identity shortcut, x is added back, so the output y equals x.":"Without a shortcut the output y is all zeros.");
+  }
+  function rRender(){
+    rBlock();
+    var h='<div class="line"><span class="lhs">F(x)</span><span class="rhs">W₂ ReLU(W₁x) = 0</span></div>';
+    h+='<div class="line'+(RS.on?" dim":"")+'"><span class="lhs">plain</span><span class="rhs">y = F(x) = 0, so the input is lost</span></div>';
+    if(RS.on)h+='<div class="line"><span class="lhs">residual</span><span class="rhs">y = x + F(x) = x, so the input passes through</span></div>';
+    $("r-lines").innerHTML=h;
+    $("r-add").hidden=RS.on;$("r-reset").hidden=!RS.on;$("r-changed").hidden=!RS.on;
+  }
+  rRender();
+  $("r-add").addEventListener("click",function(){RS.on=true;rRender();say("r-status","Shortcut added. y equals x plus F of x, which is x: the input passes through.");$("r-reset").focus()});
+  $("r-reset").addEventListener("click",function(){RS.on=false;rRender();$("r-add").focus()});
+
+  /* ---------- story beats ---------- */
+  var FIG={
+    step:'<circle cx="30" cy="62" r="5" fill="#fff" stroke="#1d292b" stroke-width="2"/><path d="M34 59 L128 22" stroke="#b3261e" stroke-width="3" marker-end="url(#fa1)"/><text x="98" y="58" class="t">−η∇J</text>',
+    steep:'<path d="M6 74 C40 74 70 72 96 60 C116 50 126 30 132 6" fill="none" stroke="#1d292b" stroke-width="2"/><circle cx="124" cy="38" r="5" fill="#fff" stroke="#1d292b" stroke-width="2"/><path d="M119 40 L14 52" stroke="#b3261e" stroke-width="3" marker-end="url(#fa1)"/><text x="140" y="20" class="t">steep</text>',
+    box:'<rect x="50" y="18" width="56" height="56" fill="rgba(27,109,116,.08)" stroke="#1b6d74" stroke-dasharray="5 3"/><path d="M78 46 L86 74" stroke="#1b6d74" stroke-width="3" marker-end="url(#fa2)"/><path d="M86 74 L96 84" stroke="#b3261e" stroke-width="2" opacity=".35"/><text x="112" y="30" class="t" style="fill:#1b6d74">±m</text>',
+    layer:'<path d="M6 46 L38 46" stroke="#3f4d51" stroke-width="2" marker-end="url(#fa3)"/><text x="6" y="38" class="t">x</text><rect x="42" y="30" width="44" height="32" rx="3" fill="#f3dcae" stroke="#9a6a12"/><text x="64" y="51" text-anchor="middle" class="t">f</text><path d="M90 46 L122 46" stroke="#3f4d51" stroke-width="2" marker-end="url(#fa3)"/><text x="126" y="51" class="t">Wx+b</text><rect x="40" y="70" width="22" height="16" rx="2" fill="#2a9fd6"/><rect x="66" y="70" width="22" height="16" rx="2" fill="#2a9fd6"/><text x="51" y="82" text-anchor="middle" class="t" style="fill:#fff;font-size:11px">W</text><text x="77" y="82" text-anchor="middle" class="t" style="fill:#fff;font-size:11px">b</text>',
+    chain:'<rect x="6" y="32" width="26" height="24" rx="3" fill="#f3dcae" stroke="#9a6a12"/><rect x="44" y="32" width="26" height="24" rx="3" fill="#f3dcae" stroke="#9a6a12"/><rect x="82" y="32" width="26" height="24" rx="3" fill="#f3dcae" stroke="#9a6a12"/><rect x="120" y="32" width="22" height="24" rx="3" fill="#e5735f" stroke="#8f2a1c"/><path d="M32 44 L42 44 M70 44 L80 44 M108 44 L118 44 M142 44 L152 44" stroke="#3f4d51" stroke-width="2"/><text x="156" y="50" class="t">J</text>',
+    grow:'<path d="M150 46 L20 46" stroke="#b3261e" stroke-width="3" marker-end="url(#fa1)"/><g transform="translate(58,58)"><rect width="12" height="12" fill="#f8d3cf" stroke="#b3261e"/><rect x="12" width="12" height="12" fill="#f8d3cf" stroke="#b3261e"/><rect x="24" width="12" height="12" fill="#f8d3cf" stroke="#b3261e"/></g><text x="96" y="38" class="t">g</text>',
+    product:'<text x="4" y="52" class="t" style="font-size:17px">g · W₃ · W₂ · W₁</text><path d="M156 66 L14 66" stroke="#b3261e" stroke-width="2" marker-end="url(#fa1)"/>',
+    fade:'<rect x="128" y="14" width="18" height="60" fill="#f8d3cf" stroke="#b3261e"/><rect x="96" y="44" width="18" height="30" fill="#f8d3cf" stroke="#b3261e"/><rect x="64" y="60" width="18" height="14" fill="#f8d3cf" stroke="#b3261e"/><rect x="32" y="69" width="18" height="5" fill="#f8d3cf" stroke="#b3261e"/><text x="2" y="88" class="t" style="font-size:11px">first layer</text><text x="118" y="88" class="t" style="font-size:11px">output</text>',
+    scales:'<path d="M10 30 L150 30" stroke="#9a3d16" stroke-width="4"/><path d="M10 50 L40 50" stroke="#9a3d16" stroke-width="4"/><text x="8" y="22" class="t" style="font-size:11px">two inputs, different scales</text><path d="M10 72 L70 72 M10 82 L70 82" stroke="#9a3d16" stroke-width="4"/><text x="80" y="80" class="t" style="font-size:11px">common scale</text>',
+    drift:'<path d="M10 74 C30 74 34 34 50 34 C66 34 70 74 90 74" fill="none" stroke="#9a3d16" stroke-width="2"/><path d="M60 74 C90 74 100 48 120 48 C140 48 150 74 168 74" fill="none" stroke="#9a3d16" stroke-width="2" stroke-dasharray="5 3"/><text x="34" y="26" class="t" style="font-size:11px">early</text><text x="108" y="40" class="t" style="font-size:11px">later</text>',
+    norm:'<path d="M30 74 C55 74 62 28 85 28 C108 28 115 74 140 74" fill="none" stroke="#9a3d16" stroke-width="2"/><path d="M85 22 L85 80" stroke="#1d292b" stroke-dasharray="3 3"/><text x="89" y="88" class="t" style="font-size:11px">mean 0</text>',
+    degrade:'<path d="M14 8 L14 80 L166 80" fill="none" stroke="#9aa5a3"/><path d="M18 12 C40 60 70 62 90 62 C110 62 130 40 160 24" fill="none" stroke="#b3261e" stroke-width="3" stroke-dasharray="7 4"/><text x="90" y="92" text-anchor="middle" class="t" style="font-size:11px">depth →</text><text x="6" y="50" class="t" style="font-size:11px" transform="rotate(-90 6 50)">error</text>',
+    copy:'<rect x="8" y="10" width="40" height="16" rx="2" fill="#f3dcae" stroke="#9a6a12"/><rect x="8" y="30" width="40" height="16" rx="2" fill="#f3dcae" stroke="#9a6a12"/><text x="58" y="34" class="t">=</text><rect x="80" y="10" width="40" height="16" rx="2" fill="#f3dcae" stroke="#9a6a12"/><rect x="80" y="30" width="40" height="16" rx="2" fill="#f3dcae" stroke="#9a6a12"/><rect x="80" y="50" width="40" height="16" rx="2" fill="#fff" stroke="#245a7a" stroke-dasharray="4 2"/><rect x="80" y="70" width="40" height="16" rx="2" fill="#fff" stroke="#245a7a" stroke-dasharray="4 2"/><text x="126" y="72" class="t" style="font-size:11px;fill:#245a7a">pass</text><text x="126" y="84" class="t" style="font-size:11px;fill:#245a7a">through</text>'
+  };
+  var MK='<defs><marker id="fa1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#b3261e"/></marker><marker id="fa2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1b6d74"/></marker><marker id="fa3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#3f4d51"/></marker></defs><style>.t{font:italic 15px Georgia,serif;fill:#1d292b}</style>';
+  Array.from(document.querySelectorAll(".intro .fig")).forEach(function(f){f.innerHTML='<svg viewBox="0 0 180 96">'+MK+(FIG[f.dataset.fig]||"")+'</svg>'});
+  var ANIM=!/[?&]anim=0/.test(location.search),STAGGER=900,played={},itimers=[];
+  function sec(k){return document.querySelectorAll(".stage")[k]}
+  function iClear(){itimers.forEach(clearTimeout);itimers=[]}
+  function introBtn(k,done){var b=sec(k).querySelector(".intro-skip");b.textContent=done?sec(k).querySelector(".intro").dataset.go:"Show all";b.className=done?"go intro-skip":"again intro-skip";sec(k).classList.toggle("told",!!done)}
+  function showAll(k){iClear();sec(k).querySelectorAll(".intro .ln").forEach(function(l){l.classList.add("on")});introBtn(k,true)}
+  function playIntro(k){var s=sec(k),ls=Array.from(s.querySelectorAll(".intro .ln"));iClear();s.classList.remove("revealed");s.classList.add("playing");s.querySelector(".replay").hidden=true;
+    if(reduce){showAll(k);return}introBtn(k,false);ls.forEach(function(l,i){l.classList.remove("on");itimers.push(setTimeout(function(){l.classList.add("on");if(i===ls.length-1)introBtn(k,true)},250+i*STAGGER))})}
+  function endIntro(k,animate){iClear();var s=sec(k);s.classList.remove("playing");s.classList.toggle("revealed",!!animate);s.querySelectorAll(".intro .ln").forEach(function(l){l.classList.add("on")});s.querySelector(".replay").hidden=false;played[k]=true}
+  function leaveIntro(k){iClear();var s=sec(k);if(s&&s.classList.contains("playing")){s.classList.remove("playing");played[k]=false}}
+  function enterFrame(k){if(!ANIM){endIntro(k,false);return}if(!played[k])playIntro(k)}
+  Array.from(document.querySelectorAll(".stage")).forEach(function(s,k){
+    s.querySelector(".intro-skip").addEventListener("click",function(){if(!s.classList.contains("told")){showAll(k);s.querySelector(".intro-skip").focus();return}endIntro(k,true);s.querySelector("h2").focus()});
+    s.querySelector(".replay").addEventListener("click",function(){playIntro(k);s.querySelector(".intro-skip").focus()});
+  });
+
+  /* ---------- tabs and pager ---------- */
+  var tabs=Array.from(document.querySelectorAll(".step")),panels=Array.from(document.querySelectorAll(".stage")),cur=0;
+  var NAMES=["Clip","Backprop","Initialize","Normalize","Shortcut"];
+  function show(i,focus){if(typeof cur==="number"&&cur!==i)leaveIntro(cur);cur=i;tabs.forEach(function(t,n){t.setAttribute("aria-selected",String(n===i));t.tabIndex=n===i?0:-1});panels.forEach(function(p,n){p.hidden=n!==i});
+    $("prev").disabled=i===0;$("next").disabled=i===tabs.length-1;$("pcount").textContent=(i+1)+" of "+tabs.length;
+    $("next-label").textContent=i<tabs.length-1?"Next: "+NAMES[i+1]:"Next";
+    enterFrame(i);
+    if(focus)panels[i].querySelector(sec(i).classList.contains("playing")?".intro-skip":"h2").focus()}
+  tabs.forEach(function(t,i){t.addEventListener("click",function(){show(i,false)});t.addEventListener("keydown",function(e){var j=null;if(e.key==="ArrowRight")j=(i+1)%tabs.length;if(e.key==="ArrowLeft")j=(i+tabs.length-1)%tabs.length;if(e.key==="Home")j=0;if(e.key==="End")j=tabs.length-1;if(j!==null){e.preventDefault();show(j,false);tabs[j].focus()}})});
+  $("prev").addEventListener("click",function(){if(cur>0)show(cur-1,true)});
+  $("next").addEventListener("click",function(){if(cur<tabs.length-1)show(cur+1,true)});
+  show(0,false);
+})();
+</script>
+</body>
+</html>
