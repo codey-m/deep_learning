@@ -47,6 +47,7 @@ the lesson.
 | [Pull together, push apart](https://codey-m.github.io/deep_learning/widgets/widget-pull-and-push.html) | Unit 2 overview | Forty-five birds of three kinds pulled into flocks by forces you control |
 | [Contrastive neighborhoods](https://codey-m.github.io/deep_learning/widgets/bridge-contrastive-evaluation.html) | Unit 2, Lec. 3: Similarity-based Methods |  |
 | [Weight symmetries: the same function, different weights](https://codey-m.github.io/deep_learning/widgets/widget-weight-symmetry.html) | Unit 2, Lec. 4: Weight-space Geometry | Weight symmetries and averaging |
+| [What makes two points close](https://codey-m.github.io/deep_learning/widgets/unit-summary-what-makes-two-points-close.html) | Unit 2, Lec. 4: Weight-space Geometry | Unit 2 synthesis: what makes two points close? |
 | [6.7960x — Glossary](https://codey-m.github.io/deep_learning/widgets/glossary-module4.html) | Glossary tab | Module 4 Glossary |
 
 ## 6.7960.5x Deep Learning: Generative Models
